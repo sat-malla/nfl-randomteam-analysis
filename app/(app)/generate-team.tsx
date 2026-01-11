@@ -52,6 +52,16 @@ const GenerateTeam = () => {
     colorScheme === "light" ? styles.lightContainer : styles.darkContainer;
   const themeTextStyle =
     colorScheme === "light" ? styles.lightText : styles.darkText;
+  const themeTableStyle =
+    colorScheme === "light" ? styles.lightTable : styles.darkTable;
+  const themeFormStyle =
+    colorScheme === "light" ? styles.lightForm : styles.darkForm;
+  const themeInputTextStyle =
+    colorScheme === "light" ? styles.lightInputText : styles.darkInputText;
+  const themeButtonStyle =
+    colorScheme === "light" ? styles.lightButton : styles.darkButton;
+  const themeButtonTextStyle =
+    colorScheme === "light" ? styles.lightButtonText : styles.darkButtonText;
 
   return (
     <ScrollView
@@ -68,7 +78,7 @@ const GenerateTeam = () => {
       <Text style={[styles.subText, themeTextStyle]}>
         Choose your preferences below to generate your team!
       </Text>
-      <View style={styles.formContainer}>
+      <View style={[styles.formContainer, themeFormStyle]}>
         <FormControl size="lg">
           <VStack space="md">
             <Heading size="lg">Team Preferences</Heading>
@@ -80,7 +90,7 @@ const GenerateTeam = () => {
                 type="text"
                 placeholder="Team Name"
                 value={formData.teamName}
-                style={styles.inputField}
+                style={themeInputTextStyle}
                 onChangeText={(text) =>
                   setFormData({ ...formData, teamName: text })
                 }
@@ -125,15 +135,15 @@ const GenerateTeam = () => {
           </VStack>
         </FormControl>
         <TouchableOpacity
-          style={[styles.button, isFormFilled && styles.disabledButton]}
+          style={[isFormFilled ? styles.disabledButton : themeButtonStyle]}
           disabled={isFormFilled}
           onPress={() => setGenerateTeam(true)}
         >
-          <Text style={styles.buttonText}>Generate Team</Text>
+          <Text style={isFormFilled ? styles.lightButtonText : themeButtonTextStyle}>Generate Team</Text>
         </TouchableOpacity>
       </View>
       {generateTeam && (
-        <Box style={styles.tableContainer}>
+        <Box style={themeTableStyle}>
           <Table style={{ width: "100%" }}>
             <TableHeader>
               <TableRow>
@@ -144,14 +154,14 @@ const GenerateTeam = () => {
             </TableHeader>
             <TableBody>
               <TableRow>
-                <TableData>Rajesh Kumar</TableData>
-                <TableData>10</TableData>
-                <TableData>$130</TableData>
+                <TableData>QB</TableData>
+                <TableData>Brock Purdy</TableData>
+                <TableData>San Francisco 49ers</TableData>
               </TableRow>
               <TableRow>
-                <TableData>Priya Sharma</TableData>
-                <TableData>12</TableData>
-                <TableData>$210</TableData>
+                <TableData>WR</TableData>
+                <TableData>Puka Nakua</TableData>
+                <TableData>Los Angeles Rams</TableData>
               </TableRow>
             </TableBody>
           </Table>
@@ -183,19 +193,36 @@ const styles = StyleSheet.create({
   formContainer: {
     flexDirection: "column",
     gap: 12,
-    borderWidth: 1,
-    borderColor: "#02080f",
-    borderRadius: 10,
     padding: 15,
     marginTop: 20,
     width: "90%",
+    borderWidth: 1,
+    borderRadius: 10,
   },
-  tableContainer: {
+  lightForm: {
+    borderColor: "#02080f",
+    borderWidth: 1,
+    borderRadius: 10,
+  },
+  darkForm: {
+    borderColor: "#edf5ff",
+    borderWidth: 1,
+    borderRadius: 10,
+  },
+  lightTable: {
     width: "95%",
     marginTop: 20,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: "#02080f",
+    overflow: "hidden",
+  },
+  darkTable: {
+    width: "95%",
+    marginTop: 20,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#edf5ff",
     overflow: "hidden",
   },
   lightContainer: {
@@ -210,12 +237,23 @@ const styles = StyleSheet.create({
   darkText: {
     color: "#edf5ff",
   },
-  inputField: {
+  lightInputText: {
     color: "#02080f",
     width: "100%",
   },
-  button: {
+  darkInputText: {
+    color: "#edf5ff",
+    width: "100%",
+  },
+  lightButton: {
     backgroundColor: "#02080f",
+    padding: 10,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 10,
+  },
+  darkButton: {
+    backgroundColor: "#edf5ff",
     padding: 10,
     borderRadius: 10,
     alignItems: "center",
@@ -223,10 +261,17 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     backgroundColor: "#d4d4d4",
+    padding: 10,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 10,
   },
-  buttonText: {
+  lightButtonText: {
     color: "#edf5ff",
   },
+  darkButtonText: {
+    color: "#02080f",
+  }
 });
 
 export default GenerateTeam;
