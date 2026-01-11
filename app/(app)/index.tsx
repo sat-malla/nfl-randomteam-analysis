@@ -1,4 +1,5 @@
-import { LinearGradient } from 'expo-linear-gradient';
+import { LinearGradient } from "expo-linear-gradient";
+import { Href, useRouter } from "expo-router";
 import {
   Dimensions,
   FlatList,
@@ -6,29 +7,10 @@ import {
   Text,
   TouchableOpacity,
   useColorScheme,
-  View
+  View,
 } from "react-native";
 
-const GridButtons = [
-  {
-    id: 1,
-    title: "Generate",
-  },
-  {
-    id: 2,
-    title: "Generate",
-  },
-  {
-    id: 3,
-    title: "Generate",
-  },
-  {
-    id: 4,
-    title: "Generate",
-  },
-];
-
-const { width } = Dimensions.get('window')
+const { width } = Dimensions.get("window");
 const gap = 16;
 const itemWidth = (width - gap * 3) / 2;
 
@@ -40,13 +22,36 @@ export default function Index() {
   const themeTextStyle =
     colorScheme === "light" ? styles.lightText : styles.darkText;
 
+  const router = useRouter();
+
+  const GridButtons = [
+    {
+      id: 1,
+      title: "Generate New Team",
+      link: "/generate-team",
+    },
+    {
+      id: 2,
+      title: "Analyze Team",
+      link: "/",
+    },
+    {
+      id: 3,
+      title: "How it Works",
+      link: "/",
+    },
+    {
+      id: 4,
+      title: "About the Creator",
+      link: "/",
+    },
+  ];
+
   return (
-    <View
-      style={[styles.container, themeContainerStyle]}
-    >
+    <View style={[styles.container, themeContainerStyle]}>
       <Text
         style={{
-          fontSize: 29,
+          fontSize: 25,
           fontWeight: "bold",
           marginTop: 40,
           textAlign: "center",
@@ -67,7 +72,7 @@ export default function Index() {
       <FlatList
         data={GridButtons}
         renderItem={({ item }) => (
-          <TouchableOpacity style={styles.button}>
+          <TouchableOpacity style={styles.button} onPress={() => router.navigate(item.link as Href)}>
             <LinearGradient
               colors={["#b0d3ff", "#deedff"]}
               style={styles.buttonBackground}
@@ -77,9 +82,9 @@ export default function Index() {
             <Text>{item.title}</Text>
           </TouchableOpacity>
         )}
-       numColumns={2}
-       style={{ marginTop: 30 }}
-       columnWrapperStyle={styles.gridRow}
+        numColumns={2}
+        style={{ marginTop: 40 }}
+        columnWrapperStyle={styles.gridRow}
       />
     </View>
   );
@@ -89,6 +94,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     alignItems: "center",
+    paddingHorizontal: 10,
   },
   text: {
     fontSize: 29,
@@ -111,12 +117,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: 20,
-    width: itemWidth
+    paddingTop: 25,
+    width: itemWidth,
   },
   buttonBackground: {
     position: "absolute",
-    left: 0,
-    right: 0,
     top: 0,
     height: 70,
     width: 150,
@@ -126,7 +131,7 @@ const styles = StyleSheet.create({
   },
   gridRow: {
     flex: 1,
-    justifyContent: 'space-between',
-    marginBottom: 30
+    justifyContent: "space-between",
+    marginBottom: 30,
   },
 });
