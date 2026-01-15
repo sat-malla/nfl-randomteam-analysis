@@ -1,0 +1,149 @@
+package handlers
+
+import (
+	"context"
+	"strconv"
+	"time"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/sat-malla/nfl-random-team-analysis/backend/models"
+)
+
+type teamHandler struct {
+	repository models.TeamRepository
+}
+
+func (h *teamHandler) GetMany(c *fiber.Ctx) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(5*time.Second))
+	defer cancel()
+
+	teams, err := h.repository.GetMany(ctx)
+
+	if err != nil {
+		return c.Status(fiber.StatusBadGateway).JSON(&fiber.Map{
+			"status":  "Failure",
+			"message": "Failed to fetch teams",
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(&fiber.Map{
+		"status":  "Success",
+		"message": "Teams fetched successfully",
+		"data":    teams,
+	})
+}
+
+func (h *teamHandler) GetOne(c *fiber.Ctx) error {
+	teamId, _ := strconv.Atoi(c.Params("teamId"))
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(5*time.Second))
+	defer cancel()
+
+	team, err := h.repository.GetOne(ctx, uint(teamId))
+
+	if err != nil {
+		return c.Status(fiber.StatusBadGateway).JSON(&fiber.Map{
+			"status":  "Failure",
+			"message": "Failed to fetch team",
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(&fiber.Map{
+		"status":  "Success",
+		"message": "Team fetched successfully",
+		"data":    team,
+	})
+}
+
+func (h *teamHandler) CreateOne(c *fiber.Ctx) error {
+	team := &models.Team{}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(5*time.Second))
+	defer cancel()
+
+	if err := c.BodyParser(team); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(&fiber.Map{
+			"status":  "Failure",
+			"message": "Invalid request body",
+		})
+	}
+
+	createdTeam, err := h.repository.CreateOne(ctx, *team)
+
+	if err != nil {
+		return c.Status(fiber.StatusBadGateway).JSON(&fiber.Map{
+			"status":  "Failure",
+			"message": "Failed to create team",
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(&fiber.Map{
+		"status":  "Success",
+		"message": "Team created successfully",
+		"data":    createdTeam,
+	})
+}
+
+func (h *teamHandler) DeleteOne(c *fiber.Ctx) error {
+	teamId, _ := strconv.Atoi(c.Params("teamId"))
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(5*time.Second))
+	defer cancel()
+
+	err := h.repository.DeleteOne(ctx, uint(teamId))
+
+	if err != nil {
+		return c.Status(fiber.StatusBadGateway).JSON(&fiber.Map{
+			"status":  "Failure",
+			"message": "Failed to delete team",
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(&fiber.Map{
+		"status":  "Success",
+		"message": "Team deleted successfully",
+	})
+}
+
+func (h *teamHandler) UpdateOne(c *fiber.Ctx) error {
+	teamId, _ := strconv.Atoi(c.Params("teamId"))
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(5*time.Second))
+	defer cancel()
+
+	team := &models.Team{}
+
+	if err := c.BodyParser(team); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(&fiber.Map{
+			"status":  "Failure",
+			"message": "Invalid request body",
+		})
+	}
+
+	updatedTeam, err := h.repository.UpdateOne(ctx, uint(teamId), *team)
+
+	if err != nil {
+		return c.Status(fiber.StatusBadGateway).JSON(&fiber.Map{
+			"status":  "Failure",
+			"message": "Failed to update team",
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(&fiber.Map{
+		"status":  "Success",
+		"message": "Team updated successfully",
+		"data":    updatedTeam,
+	})
+}
+
+func NewTeamHandler(router fiber.Router, repository models.TeamRepository) {
+	handler := &teamHandler{
+		repository: repository,
+	}
+
+	router.Get("/", handler.GetMany)
+	router.Get("/:teamId", handler.GetOne)
+	router.Post("/", handler.CreateOne)
+	router.Delete("/:teamId", handler.DeleteOne)
+	router.Put("/:teamId", handler.UpdateOne)
+}

@@ -62,6 +62,32 @@ const GenerateTeam = () => {
     colorScheme === "light" ? styles.lightButton : styles.darkButton;
   const themeButtonTextStyle =
     colorScheme === "light" ? styles.lightButtonText : styles.darkButtonText;
+  
+  const handleGenerateTeam = async () => {
+    const players = [
+      { position: "QB", name: "Brock Purdy", nfl_team: "San Francisco 49ers" },
+      { position: "WR", name: "Puka Nakua", nfl_team: "Los Angeles Rams" },
+    ];
+
+    const teamData = {
+      team_name: formData.teamName,
+      defense_type: formData.defenseType,
+      players: players,
+    };
+
+    try {
+      const response = await fetch("http://localhost:8000/api/team", {
+        method: "POST",
+        headers: { "Content-Type": "application/json"},
+        body: JSON.stringify(teamData),
+      });
+      const result = await response.json();
+      console.log(result);
+      setGenerateTeam(true);
+    } catch (error) {
+      console.error(error);
+    }
+  }
 
   return (
     <ScrollView
@@ -137,11 +163,14 @@ const GenerateTeam = () => {
         <TouchableOpacity
           style={[isFormFilled ? styles.disabledButton : themeButtonStyle]}
           disabled={isFormFilled}
-          onPress={() => setGenerateTeam(true)}
+          onPress={handleGenerateTeam}
         >
           <Text style={isFormFilled ? styles.lightButtonText : themeButtonTextStyle}>Generate Team</Text>
         </TouchableOpacity>
       </View>
+      { generateTeam && (
+        <Text style={[themeTextStyle, {marginTop: 20, textAlign: "center" }]}>Team Generated and Saved!</Text>
+      )}
       {generateTeam && (
         <Box style={themeTableStyle}>
           <Table style={{ width: "100%" }}>
