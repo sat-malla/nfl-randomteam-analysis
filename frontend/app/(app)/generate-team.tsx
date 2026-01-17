@@ -28,8 +28,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { VStack } from "@/components/ui/vstack";
+import * as Application from 'expo-application';
 import { useState } from "react";
 import {
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -41,12 +43,13 @@ import {
 const GenerateTeam = () => {
   const [formData, setFormData] = useState({
     teamName: "",
+    offenseType: "",
     defenseType: "",
   });
   const [generateTeam, setGenerateTeam] = useState(false);
   const colorScheme = useColorScheme();
 
-  const isFormFilled = !formData.teamName || !formData.defenseType;
+  const isFormFilled = !formData.teamName || !formData.offenseType || !formData.defenseType;
 
   const themeContainerStyle =
     colorScheme === "light" ? styles.lightContainer : styles.darkContainer;
@@ -64,13 +67,203 @@ const GenerateTeam = () => {
     colorScheme === "light" ? styles.lightButtonText : styles.darkButtonText;
   
   const handleGenerateTeam = async () => {
-    const players = [
-      { position: "QB", name: "Brock Purdy", nfl_team: "San Francisco 49ers" },
-      { position: "WR", name: "Puka Nakua", nfl_team: "Los Angeles Rams" },
-    ];
+    const players = [];
+
+    const positions = ["QB", "RB", "WR", "TE", "OT", "OG", "C", "DE", "DT", "LB", "CB", "FS", "SS", "Nickel", "Dime", "K", "P", "RS", "LS"]
+
+    try {
+      if (formData.offenseType === "3 WR 1 TE" && formData.defenseType === "4-3 Base Defense") {
+        for (const position of positions) {
+          if (position == "RB" || position == "OT" || position == "OG" || position == "DE" || position == "DT" || position == "CB") {
+            const response = await fetch(`http://localhost:8000/api/players/random-players?position=${position}&count=2`)
+            const result = await response.json()
+            for (const player of result.data) {
+              players.push({
+                position: position,
+                name: player.full_name,
+                nfl_team: player.nfl_team
+              })
+            }
+          } else if (position == "WR" || position == "LB") {
+            const response = await fetch(`http://localhost:8000/api/players/random-players?position=${position}&count=3`)
+            const result = await response.json()
+            for (const player of result.data) {
+              players.push({
+                position: position,
+                name: player.full_name,
+                nfl_team: player.nfl_team
+              })
+            } 
+          } else if (position == "Nickel" || position == "Dime") {
+            const response = await fetch(`http://localhost:8000/api/players/one-from-many-positions?positions=CB,FS,SS,DB,S`)
+            const result = await response.json()
+            players.push({
+              position: position,
+              name: result.data.full_name,
+              nfl_team: result.data.nfl_team
+            })
+          } else {
+            const response = await fetch(`http://localhost:8000/api/players/random-player?position=${position}`)
+            const result = await response.json()
+            players.push({
+              position: position,
+              name: result.data.full_name,
+              nfl_team: result.data.nfl_team
+            })
+          }
+        }
+      } else if (formData.offenseType === "2 WR 2 TE" && formData.defenseType === "4-3 Base Defense") {
+        for (const position of positions) {
+          if (position == "RB" || position == "WR" || position == "TE" || position == "OT" || position == "OG" || position == "DE" || position == "DT" || position == "CB") {
+            const response = await fetch(`http://localhost:8000/api/players/random-players?position=${position}&count=2`)
+            const result = await response.json()
+            for (const player of result.data) {
+              players.push({
+                position: position,
+                name: player.full_name,
+                nfl_team: player.nfl_team
+              })
+            }
+          } else if (position == "LB") {
+            const response = await fetch(`http://localhost:8000/api/players/random-players?position=${position}&count=3`)
+            const result = await response.json()
+            for (const player of result.data) {
+              players.push({
+                position: position,
+                name: player.full_name,
+                nfl_team: player.nfl_team
+              })
+            } 
+          } else if (position == "Nickel" || position == "Dime") {
+            const response = await fetch(`http://localhost:8000/api/players/one-from-many-positions?positions=CB,FS,SS,DB,S`)
+            const result = await response.json()
+            players.push({
+              position: position,
+              name: result.data.full_name,
+              nfl_team: result.data.nfl_team
+            })
+          } else {
+            const response = await fetch(`http://localhost:8000/api/players/random-player?position=${position}`)
+            const result = await response.json()
+            players.push({
+              position: position,
+              name: result.data.full_name,
+              nfl_team: result.data.nfl_team
+            })
+          }
+        }
+      } else if (formData.offenseType === "3 WR 1 TE" && formData.defenseType === "3-4 Base Defense") {
+         for (const position of positions) {
+          if (position == "RB" || position == "OT" || position == "OG" || position == "DE" || position == "CB") {
+            const response = await fetch(`http://localhost:8000/api/players/random-players?position=${position}&count=2`)
+            const result = await response.json()
+            for (const player of result.data) {
+              players.push({
+                position: position,
+                name: player.full_name,
+                nfl_team: player.nfl_team
+              })
+            }
+          } else if (position == "WR") {
+            const response = await fetch(`http://localhost:8000/api/players/random-players?position=WR&count=3`)
+            const result = await response.json()
+            for (const player of result.data) {
+              players.push({
+                position: position,
+                name: player.full_name,
+                nfl_team: player.nfl_team
+              })
+            } 
+          } else if (position == "LB") {
+            const response = await fetch(`http://localhost:8000/api/players/random-players?position=LB&count=4`)
+            const result = await response.json()
+            for (const player of result.data) {
+              players.push({
+                position: position,
+                name: player.full_name,
+                nfl_team: player.nfl_team
+              })
+            } 
+          } else if (position == "Nickel" || position == "Dime") {
+            const response = await fetch(`http://localhost:8000/api/players/one-from-many-positions?positions=CB,FS,SS,DB,S`)
+            const result = await response.json()
+            players.push({
+              position: position,
+              name: result.data.full_name,
+              nfl_team: result.data.nfl_team
+            })
+          } else {
+            const response = await fetch(`http://localhost:8000/api/players/random-player?position=${position}`)
+            const result = await response.json()
+            players.push({
+              position: position,
+              name: result.data.full_name,
+              nfl_team: result.data.nfl_team
+            })
+          }
+        }
+      } else if (formData.offenseType === "2 WR 2 TE" && formData.defenseType === "3-4 Base Defense") {
+        for (const position of positions) {
+          if (position == "RB" || position == "WR" || position == "TE" || position == "OT" || position == "OG" || position == "DE" || position == "CB") {
+            const response = await fetch(`http://localhost:8000/api/players/random-players?position=${position}&count=2`)
+            const result = await response.json()
+            for (const player of result.data) {
+              players.push({
+                position: position,
+                name: player.full_name,
+                nfl_team: player.nfl_team
+              })
+            }
+          } else if (position == "LB") {
+            const response = await fetch(`http://localhost:8000/api/players/random-players?position=LB&count=4`)
+            const result = await response.json()
+            for (const player of result.data) {
+              players.push({
+                position: position,
+                name: player.full_name,
+                nfl_team: player.nfl_team
+              })
+            } 
+          } else if (position == "Nickel" || position == "Dime") {
+            const response = await fetch(`http://localhost:8000/api/players/one-from-many-positions?positions=CB,FS,SS,DB,S`)
+            const result = await response.json()
+            players.push({
+              position: position,
+              name: result.data.full_name,
+              nfl_team: result.data.nfl_team
+            })
+          } else {
+            const response = await fetch(`http://localhost:8000/api/players/random-player?position=${position}`)
+            const result = await response.json()
+            players.push({
+              position: position,
+              name: result.data.full_name,
+              nfl_team: result.data.nfl_team
+            })
+          }
+        }
+      }
+    } catch (error) {
+      console.error(error);
+    }
+
+    return players;
+  }
+
+  const players = handleGenerateTeam();
+
+  const storePlayers = async () => {
+    let deviceUuid = "test-device-uuid";
+    if (Platform.OS === "android") {
+      deviceUuid = Application.getAndroidId() || "test-device-uuid";
+    } else if (Platform.OS === "ios") {
+      deviceUuid = await Application.getIosIdForVendorAsync() || "test-device-uuid";
+    }
 
     const teamData = {
+      device_uuid: deviceUuid,
       team_name: formData.teamName,
+      offense_type: formData.offenseType,
       defense_type: formData.defenseType,
       players: players,
     };
@@ -79,7 +272,9 @@ const GenerateTeam = () => {
       const response = await fetch("http://localhost:8000/api/team", {
         method: "POST",
         headers: { "Content-Type": "application/json"},
-        body: JSON.stringify(teamData),
+        body: JSON.stringify({
+          ...teamData,
+        }),
       });
       const result = await response.json();
       console.log(result);
@@ -122,6 +317,42 @@ const GenerateTeam = () => {
                 }
               />
             </Input>
+            <FormControlLabel style={{ marginTop: 15 }}>
+              <FormControlLabelText>Type of Offense</FormControlLabelText>
+            </FormControlLabel>
+            <Select
+              onValueChange={(value) =>
+                setFormData({ ...formData, offenseType: value })
+              }
+            >
+              <SelectTrigger
+                variant="outline"
+                size="lg"
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                }}
+              >
+                <SelectInput placeholder="Select option" style={{ flex: 1 }} />
+                <SelectIcon style={{ marginRight: 10 }} as={ChevronDownIcon} />
+              </SelectTrigger>
+              <SelectPortal>
+                <SelectBackdrop />
+                <SelectContent>
+                  <SelectDragIndicatorWrapper>
+                    <SelectDragIndicator />
+                  </SelectDragIndicatorWrapper>
+                  <SelectItem
+                    label="3 WR 1 TE"
+                    value="3 WR 1 TE"
+                  />
+                  <SelectItem
+                    label="2 WR 2 TE"
+                    value="2 WR 2 TE"
+                  />
+                </SelectContent>
+              </SelectPortal>
+            </Select>
             <FormControlLabel style={{ marginTop: 15 }}>
               <FormControlLabelText>Type of Defense</FormControlLabelText>
             </FormControlLabel>
@@ -225,18 +456,15 @@ const styles = StyleSheet.create({
     padding: 15,
     marginTop: 20,
     width: "90%",
-    borderWidth: 1,
     borderRadius: 10,
   },
   lightForm: {
-    borderColor: "#02080f",
-    borderWidth: 1,
-    borderRadius: 10,
+    backgroundColor: "#edf5ff",
+    boxShadow: "rgba(0, 0, 0, 0.24) 0px 3px 8px",
   },
   darkForm: {
-    borderColor: "#edf5ff",
-    borderWidth: 1,
-    borderRadius: 10,
+    backgroundColor: "#02080f",
+    boxShadow: "rgba(250, 250, 250, 0.8) 0px 3px 8px",
   },
   lightTable: {
     width: "95%",

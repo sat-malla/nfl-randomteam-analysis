@@ -36,6 +36,7 @@ func main() {
 	// handlers
 	handlers.NewEventHandler(server.Group("/event"), eventRepo) // connects HTTP routes /api/event to handler, which uses repo
 	handlers.NewTeamHandler(server.Group("/team"), teamRepo)    // connects HTTP routes /api/team to handler, which uses repo
+	handlers.NewNFLPlayerHandler(server.Group("/players"), db.Collection("nfl_players"))
 
 	log.Fatal(app.Listen(":8000"))
 }
