@@ -19,6 +19,7 @@ import {
   SelectPortal,
   SelectTrigger,
 } from "@/components/ui/select";
+import { Spinner } from '@/components/ui/spinner';
 import {
   Table,
   TableBody,
@@ -27,6 +28,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Toast,
+  ToastTitle,
+  useToast,
+} from '@/components/ui/toast';
 import { VStack } from "@/components/ui/vstack";
 import * as Application from 'expo-application';
 import { useState } from "react";
@@ -40,6 +46,7 @@ import {
   View,
 } from "react-native";
 
+
 const GenerateTeam = () => {
   const [formData, setFormData] = useState({
     teamName: "",
@@ -47,6 +54,8 @@ const GenerateTeam = () => {
     defenseType: "",
   });
   const [generateTeam, setGenerateTeam] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [savedTeam, setSavedTeam] = useState(false);
   const colorScheme = useColorScheme();
 
   const isFormFilled = !formData.teamName || !formData.offenseType || !formData.defenseType;
@@ -61,196 +70,299 @@ const GenerateTeam = () => {
     colorScheme === "light" ? styles.lightForm : styles.darkForm;
   const themeInputTextStyle =
     colorScheme === "light" ? styles.lightInputText : styles.darkInputText;
-  const themeButtonStyle =
-    colorScheme === "light" ? styles.lightButton : styles.darkButton;
-  const themeButtonTextStyle =
+  const themeGenerateButtonStyle =
+    colorScheme === "light" ? styles.lightGenerateButton : styles.darkGenerateButton;
+  const themeGenerateButtonTextStyle =
     colorScheme === "light" ? styles.lightButtonText : styles.darkButtonText;
+  const themeSaveButtonStyle =
+    colorScheme === "light" ? styles.lightSaveButton : styles.darkSaveButton;
+  const themeSaveButtonTextStyle =
+    colorScheme === "light" ? styles.lightSaveButtonText : styles.darkSaveButtonText;
+
+  const [players, setPlayers] = useState([{ position: "", name: "", nfl_team: "" }]);
+
+  const toast = useToast();
+  const [toastId, setToastId] = useState("");
+  const handleToast = () => {
+    storePlayers();
+    if (!toast.isActive(toastId)) {
+      showNewToast();
+    }
+    setSavedTeam(true);
+  };
+  const showNewToast = () => {
+    const newId = Math.random().toString();
+    setToastId(newId);
+    toast.show({
+      id: newId,
+      placement: 'top',
+      duration: 3000,
+      render: ({ id }) => {
+        const uniqueToastId = 'toast-' + id;
+        return (
+          <Toast nativeID={uniqueToastId} action="success" variant="solid">
+            <ToastTitle>Saved!</ToastTitle>
+          </Toast>
+        );
+      },
+    });
+  };
   
   const handleGenerateTeam = async () => {
+    setLoading(true);
     const players = [];
 
-    const positions = ["QB", "RB", "WR", "TE", "OT", "OG", "C", "DE", "DT", "LB", "CB", "FS", "SS", "Nickel", "Dime", "K", "P", "RS", "LS"]
+    const positions = ["QB", "RB", "WR", "TE", "OT", "G", "C", "DE", "DT", "LB", "CB", "FS", "SS", "Nickel", "Dime", "K", "P", "RS", "LS"]
 
     try {
       if (formData.offenseType === "3 WR 1 TE" && formData.defenseType === "4-3 Base Defense") {
         for (const position of positions) {
-          if (position == "RB" || position == "OT" || position == "OG" || position == "DE" || position == "DT" || position == "CB") {
+          if (position == "RB" || position == "OT" || position == "G" || position == "DE" || position == "DT" || position == "CB") {
             const response = await fetch(`http://localhost:8000/api/players/random-players?position=${position}&count=2`)
             const result = await response.json()
-            for (const player of result.data) {
-              players.push({
-                position: position,
-                name: player.full_name,
-                nfl_team: player.nfl_team
-              })
+            if (result.status === "Success" && result.data) {
+              for (const player of result.data) {
+                players.push({
+                  position: position,
+                  name: player.full_name || player.first_name + " " + player.last_name,
+                  nfl_team: player.nfl_team
+                })
+              }
+            } else {
+              console.log("No data found for position: " + position)
             }
           } else if (position == "WR" || position == "LB") {
             const response = await fetch(`http://localhost:8000/api/players/random-players?position=${position}&count=3`)
             const result = await response.json()
-            for (const player of result.data) {
-              players.push({
-                position: position,
-                name: player.full_name,
-                nfl_team: player.nfl_team
-              })
-            } 
+            if (result.status === "Success" && result.data) {
+              for (const player of result.data) {
+                players.push({
+                  position: position,
+                  name: player.full_name || player.first_name + " " + player.last_name,
+                  nfl_team: player.nfl_team
+                })
+              }
+            } else {
+              console.log("No data found for position: " + position)
+            }
           } else if (position == "Nickel" || position == "Dime") {
             const response = await fetch(`http://localhost:8000/api/players/one-from-many-positions?positions=CB,FS,SS,DB,S`)
             const result = await response.json()
-            players.push({
-              position: position,
-              name: result.data.full_name,
-              nfl_team: result.data.nfl_team
-            })
+            if (result.status === "Success" && result.data) {
+              players.push({
+                position: position,
+                name: result.data.full_name || result.data.first_name + " " + result.data.last_name,
+                nfl_team: result.data.nfl_team
+              })
+            } else {
+              console.log("No data found for position: " + position)
+            }
           } else {
             const response = await fetch(`http://localhost:8000/api/players/random-player?position=${position}`)
             const result = await response.json()
-            players.push({
-              position: position,
-              name: result.data.full_name,
-              nfl_team: result.data.nfl_team
-            })
+            if (result.status === "Success" && result.data) {
+              players.push({
+                position: position,
+                name: result.data.full_name || result.data.first_name + " " + result.data.last_name,
+                nfl_team: result.data.nfl_team
+              })
+            } else {
+              console.log("No data found for position: " + position)
+            }
           }
         }
       } else if (formData.offenseType === "2 WR 2 TE" && formData.defenseType === "4-3 Base Defense") {
         for (const position of positions) {
-          if (position == "RB" || position == "WR" || position == "TE" || position == "OT" || position == "OG" || position == "DE" || position == "DT" || position == "CB") {
+          if (position == "RB" || position == "WR" || position == "TE" || position == "OT" || position == "G" || position == "DE" || position == "DT" || position == "CB") {
             const response = await fetch(`http://localhost:8000/api/players/random-players?position=${position}&count=2`)
             const result = await response.json()
-            for (const player of result.data) {
-              players.push({
-                position: position,
-                name: player.full_name,
-                nfl_team: player.nfl_team
-              })
+            if (result.status === "Success" && result.data) {
+              for (const player of result.data) {
+                players.push({
+                  position: position,
+                  name: player.full_name || player.first_name + " " + player.last_name,
+                  nfl_team: player.nfl_team
+                })
+              }
+            } else {
+              console.log("No data found for position: " + position)
             }
           } else if (position == "LB") {
             const response = await fetch(`http://localhost:8000/api/players/random-players?position=${position}&count=3`)
             const result = await response.json()
-            for (const player of result.data) {
-              players.push({
-                position: position,
-                name: player.full_name,
-                nfl_team: player.nfl_team
-              })
-            } 
+            if (result.status === "Success" && result.data) {
+              for (const player of result.data) {
+                players.push({
+                  position: position,
+                  name: player.full_name || player.first_name + " " + player.last_name,
+                  nfl_team: player.nfl_team
+                })
+              }
+            } else {
+              console.log("No data found for position: " + position)
+            }
           } else if (position == "Nickel" || position == "Dime") {
             const response = await fetch(`http://localhost:8000/api/players/one-from-many-positions?positions=CB,FS,SS,DB,S`)
             const result = await response.json()
-            players.push({
-              position: position,
-              name: result.data.full_name,
-              nfl_team: result.data.nfl_team
-            })
+            if (result.status === "Success" && result.data) {
+              players.push({
+                position: position,
+                name: result.data.full_name || result.data.first_name + " " + result.data.last_name,
+                nfl_team: result.data.nfl_team
+              })
+            } else {
+              console.log("No data found for position: " + position)
+            }
           } else {
             const response = await fetch(`http://localhost:8000/api/players/random-player?position=${position}`)
             const result = await response.json()
-            players.push({
-              position: position,
-              name: result.data.full_name,
-              nfl_team: result.data.nfl_team
-            })
+            if (result.status === "Success" && result.data) {
+              players.push({
+                position: position,
+                name: result.data.full_name || result.data.first_name + " " + result.data.last_name,
+                nfl_team: result.data.nfl_team
+              })
+            } else {
+              console.log("No data found for position: " + position)
+            }
           }
         }
       } else if (formData.offenseType === "3 WR 1 TE" && formData.defenseType === "3-4 Base Defense") {
          for (const position of positions) {
-          if (position == "RB" || position == "OT" || position == "OG" || position == "DE" || position == "CB") {
+          if (position == "RB" || position == "OT" || position == "G" || position == "DE" || position == "CB") {
             const response = await fetch(`http://localhost:8000/api/players/random-players?position=${position}&count=2`)
             const result = await response.json()
-            for (const player of result.data) {
-              players.push({
-                position: position,
-                name: player.full_name,
-                nfl_team: player.nfl_team
-              })
+            if (result.status === "Success" && result.data) {
+              for (const player of result.data) {
+                players.push({
+                  position: position,
+                  name: player.full_name || player.first_name + " " + player.last_name,
+                  nfl_team: player.nfl_team
+                })
+              }
+            } else {
+              console.log("No data found for position: " + position)
             }
           } else if (position == "WR") {
             const response = await fetch(`http://localhost:8000/api/players/random-players?position=WR&count=3`)
             const result = await response.json()
-            for (const player of result.data) {
-              players.push({
-                position: position,
-                name: player.full_name,
-                nfl_team: player.nfl_team
-              })
-            } 
-          } else if (position == "LB") {
-            const response = await fetch(`http://localhost:8000/api/players/random-players?position=LB&count=4`)
-            const result = await response.json()
-            for (const player of result.data) {
-              players.push({
-                position: position,
-                name: player.full_name,
-                nfl_team: player.nfl_team
-              })
-            } 
-          } else if (position == "Nickel" || position == "Dime") {
-            const response = await fetch(`http://localhost:8000/api/players/one-from-many-positions?positions=CB,FS,SS,DB,S`)
-            const result = await response.json()
-            players.push({
-              position: position,
-              name: result.data.full_name,
-              nfl_team: result.data.nfl_team
-            })
-          } else {
-            const response = await fetch(`http://localhost:8000/api/players/random-player?position=${position}`)
-            const result = await response.json()
-            players.push({
-              position: position,
-              name: result.data.full_name,
-              nfl_team: result.data.nfl_team
-            })
-          }
-        }
-      } else if (formData.offenseType === "2 WR 2 TE" && formData.defenseType === "3-4 Base Defense") {
-        for (const position of positions) {
-          if (position == "RB" || position == "WR" || position == "TE" || position == "OT" || position == "OG" || position == "DE" || position == "CB") {
-            const response = await fetch(`http://localhost:8000/api/players/random-players?position=${position}&count=2`)
-            const result = await response.json()
-            for (const player of result.data) {
-              players.push({
-                position: position,
-                name: player.full_name,
-                nfl_team: player.nfl_team
-              })
+            if (result.status === "Success" && result.data) {
+              for (const player of result.data) {
+                players.push({
+                  position: position,
+                  name: player.full_name || player.first_name + " " + player.last_name,
+                  nfl_team: player.nfl_team
+                })
+              }
+            } else {
+              console.log("No data found for position: " + position)
             }
           } else if (position == "LB") {
             const response = await fetch(`http://localhost:8000/api/players/random-players?position=LB&count=4`)
             const result = await response.json()
-            for (const player of result.data) {
-              players.push({
-                position: position,
-                name: player.full_name,
-                nfl_team: player.nfl_team
-              })
-            } 
+            if (result.status === "Success" && result.data) {
+              for (const player of result.data) {
+                players.push({
+                  position: position,
+                  name: player.full_name || player.first_name + " " + player.last_name,
+                  nfl_team: player.nfl_team
+                })
+              }
+            } else {
+              console.log("No data found for position: " + position)
+            }
           } else if (position == "Nickel" || position == "Dime") {
             const response = await fetch(`http://localhost:8000/api/players/one-from-many-positions?positions=CB,FS,SS,DB,S`)
             const result = await response.json()
-            players.push({
-              position: position,
-              name: result.data.full_name,
-              nfl_team: result.data.nfl_team
-            })
+            if (result.status === "Success" && result.data) {
+              players.push({
+                position: position,
+                name: result.data.full_name || result.data.first_name + " " + result.data.last_name,
+                nfl_team: result.data.nfl_team
+              })
+            } else {
+              console.log("No data found for position: " + position)
+            }
           } else {
             const response = await fetch(`http://localhost:8000/api/players/random-player?position=${position}`)
             const result = await response.json()
-            players.push({
-              position: position,
-              name: result.data.full_name,
-              nfl_team: result.data.nfl_team
-            })
+            if (result.status === "Success" && result.data) {
+              players.push({
+                position: position,
+                name: result.data.full_name || result.data.first_name + " " + result.data.last_name,
+                nfl_team: result.data.nfl_team
+              })
+            } else {
+              console.log("No data found for position: " + position)
+            }
+          }
+        }
+      } else if (formData.offenseType === "2 WR 2 TE" && formData.defenseType === "3-4 Base Defense") {
+        for (const position of positions) {
+          if (position == "RB" || position == "WR" || position == "TE" || position == "OT" || position == "G" || position == "DE" || position == "CB") {
+            const response = await fetch(`http://localhost:8000/api/players/random-players?position=${position}&count=2`)
+            const result = await response.json()
+            if (result.status === "Success" && result.data) {
+              for (const player of result.data) {
+                players.push({
+                  position: position,
+                  name: player.full_name || player.first_name + " " + player.last_name,
+                  nfl_team: player.nfl_team
+                })
+              }
+            } else {
+              console.log("No data found for position: " + position)
+            }
+          } else if (position == "LB") {
+            const response = await fetch(`http://localhost:8000/api/players/random-players?position=LB&count=4`)
+            const result = await response.json()
+            if (result.status === "Success" && result.data) {
+              for (const player of result.data) {
+                players.push({
+                  position: position,
+                  name: player.full_name || player.first_name + " " + player.last_name,
+                  nfl_team: player.nfl_team
+                })
+              }
+            } else {
+              console.log("No data found for position: " + position)
+            }
+          } else if (position == "Nickel" || position == "Dime") {
+            const response = await fetch(`http://localhost:8000/api/players/one-from-many-positions?positions=CB,FS,SS,DB,S`)
+            const result = await response.json()
+            if (result.status === "Success" && result.data) {
+              players.push({
+                position: position,
+                name: result.data.full_name || result.data.first_name + " " + result.data.last_name,
+                nfl_team: result.data.nfl_team
+              })
+            } else {
+              console.log("No data found for position: " + position)
+            }
+          } else {
+            const response = await fetch(`http://localhost:8000/api/players/random-player?position=${position}`)
+            const result = await response.json()
+            if (result.status === "Success" && result.data) {
+              players.push({
+                position: position,
+                name: result.data.full_name || result.data.first_name + " " + result.data.last_name,
+                nfl_team: result.data.nfl_team
+              })
+            } else {
+              console.log("No data found for position: " + position)
+            }
           }
         }
       }
+      setGenerateTeam(true);
+      setPlayers(players);
+      setLoading(false);
     } catch (error) {
       console.error(error);
+      setLoading(false);
     }
-
-    return players;
   }
 
-  const players = handleGenerateTeam();
 
   const storePlayers = async () => {
     let deviceUuid = "test-device-uuid";
@@ -392,15 +504,28 @@ const GenerateTeam = () => {
           </VStack>
         </FormControl>
         <TouchableOpacity
-          style={[isFormFilled ? styles.disabledButton : themeButtonStyle]}
+          style={[isFormFilled ? styles.disabledGenerateButton : themeGenerateButtonStyle]}
           disabled={isFormFilled}
           onPress={handleGenerateTeam}
         >
-          <Text style={isFormFilled ? styles.lightButtonText : themeButtonTextStyle}>Generate Team</Text>
+          <Text style={isFormFilled ? styles.lightButtonText : themeGenerateButtonTextStyle}>Generate Team</Text>
         </TouchableOpacity>
+        { generateTeam && (
+          <TouchableOpacity
+            style={savedTeam ? styles.disabledSaveButton : themeSaveButtonStyle}
+            disabled={savedTeam}
+            onPress={handleToast}
+          >
+            {savedTeam ? (
+              <Text style={themeSaveButtonTextStyle}>Saved {'\u2713'}</Text>
+            ) : (
+              <Text style={themeSaveButtonTextStyle}>Save Team</Text>
+            )}
+          </TouchableOpacity>
+        )}
       </View>
       { generateTeam && (
-        <Text style={[themeTextStyle, {marginTop: 20, textAlign: "center" }]}>Team Generated and Saved!</Text>
+        <Text style={[themeTextStyle, {marginTop: 20, textAlign: "center" }]}>Team Generated!</Text>
       )}
       {generateTeam && (
         <Box style={themeTableStyle}>
@@ -413,19 +538,19 @@ const GenerateTeam = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              <TableRow>
-                <TableData>QB</TableData>
-                <TableData>Brock Purdy</TableData>
-                <TableData>San Francisco 49ers</TableData>
-              </TableRow>
-              <TableRow>
-                <TableData>WR</TableData>
-                <TableData>Puka Nakua</TableData>
-                <TableData>Los Angeles Rams</TableData>
-              </TableRow>
+              {players.map((player, index) => (
+                <TableRow key={index}>
+                  <TableData>{player.position}</TableData>
+                  <TableData>{player.name}</TableData>
+                  <TableData>{player.nfl_team}</TableData>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         </Box>
+      )}
+      {loading && (
+        <Spinner size="large" color="blue" />
       )}
     </ScrollView>
   );
@@ -502,21 +627,42 @@ const styles = StyleSheet.create({
     color: "#edf5ff",
     width: "100%",
   },
-  lightButton: {
+  lightGenerateButton: {
     backgroundColor: "#02080f",
     padding: 10,
     borderRadius: 10,
     alignItems: "center",
     marginTop: 10,
   },
-  darkButton: {
+  darkGenerateButton: {
     backgroundColor: "#edf5ff",
     padding: 10,
     borderRadius: 10,
     alignItems: "center",
     marginTop: 10,
   },
-  disabledButton: {
+  disabledGenerateButton: {
+    backgroundColor: "#d4d4d4",
+    padding: 10,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 10,
+  },
+  lightSaveButton: {
+    backgroundColor: "#008a33",
+    padding: 10,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 10,
+  },
+  darkSaveButton: {
+    backgroundColor: "#34f77c",
+    padding: 10,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 10,
+  },
+  disabledSaveButton: {
     backgroundColor: "#d4d4d4",
     padding: 10,
     borderRadius: 10,
@@ -528,7 +674,15 @@ const styles = StyleSheet.create({
   },
   darkButtonText: {
     color: "#02080f",
-  }
+  },
+  lightSaveButtonText: {
+    color: "#ffffff",
+    fontWeight: "bold",
+  },
+  darkSaveButtonText: {
+    color: "#000000",
+    fontWeight: "bold",
+  },
 });
 
 export default GenerateTeam;
