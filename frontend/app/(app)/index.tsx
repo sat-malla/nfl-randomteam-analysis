@@ -33,7 +33,7 @@ export default function Index() {
     {
       id: 2,
       title: "Analyze Team",
-      link: "/",
+      link: "/analyze-team",
     },
     {
       id: 3,
@@ -50,22 +50,22 @@ export default function Index() {
   return (
     <View style={[styles.container, themeContainerStyle]}>
       <Text
-        style={{
+        style={[{
           fontSize: 25,
           fontWeight: "bold",
           marginTop: 40,
           textAlign: "center",
-        }}
+        }, themeTextStyle]}
       >
         Welcome to the NFL Random Team Generator & Analysis
       </Text>
       <Text
-        style={{
+        style={[{
           fontSize: 20,
           fontWeight: "semibold",
           marginTop: 15,
           textAlign: "center",
-        }}
+        }, themeTextStyle]}
       >
         Click the Options Below to Explore!
       </Text>
@@ -79,7 +79,7 @@ export default function Index() {
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             />
-            <Text>{item.title}</Text>
+            <Text style={{ textAlign: "center" }}>{item.title}</Text>
           </TouchableOpacity>
         )}
         numColumns={2}

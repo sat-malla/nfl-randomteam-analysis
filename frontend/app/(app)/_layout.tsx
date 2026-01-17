@@ -71,6 +71,12 @@ export default function RootLayout() {
             title: "Generate"
           }}
         />
+        <Stack.Screen 
+          name="analyze-team"
+          options={{
+            title: "Analyze"
+          }}
+        />
       </Stack>
       <Drawer
         isOpen={showDrawer}

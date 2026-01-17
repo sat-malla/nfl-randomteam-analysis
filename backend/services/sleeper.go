@@ -68,7 +68,6 @@ func (s *SleeperService) SyncPlayers(ctx context.Context) error {
 		"LB": true,
 		"CB": true,
 		"DB": true,
-		"FS": true,
 		"SS": true,
 		"S":  true,
 		"K":  true,

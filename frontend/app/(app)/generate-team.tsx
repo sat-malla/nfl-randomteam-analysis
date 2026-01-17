@@ -81,6 +81,41 @@ const GenerateTeam = () => {
 
   const [players, setPlayers] = useState([{ position: "", name: "", nfl_team: "" }]);
 
+  const abbToTeamNames = {
+      "ARI": "Arizona Cardinals",
+      "ATL": "Atlanta Falcons",
+      "BAL": "Baltimore Ravens",
+      "BUF": "Buffalo Bills",
+      "CAR": "Carolina Panthers",
+      "CHI": "Chicago Bears",
+      "CIN": "Cincinnati Bengals",
+      "CLE": "Cleveland Browns",
+      "DAL": "Dallas Cowboys",
+      "DEN": "Denver Broncos",
+      "DET": "Detroit Lions",
+      "GB": "Green Bay Packers",
+      "HOU": "Houston Texans",
+      "IND": "Indianapolis Colts",
+      "JAX": "Jacksonville Jaguars",
+      "KC": "Kansas City Chiefs",
+      "LAR": "Los Angeles Rams",
+      "LAC": "Los Angeles Chargers",
+      "LV": "Las Vegas Raiders",
+      "MIA": "Miami Dolphins",
+      "MIN": "Minnesota Vikings",
+      "NE": "New England Patriots",
+      "NO": "New Orleans Saints",
+      "NYG": "New York Giants",
+      "NYJ": "New York Jets",
+      "PHI": "Philadelphia Eagles",
+      "PIT": "Pittsburgh Steelers",
+      "SEA": "Seattle Seahawks",
+      "SF": "San Francisco 49ers",
+      "TB": "Tampa Bay Buccaneers",
+      "TEN": "Tennessee Titans",
+      "WAS": "Washington Commanders",
+  }
+
   const toast = useToast();
   const [toastId, setToastId] = useState("");
   const handleToast = () => {
@@ -110,10 +145,12 @@ const GenerateTeam = () => {
   
   const handleGenerateTeam = async () => {
     setLoading(true);
+    setGenerateTeam(false);
     const players = [];
 
     const positions = ["QB", "RB", "WR", "TE", "OT", "G", "C", "DE", "DT", "LB", "CB", "FS", "SS", "Nickel", "Dime", "K", "P", "RS", "LS"]
 
+    // handle duplicates
     try {
       if (formData.offenseType === "3 WR 1 TE" && formData.defenseType === "4-3 Base Defense") {
         for (const position of positions) {
@@ -146,7 +183,19 @@ const GenerateTeam = () => {
               console.log("No data found for position: " + position)
             }
           } else if (position == "Nickel" || position == "Dime") {
-            const response = await fetch(`http://localhost:8000/api/players/one-from-many-positions?positions=CB,FS,SS,DB,S`)
+            const response = await fetch(`http://localhost:8000/api/players/one-from-many-positions?positions=CB,SS,DB,S`)
+            const result = await response.json()
+            if (result.status === "Success" && result.data) {
+              players.push({
+                position: position,
+                name: result.data.full_name || result.data.first_name + " " + result.data.last_name,
+                nfl_team: result.data.nfl_team
+              })
+            } else {
+              console.log("No data found for position: " + position)
+            }
+          } else if (position == "FS") {
+            const response = await fetch(`http://localhost:8000/api/players/random-player?position=S`)
             const result = await response.json()
             if (result.status === "Success" && result.data) {
               players.push({
@@ -202,7 +251,19 @@ const GenerateTeam = () => {
               console.log("No data found for position: " + position)
             }
           } else if (position == "Nickel" || position == "Dime") {
-            const response = await fetch(`http://localhost:8000/api/players/one-from-many-positions?positions=CB,FS,SS,DB,S`)
+            const response = await fetch(`http://localhost:8000/api/players/one-from-many-positions?positions=CB,SS,DB,S`)
+            const result = await response.json()
+            if (result.status === "Success" && result.data) {
+              players.push({
+                position: position,
+                name: result.data.full_name || result.data.first_name + " " + result.data.last_name,
+                nfl_team: result.data.nfl_team
+              })
+            } else {
+              console.log("No data found for position: " + position)
+            }
+          } else if (position == "FS") {
+            const response = await fetch(`http://localhost:8000/api/players/random-player?position=S`)
             const result = await response.json()
             if (result.status === "Success" && result.data) {
               players.push({
@@ -272,7 +333,19 @@ const GenerateTeam = () => {
               console.log("No data found for position: " + position)
             }
           } else if (position == "Nickel" || position == "Dime") {
-            const response = await fetch(`http://localhost:8000/api/players/one-from-many-positions?positions=CB,FS,SS,DB,S`)
+            const response = await fetch(`http://localhost:8000/api/players/one-from-many-positions?positions=CB,SS,DB,S`)
+            const result = await response.json()
+            if (result.status === "Success" && result.data) {
+              players.push({
+                position: position,
+                name: result.data.full_name || result.data.first_name + " " + result.data.last_name,
+                nfl_team: result.data.nfl_team
+              })
+            } else {
+              console.log("No data found for position: " + position)
+            }
+          } else if (position == "FS") {
+            const response = await fetch(`http://localhost:8000/api/players/random-player?position=S`)
             const result = await response.json()
             if (result.status === "Success" && result.data) {
               players.push({
@@ -328,7 +401,19 @@ const GenerateTeam = () => {
               console.log("No data found for position: " + position)
             }
           } else if (position == "Nickel" || position == "Dime") {
-            const response = await fetch(`http://localhost:8000/api/players/one-from-many-positions?positions=CB,FS,SS,DB,S`)
+            const response = await fetch(`http://localhost:8000/api/players/one-from-many-positions?positions=CB,SS,DB,S`)
+            const result = await response.json()
+            if (result.status === "Success" && result.data) {
+              players.push({
+                position: position,
+                name: result.data.full_name || result.data.first_name + " " + result.data.last_name,
+                nfl_team: result.data.nfl_team
+              })
+            } else {
+              console.log("No data found for position: " + position)
+            }
+          } else if (position == "FS") {
+            const response = await fetch(`http://localhost:8000/api/players/random-player?position=S`)
             const result = await response.json()
             if (result.status === "Success" && result.data) {
               players.push({
@@ -356,6 +441,7 @@ const GenerateTeam = () => {
       }
       setGenerateTeam(true);
       setPlayers(players);
+      setSavedTeam(false);
       setLoading(false);
     } catch (error) {
       console.error(error);
@@ -517,7 +603,7 @@ const GenerateTeam = () => {
             onPress={handleToast}
           >
             {savedTeam ? (
-              <Text style={themeSaveButtonTextStyle}>Saved {'\u2713'}</Text>
+              <Text style={styles.disabledSaveButtonText}>Saved {'\u2713'}</Text>
             ) : (
               <Text style={themeSaveButtonTextStyle}>Save Team</Text>
             )}
@@ -542,7 +628,7 @@ const GenerateTeam = () => {
                 <TableRow key={index}>
                   <TableData>{player.position}</TableData>
                   <TableData>{player.name}</TableData>
-                  <TableData>{player.nfl_team}</TableData>
+                  <TableData>{abbToTeamNames[player.nfl_team as keyof typeof abbToTeamNames] || player.nfl_team}</TableData>
                 </TableRow>
               ))}
             </TableBody>
@@ -550,7 +636,7 @@ const GenerateTeam = () => {
         </Box>
       )}
       {loading && (
-        <Spinner size="large" color="blue" />
+        <Spinner size="large" color="blue" style={{ marginTop: 20 }} />
       )}
     </ScrollView>
   );
@@ -681,6 +767,10 @@ const styles = StyleSheet.create({
   },
   darkSaveButtonText: {
     color: "#000000",
+    fontWeight: "bold",
+  },
+  disabledSaveButtonText: {
+    color: "#ffffff",
     fontWeight: "bold",
   },
 });
