@@ -11,13 +11,15 @@ export default function RootLayout() {
 
   const colorScheme = useColorScheme();
 
-  const themeContainerStyle = colorScheme === 'light' ? styles.lightContainer : styles.darkContainer;
-  const themeTextStyle = colorScheme === 'light' ? styles.lightText : styles.darkText;
+  const themeContainerStyle =
+    colorScheme === "light" ? styles.lightContainer : styles.darkContainer;
+  const themeTextStyle =
+    colorScheme === "light" ? styles.lightText : styles.darkText;
 
   const toggleTheme = (newValue: boolean) => {
     setTheme(newValue);
-    Appearance.setColorScheme(newValue ? 'dark' : 'light');
-  }
+    Appearance.setColorScheme(newValue ? "dark" : "light");
+  };
 
   return (
     <GluestackUIProvider>
@@ -28,7 +30,7 @@ export default function RootLayout() {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1
+    flex: 1,
   },
   text: {
     fontSize: 29,
@@ -36,18 +38,15 @@ const styles = StyleSheet.create({
     marginTop: 40,
   },
   lightContainer: {
-    backgroundColor: '#edf5ff'
+    backgroundColor: "#edf5ff",
   },
   darkContainer: {
-    backgroundColor: "#132130"
+    backgroundColor: "#132130",
   },
   lightText: {
-    color: "#02080f"
+    color: "#02080f",
   },
   darkText: {
-    color: "#edf5ff"
-  }
+    color: "#edf5ff",
+  },
 });
-
-
-

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/sat-malla/nfl-random-team-analysis/backend/database"
 	"github.com/sat-malla/nfl-random-team-analysis/backend/handlers"
 	"github.com/sat-malla/nfl-random-team-analysis/backend/repositories"
+	"github.com/sat-malla/nfl-random-team-analysis/backend/services"
 )
 
 func main() {
@@ -37,6 +39,13 @@ func main() {
 	handlers.NewEventHandler(server.Group("/event"), eventRepo) // connects HTTP routes /api/event to handler, which uses repo
 	handlers.NewTeamHandler(server.Group("/team"), teamRepo)    // connects HTTP routes /api/team to handler, which uses repo
 	handlers.NewNFLPlayerHandler(server.Group("/players"), db.Collection("nfl_players"))
+
+	sleeperService := services.NewSleeperService(db.Collection("nfl_players"))
+	go func() {
+		if err := sleeperService.SyncPlayers(context.Background()); err != nil {
+			log.Printf("Failed to sync players: %v", err)
+		}
+	}()
 
 	log.Fatal(app.Listen(":8000"))
 }

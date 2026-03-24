@@ -1,18 +1,12 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { Href, useRouter } from "expo-router";
 import {
-  Dimensions,
-  FlatList,
   StyleSheet,
   Text,
   TouchableOpacity,
   useColorScheme,
   View,
 } from "react-native";
-
-const { width } = Dimensions.get("window");
-const gap = 16;
-const itemWidth = (width - gap * 3) / 2;
 
 export default function Index() {
   const colorScheme = useColorScheme();
@@ -25,81 +19,74 @@ export default function Index() {
   const router = useRouter();
 
   const GridButtons = [
-    {
-      id: 1,
-      title: "Generate New Team",
-      link: "/generate-team",
-    },
-    {
-      id: 2,
-      title: "Analyze Team",
-      link: "/analyze-team",
-    },
-    {
-      id: 3,
-      title: "How it Works",
-      link: "/",
-    },
-    {
-      id: 4,
-      title: "About the Creator",
-      link: "/",
-    },
+    { id: 1, title: "Generate New Team", link: "/generate-team" },
+    { id: 2, title: "Analyze Team", link: "/analyze-team" },
+    { id: 3, title: "How it Works", link: "/" },
+    { id: 4, title: "About the Creator", link: "/" },
   ];
 
   return (
     <View style={[styles.container, themeContainerStyle]}>
       <Text
-        style={[{
-          fontSize: 25,
-          fontWeight: "bold",
-          marginTop: 40,
-          textAlign: "center",
-        }, themeTextStyle]}
+        style={[
+          {
+            fontSize: 25,
+            fontWeight: "bold",
+            marginTop: 40,
+            textAlign: "center",
+          },
+          themeTextStyle,
+        ]}
       >
         Welcome to the NFL Random Team Generator & Analysis
       </Text>
       <Text
-        style={[{
-          fontSize: 20,
-          fontWeight: "semibold",
-          marginTop: 15,
-          textAlign: "center",
-        }, themeTextStyle]}
+        style={[
+          {
+            fontSize: 20,
+            fontWeight: "semibold",
+            marginTop: 15,
+            textAlign: "center",
+          },
+          themeTextStyle,
+        ]}
       >
         Click the Options Below to Explore!
       </Text>
-      <FlatList
-        data={GridButtons}
-        renderItem={({ item }) => (
-          <TouchableOpacity style={styles.button} onPress={() => router.navigate(item.link as Href)}>
+
+      <View style={styles.buttonList}>
+        {GridButtons.map((item) => (
+          <TouchableOpacity
+            key={item.id}
+            onPress={() => router.navigate(item.link as Href)}
+            activeOpacity={0.8}
+            style={styles.buttonWrapper}
+          >
+            <View style={styles.borderLayer} />
+
             <LinearGradient
               colors={["#b0d3ff", "#deedff"]}
-              style={styles.buttonBackground}
+              style={styles.button}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-            />
-            <Text style={{ textAlign: "center" }}>{item.title}</Text>
+            >
+              <Text style={styles.buttonText}>{item.title}</Text>
+              <Text style={styles.arrow}>▶</Text>
+            </LinearGradient>
           </TouchableOpacity>
-        )}
-        numColumns={2}
-        style={{ marginTop: 40 }}
-        columnWrapperStyle={styles.gridRow}
-      />
+        ))}
+      </View>
     </View>
   );
 }
+
+const SKEW = "-8deg";
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     alignItems: "center",
     paddingHorizontal: 10,
-  },
-  text: {
-    fontSize: 29,
-    fontWeight: "bold",
-    marginTop: 40,
   },
   lightContainer: {
     backgroundColor: "#edf5ff",
@@ -113,22 +100,52 @@ const styles = StyleSheet.create({
   darkText: {
     color: "#edf5ff",
   },
-  button: {
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 20,
-    paddingTop: 25,
-    width: itemWidth,
+  buttonList: {
+    width: "100%",
+    marginTop: 40,
+    gap: 20,
+    paddingHorizontal: 16,
   },
-  buttonBackground: {
+  buttonWrapper: {
+    width: "100%",
+    height: 100,
+    transform: [{ skewX: SKEW }],
+  },
+  borderLayer: {
     position: "absolute",
     top: 0,
-    height: 70,
-    width: 150,
-    borderRadius: 10,
-    boxShadow: "rgba(0, 0, 0, 0.24) 0px 3px 8px",
-    justifyContent: "center",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderWidth: 4,
+    borderColor: "#000",
+    borderStyle: "dashed",
+    borderRadius: 4,
+  },
+  button: {
+    flex: 1,
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 28,
+    borderRadius: 4,
+  },
+  buttonText: {
+    transform: [{ skewX: "8deg" }],
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#02080f",
+    letterSpacing: 0.5,
+  },
+  arrow: {
+    transform: [{ skewX: "8deg" }],
+    fontSize: 18,
+    color: "#02080f",
+  },
+  text: {
+    fontSize: 29,
+    fontWeight: "bold",
+    marginTop: 40,
   },
   gridRow: {
     flex: 1,
