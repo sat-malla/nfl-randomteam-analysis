@@ -150,7 +150,6 @@ const GenerateTeam = () => {
 
     const positions = ["QB", "RB", "WR", "TE", "OT", "G", "C", "DE", "DT", "LB", "CB", "FS", "SS", "Nickel", "Dime", "K", "P", "RS", "LS"]
 
-    // handle duplicates
     try {
       if (formData.offenseType === "3 WR 1 TE" && formData.defenseType === "4-3 Base Defense") {
         for (const position of positions) {
