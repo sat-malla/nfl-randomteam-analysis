@@ -26,6 +26,7 @@ type Team struct {
 type TeamRepository interface {
 	GetMany(ctx context.Context) ([]*Team, error)
 	GetOne(ctx context.Context, teamId uint) (*Team, error)
+	GetManyByDeviceUuid(ctx context.Context, deviceUuid string) ([]*Team, error)
 	CreateOne(ctx context.Context, team Team) (*Team, error)
 	UpdateOne(ctx context.Context, teamId uint, team Team) (*Team, error)
 	DeleteOne(ctx context.Context, teamId uint) error

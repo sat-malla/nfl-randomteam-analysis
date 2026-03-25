@@ -1,10 +1,10 @@
 import { Button, ButtonIcon, ButtonText } from "@/components/ui/button";
 import { GluestackUIProvider } from "@/components/ui/gluestack-ui-provider";
 import { Heading } from "@/components/ui/heading";
-import { CloseIcon, Icon, SettingsIcon } from "@/components/ui/icon";
+import { CloseIcon, Icon, SettingsIcon, ArrowLeftIcon } from "@/components/ui/icon";
 import { Switch } from "@/components/ui/switch";
 import { Text } from "@/components/ui/text";
-import { Stack } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import { useState } from "react";
 import { Appearance, StyleSheet, View, useColorScheme } from "react-native";
 
@@ -24,6 +24,8 @@ export default function RootLayout() {
   const [theme, setTheme] = useState(false);
 
   const colorScheme = useColorScheme();
+
+  const router = useRouter();
 
   const themeContainerStyle = colorScheme === 'light' ? styles.lightContainer : styles.darkContainer;
   const themeTextStyle = colorScheme === 'light' ? styles.lightText : styles.darkText;
@@ -46,6 +48,18 @@ export default function RootLayout() {
             fontSize: 25,
           },
           headerTitleAlign: "center",
+          headerLeft: () => (
+            <Button
+              size="sm"
+              onPress={() => {
+                router.back();
+              }}
+              style={{ backgroundColor: "transparent" }}
+            >
+              <ButtonIcon as={ArrowLeftIcon} style={{ color: "#fff" }} size="md" />
+              <Text style={{ color: "#fff", fontWeight: "700" }}>Back</Text>
+            </Button>
+          ),
           headerRight: () => (
             <Button
               size="sm"
@@ -74,7 +88,7 @@ export default function RootLayout() {
         <Stack.Screen 
           name="analyze-team"
           options={{
-            title: "Analyze"
+            title: "Analyze",
           }}
         />
       </Stack>

@@ -1,4 +1,10 @@
-import { Text, ScrollView, TouchableOpacity, View } from "react-native";
+import {
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  View,
+  Platform,
+} from "react-native";
 import { useColorScheme } from "react-native";
 import { StyleSheet } from "react-native";
 import {
@@ -22,19 +28,62 @@ import { Heading } from "@/components/ui/heading";
 import { ChevronDownIcon } from "@/components/ui/icon";
 import { Input, InputField } from "@/components/ui/input";
 import { VStack } from "@/components/ui/vstack";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import * as Application from "expo-application";
 
 const AnalyzeTeam = () => {
   const colorScheme = useColorScheme();
+  const [teams, setTeams] = useState<{ id: number; team_name: string }[]>([]);
+
+  const getDeviceUuid = async () => {
+    let deviceUuid = "test-device-uuid";
+    if (Platform.OS === "android") {
+      deviceUuid = Application.getAndroidId() || "test-device-uuid";
+    } else if (Platform.OS === "ios") {
+      deviceUuid =
+        (await Application.getIosIdForVendorAsync()) || "test-device-uuid";
+    }
+    return deviceUuid;
+  };
+
+  useEffect(() => {
+    const fetchTeams = async () => {
+      const deviceUuid = await getDeviceUuid();
+      fetch(`http://localhost:8000/api/team/device/${deviceUuid}`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      })
+        .then((response) => response.json())
+        .then((result) => {
+          if (result.status === "Success" && result.data) {
+            const teamNames = result.data.map(
+              (team: { id: number; team_name: string }) => ({
+                id: team.id,
+                team_name: team.team_name,
+              }),
+            );
+            setTeams(teamNames);
+            console.log(teamNames);
+          } else {
+            console.log("No data found");
+          }
+        })
+        .catch((error) => {
+          console.log(error);
+        });
+    };
+    fetchTeams();
+  }, []);
 
   const [formData, setFormData] = useState({
-      teamChosen: "",
-    });
-    const [analyzeTeam, setAnalyzeTeam] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const [savedAnalysis, setSavedAnalysis] = useState(false);
+    teamChosen: "",
+  });
 
-    const isFormFilled = !formData.teamChosen;
+  const [analyzeTeam, setAnalyzeTeam] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [savedAnalysis, setSavedAnalysis] = useState(false);
+
+  const isFormFilled = !formData.teamChosen;
 
   const themeContainerStyle =
     colorScheme === "light" ? styles.lightContainer : styles.darkContainer;
@@ -102,14 +151,13 @@ const AnalyzeTeam = () => {
                   <SelectDragIndicatorWrapper>
                     <SelectDragIndicator />
                   </SelectDragIndicatorWrapper>
-                  <SelectItem
-                    label="Team 1"
-                    value="Team 1"
-                  />
-                  <SelectItem
-                    label="Team 2"
-                    value="Team 2"
-                  />
+                  {teams.map((team) => (
+                    <SelectItem
+                      key={team.id}
+                      label={team.team_name}
+                      value={team.team_name}
+                    />
+                  ))}
                 </SelectContent>
               </SelectPortal>
             </Select>
@@ -120,7 +168,7 @@ const AnalyzeTeam = () => {
           // disabled={isFormFilled}
           // onPress={handleGenerateTeam}
         >
-          <Text style={themeGenerateButtonTextStyle}>Analyze Team</Text> 
+          <Text style={themeGenerateButtonTextStyle}>Analyze Team</Text>
           {/* style={styles.lightButtonText : themeGenerateButtonTextStyle} */}
         </TouchableOpacity>
         {/* { generateTeam && (

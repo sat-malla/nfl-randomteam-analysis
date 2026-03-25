@@ -136,6 +136,28 @@ func (h *teamHandler) UpdateOne(c *fiber.Ctx) error {
 	})
 }
 
+func (h *teamHandler) GetManyByDeviceUuid(c *fiber.Ctx) error {
+	deviceUuid := c.Params("deviceUuid")
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(5*time.Second))
+	defer cancel()
+
+	teams, err := h.repository.GetManyByDeviceUuid(ctx, deviceUuid)
+
+	if err != nil {
+		return c.Status(fiber.StatusBadGateway).JSON(&fiber.Map{
+			"status":  "Failure",
+			"message": "Failed to get teams",
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(&fiber.Map{
+		"status":  "Success",
+		"message": "Teams retrieved successfully",
+		"data":    teams,
+	})
+}
+
 func NewTeamHandler(router fiber.Router, repository models.TeamRepository) {
 	handler := &teamHandler{
 		repository: repository,
@@ -143,6 +165,7 @@ func NewTeamHandler(router fiber.Router, repository models.TeamRepository) {
 
 	router.Get("/", handler.GetMany)
 	router.Get("/:teamId", handler.GetOne)
+	router.Get("/device/:deviceUuid", handler.GetManyByDeviceUuid)
 	router.Post("/", handler.CreateOne)
 	router.Delete("/:teamId", handler.DeleteOne)
 	router.Put("/:teamId", handler.UpdateOne)

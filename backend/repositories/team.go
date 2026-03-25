@@ -81,6 +81,21 @@ func (r *TeamRepository) UpdateOne(ctx context.Context, teamId uint, team models
 	return &updatedTeam, nil
 }
 
+func (r *TeamRepository) GetManyByDeviceUuid(ctx context.Context, deviceUuid string) ([]*models.Team, error) {
+	cursor, err := r.collection.Find(ctx, bson.M{"device_uuid": deviceUuid})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var teams []*models.Team
+	if err := cursor.All(ctx, &teams); err != nil {
+		return nil, err
+	}
+
+	return teams, nil
+}
+
 func NewTeamRepository(collection *mongo.Collection) models.TeamRepository {
 	return &TeamRepository{
 		collection: collection,
