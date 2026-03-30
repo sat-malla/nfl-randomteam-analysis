@@ -3,6 +3,7 @@ import os
 import nflreadpy as nfl
 import polars as pl
 from dotenv import load_dotenv
+import time
 
 load_dotenv()
 
@@ -25,6 +26,7 @@ def store_table(supabase, table_name, df):
     for i in range(0, len(records), chunk_size):
         chunk = records[i:i + chunk_size]
         supabase.table(table_name).insert(chunk).execute()
+        time.sleep(0.5)
 
 def player_stats_preprocess(df):
     df = df.filter(pl.col("season_type") == "REG")
@@ -35,7 +37,8 @@ def player_stats_preprocess(df):
         "passing_interceptions", "pacr", "carries", "rushing_yards",
         "rushing_tds", "rushing_fumbles", "receptions", "targets",
         "receiving_yards", "receiving_tds", "def_tackles_solo", "def_sacks",
-        "def_interceptions", "def_pass_defended", "fg_made", "fg_att", "fg_pct",
+        "def_interceptions", "def_pass_defended", "fg_made", "fg_att", "fg_pct", 
+        "punt_returns", "punt_return_yards", "kickoff_returns", "kickoff_return_yards"
     ]
     existing = [col for col in keep if col in df.columns]
     df = df.select(existing)
@@ -391,7 +394,7 @@ def depth_charts_preprocess(df):
 supabase_client = get_client()
 
 # Player stats
-player_stats = nfl.load_player_stats(seasons=list(range(2015, 2026)))
+player_stats = nfl.load_player_stats(seasons=YEARS)
 player_stats = player_stats_preprocess(player_stats)
 store_table(supabase_client, "player_stats", player_stats)
 

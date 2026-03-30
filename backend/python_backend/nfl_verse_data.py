@@ -10,7 +10,7 @@ import polars as pl
 # print(schedules.null_count())
 
 
-# player_stats = nfl.load_player_stats(seasons=list(range(2015, 2026)))
+player_stats = nfl.load_player_stats(seasons=list(range(2015, 2026)))
 # # print(player_stats)
 
 # print(player_stats.shape)
@@ -26,12 +26,12 @@ import polars as pl
 # print(team_stats.head(3))
 # print(team_stats.null_count())
 
-rosters = nfl.load_rosters(seasons=list(range(2015, 2026)))
-print("Rosters:")
-print(rosters.shape)
-print(rosters.columns)
-print(rosters.head(3))
-print(rosters.null_count())
+# rosters = nfl.load_rosters(seasons=list(range(2015, 2026)))
+# print("Rosters:")
+# print(rosters.shape)
+# print(rosters.columns)
+# print(rosters.head(3))
+# print(rosters.null_count())
 
 # depth_charts = nfl.load_depth_charts(seasons=list(range(2015, 2026)))
 # print("Depth charts:")
