@@ -27,7 +27,6 @@ export default function RootLayout() {
 
   const router = useRouter();
 
-  const themeContainerStyle = colorScheme === 'light' ? styles.lightContainer : styles.darkContainer;
   const themeTextStyle = colorScheme === 'light' ? styles.lightText : styles.darkText;
 
   const toggleTheme = (newValue: boolean) => {
@@ -56,7 +55,7 @@ export default function RootLayout() {
               }}
               style={{ backgroundColor: "transparent" }}
             >
-              <ButtonIcon as={ArrowLeftIcon} style={{ color: "#fff" }} size="md" />
+              <ButtonIcon as={ArrowLeftIcon} style={{ color: "#fff" }} size="xl" />
               <Text style={{ color: "#fff", fontWeight: "700" }}>Back</Text>
             </Button>
           ),
@@ -68,7 +67,7 @@ export default function RootLayout() {
               }}
               style={{ backgroundColor: "transparent" }}
             >
-              <ButtonIcon as={SettingsIcon} style={{ color: "#fff" }} size="md" />
+              <ButtonIcon as={SettingsIcon} style={{ color: "#fff", width: 25, height: 25, marginBottom: 7 }} />
             </Button>
           ),
         }}
@@ -77,6 +76,9 @@ export default function RootLayout() {
           name="index"
           options={{
             title: "Home",
+            headerLeft: () => (
+              <View style={{ width: 49 }} />
+            ),
           }}
         />
         <Stack.Screen 

@@ -31,6 +31,8 @@ import { VStack } from "@/components/ui/vstack";
 import { useState, useEffect } from "react";
 import * as Application from "expo-application";
 
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000";
+
 const AnalyzeTeam = () => {
   const colorScheme = useColorScheme();
   const [teams, setTeams] = useState<{ id: number; team_name: string }[]>([]);
@@ -49,7 +51,7 @@ const AnalyzeTeam = () => {
   useEffect(() => {
     const fetchTeams = async () => {
       const deviceUuid = await getDeviceUuid();
-      fetch(`http://localhost:8000/api/team/device/${deviceUuid}`, {
+      fetch(`${API_URL}/api/team/device/${deviceUuid}`, {
         method: "GET",
         headers: { "Content-Type": "application/json" },
       })
