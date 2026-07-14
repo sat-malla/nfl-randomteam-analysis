@@ -13,13 +13,14 @@ import numpy as np
 import random
 import os
 import httpx
+import certifi
 
 load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-mongo_client = MongoClient(os.getenv("MONGO_URI"))
+mongo_client = MongoClient(os.getenv("MONGO_URI"), tlsCAFile=certifi.where())
 mongo_db = mongo_client["nfl-random-teams"]
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -495,13 +496,6 @@ class AnalyzeRequest(BaseModel):
 async def analyze_team(request: AnalyzeRequest):
     try:
         results = run_full_analysis(request.team_id)
-
-        async with https.AsyncClient() as client:
-            await client.post(
-                "http://localhost:8000/api/team/analysis",
-                json={"team_id": request.team_id, **results}
-            )
-
         return results
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

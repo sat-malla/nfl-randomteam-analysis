@@ -1,7 +1,12 @@
 package handlers
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"io"
+	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -158,15 +163,46 @@ func (h *teamHandler) GetManyByDeviceUuid(c *fiber.Ctx) error {
 	})
 }
 
+func (h *teamHandler) AnalyzeOne(c *fiber.Ctx) error {
+	teamId := c.Params("teamId")
+
+	pythonURL := os.Getenv("PYTHON_API_URL")
+	if pythonURL == "" {
+		pythonURL = "http://localhost:8001"
+	}
+
+	body, _ := json.Marshal(map[string]string{"team_id": teamId})
+	resp, err := http.Post(pythonURL+"/analyze-team", "application/json", bytes.NewBuffer(body))
+	if err != nil {
+		return c.Status(fiber.StatusBadGateway).JSON(&fiber.Map{
+			"status":  "Failure",
+			"message": "Analysis service unavailable",
+		})
+	}
+	defer resp.Body.Close()
+
+	result, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(&fiber.Map{
+			"status":  "Failure",
+			"message": "Failed to read analysis response",
+		})
+	}
+
+	c.Set("Content-Type", "application/json")
+	return c.Status(resp.StatusCode).Send(result)
+}
+
 func NewTeamHandler(router fiber.Router, repository models.TeamRepository) {
 	handler := &teamHandler{
 		repository: repository,
 	}
 
 	router.Get("/", handler.GetMany)
-	router.Get("/:teamId", handler.GetOne)
 	router.Get("/device/:deviceUuid", handler.GetManyByDeviceUuid)
+	router.Get("/:teamId", handler.GetOne)
 	router.Post("/", handler.CreateOne)
+	router.Post("/analyze/:teamId", handler.AnalyzeOne)
 	router.Delete("/:teamId", handler.DeleteOne)
 	router.Put("/:teamId", handler.UpdateOne)
 }

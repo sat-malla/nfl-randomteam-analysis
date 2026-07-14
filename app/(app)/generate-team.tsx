@@ -468,7 +468,7 @@ const GenerateTeam = () => {
     };
 
     try {
-      const response = await fetch("${API_URL}/api/team", {
+      const response = await fetch(`${API_URL}/api/team`, {
         method: "POST",
         headers: { "Content-Type": "application/json"},
         body: JSON.stringify({

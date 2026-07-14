@@ -4,6 +4,7 @@ import {
   TouchableOpacity,
   View,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { useColorScheme } from "react-native";
 import { StyleSheet } from "react-native";
@@ -26,16 +27,71 @@ import {
 } from "@/components/ui/form-control";
 import { Heading } from "@/components/ui/heading";
 import { ChevronDownIcon } from "@/components/ui/icon";
-import { Input, InputField } from "@/components/ui/input";
 import { VStack } from "@/components/ui/vstack";
 import { useState, useEffect } from "react";
 import * as Application from "expo-application";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000";
 
+type StatProjection = {
+  projected_total: number;
+  floor: number;
+  ceiling: number;
+};
+
+type PlayerProjection = {
+  position: string;
+  stats: Record<string, StatProjection>;
+};
+
+type AnalysisResult = {
+  projected_wins: number;
+  win_floor: number;
+  win_ceiling: number;
+  playoff_probability: number;
+  superbowl_probability: number;
+  player_projections: Record<string, PlayerProjection>;
+};
+
+type Team = {
+  id: string;
+  team_name: string;
+};
+
+const STAT_LABELS: Record<string, string> = {
+  passing_yards: "Pass Yds",
+  passing_tds: "Pass TDs",
+  interceptions: "INTs",
+  rushing_yards: "Rush Yds",
+  carries: "Carries",
+  rushing_tds: "Rush TDs",
+  receptions: "Rec",
+  targets: "Tgts",
+  receiving_yards: "Rec Yds",
+  receiving_tds: "Rec TDs",
+  def_tackles_solo: "Tackles",
+  def_sacks: "Sacks",
+  def_interceptions: "INTs",
+  def_passes_defended: "PD",
+  def_fumbles_forced: "FF",
+  fg_made: "FG Made",
+  fg_att: "FG Att",
+  fg_pct: "FG%",
+  punt_return_yards: "PR Yds",
+  kickoff_return_yards: "KR Yds",
+  kickoff_returns: "KR",
+  punt_returns: "PR",
+};
+
 const AnalyzeTeam = () => {
   const colorScheme = useColorScheme();
-  const [teams, setTeams] = useState<{ id: number; team_name: string }[]>([]);
+  const isDark = colorScheme === "dark";
+
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [selectedTeamId, setSelectedTeamId] = useState<string>("");
+  const [loading, setLoading] = useState(false);
+  const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const getDeviceUuid = async () => {
     let deviceUuid = "test-device-uuid";
@@ -58,93 +114,96 @@ const AnalyzeTeam = () => {
         .then((response) => response.json())
         .then((result) => {
           if (result.status === "Success" && result.data) {
-            const teamNames = result.data.map(
-              (team: { id: number; team_name: string }) => ({
+            const mapped = result.data.map(
+              (team: { id: string; team_name: string }) => ({
                 id: team.id,
                 team_name: team.team_name,
-              }),
+              })
             );
-            setTeams(teamNames);
-            console.log(teamNames);
-          } else {
-            console.log("No data found");
+            setTeams(mapped);
           }
         })
-        .catch((error) => {
-          console.log(error);
-        });
+        .catch((err) => console.log(err));
     };
     fetchTeams();
   }, []);
 
-  const [formData, setFormData] = useState({
-    teamChosen: "",
-  });
+  const handleAnalyze = async () => {
+    if (!selectedTeamId) return;
+    setLoading(true);
+    setAnalysis(null);
+    setError(null);
 
-  const [analyzeTeam, setAnalyzeTeam] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [savedAnalysis, setSavedAnalysis] = useState(false);
+    try {
+      const response = await fetch(`${API_URL}/api/team/analyze/${selectedTeamId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        setError(result.detail ?? "Analysis failed");
+      } else {
+        setAnalysis(result);
+      }
+    } catch (e) {
+      setError("Could not reach server. Make sure both backends are running.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const isFormFilled = !formData.teamChosen;
+  const c = {
+    bg: isDark ? "#132130" : "#edf5ff",
+    card: isDark ? "#02080f" : "#ffffff",
+    text: isDark ? "#edf5ff" : "#02080f",
+    subtext: isDark ? "#a0b4c8" : "#4a5568",
+    accent: "#004ba1",
+    accentLight: isDark ? "#1a3a6b" : "#dbeafe",
+    border: isDark ? "#1e3a52" : "#bfdbfe",
+    button: isDark ? "#edf5ff" : "#02080f",
+    buttonText: isDark ? "#02080f" : "#edf5ff",
+    green: isDark ? "#34f77c" : "#008a33",
+    amber: isDark ? "#fbbf24" : "#d97706",
+    red: isDark ? "#f87171" : "#dc2626",
+  };
 
-  const themeContainerStyle =
-    colorScheme === "light" ? styles.lightContainer : styles.darkContainer;
-  const themeTextStyle =
-    colorScheme === "light" ? styles.lightText : styles.darkText;
-  const themeTableStyle =
-    colorScheme === "light" ? styles.lightTable : styles.darkTable;
-  const themeFormStyle =
-    colorScheme === "light" ? styles.lightForm : styles.darkForm;
-  const themeInputTextStyle =
-    colorScheme === "light" ? styles.lightInputText : styles.darkInputText;
-  const themeGenerateButtonStyle =
-    colorScheme === "light"
-      ? styles.lightGenerateButton
-      : styles.darkGenerateButton;
-  const themeGenerateButtonTextStyle =
-    colorScheme === "light" ? styles.lightButtonText : styles.darkButtonText;
-  const themeSaveButtonStyle =
-    colorScheme === "light" ? styles.lightSaveButton : styles.darkSaveButton;
-  const themeSaveButtonTextStyle =
-    colorScheme === "light"
-      ? styles.lightSaveButtonText
-      : styles.darkSaveButtonText;
+  const winColor =
+    analysis && analysis.projected_wins >= 9
+      ? c.green
+      : analysis && analysis.projected_wins >= 6
+      ? c.amber
+      : c.red;
 
   return (
     <ScrollView
-      style={[styles.container, themeContainerStyle]}
+      style={{ flex: 1, backgroundColor: c.bg }}
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={true}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={[styles.text, themeTextStyle]}>Analyze Your Team</Text>
-      <Text style={[styles.subText, themeTextStyle]}>
-        Analyze any of your generated teams' performance and statistics,
-        including win rate, team and player performance, and more!
+      <Text style={[styles.title, { color: c.text }]}>Analyze Your Team</Text>
+      <Text style={[styles.subtitle, { color: c.subtext }]}>
+        Select a saved team to run a full season simulation.
       </Text>
-      <Text style={[styles.subText, themeTextStyle]}>
-        Choose your team below to analyze.
-      </Text>
-      <View style={[styles.formContainer, themeFormStyle]}>
+
+      <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border }]}>
         <FormControl size="lg">
           <VStack space="md">
-            <FormControlLabel style={{ marginTop: 15 }}>
-              <FormControlLabelText>Choose Team</FormControlLabelText>
+            <FormControlLabel>
+              <FormControlLabelText style={{ color: c.text }}>Choose Team</FormControlLabelText>
             </FormControlLabel>
             <Select
-              onValueChange={(value) =>
-                setFormData({ ...formData, teamChosen: value })
-              }
+              onValueChange={(value) => {
+                const team = teams.find((t) => t.team_name === value);
+                if (team) setSelectedTeamId(team.id);
+              }}
             >
               <SelectTrigger
                 variant="outline"
                 size="lg"
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                }}
+                style={{ flexDirection: "row", justifyContent: "space-between" }}
               >
-                <SelectInput placeholder="Select option" style={{ flex: 1 }} />
+                <SelectInput placeholder="Select a team" style={{ flex: 1, color: c.text }} />
                 <SelectIcon style={{ marginRight: 10 }} as={ChevronDownIcon} />
               </SelectTrigger>
               <SelectPortal>
@@ -165,162 +224,230 @@ const AnalyzeTeam = () => {
             </Select>
           </VStack>
         </FormControl>
+
         <TouchableOpacity
-          style={[themeGenerateButtonStyle]} // {[styles.disabledGenerateButton : themeGenerateButtonStyle]}
-          // disabled={isFormFilled}
-          // onPress={handleGenerateTeam}
+          style={[
+            styles.button,
+            { backgroundColor: selectedTeamId && !loading ? c.button : "#9ca3af" },
+          ]}
+          disabled={!selectedTeamId || loading}
+          onPress={handleAnalyze}
         >
-          <Text style={themeGenerateButtonTextStyle}>Analyze Team</Text>
-          {/* style={styles.lightButtonText : themeGenerateButtonTextStyle} */}
+          {loading ? (
+            <ActivityIndicator color={c.buttonText} />
+          ) : (
+            <Text style={[styles.buttonText, { color: c.buttonText }]}>Analyze Team</Text>
+          )}
         </TouchableOpacity>
-        {/* { generateTeam && (
-          <TouchableOpacity
-            style={savedTeam ? styles.disabledSaveButton : themeSaveButtonStyle}
-            disabled={savedTeam}
-            onPress={handleToast}
-          >
-            {savedTeam ? (
-              <Text style={styles.disabledSaveButtonText}>Saved {'\u2713'}</Text>
-            ) : (
-              <Text style={themeSaveButtonTextStyle}>Save Team</Text>
-            )}
-          </TouchableOpacity>
-        )} */}
+
+        {loading && (
+          <Text style={[styles.loadingNote, { color: c.subtext }]}>
+            Running 1,000 season simulations… this takes ~30 seconds.
+          </Text>
+        )}
+
+        {error && (
+          <Text style={[styles.error, { color: c.red }]}>{error}</Text>
+        )}
       </View>
+
+      {analysis && (
+        <>
+          {/* Season Projection */}
+          <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border }]}>
+            <Text style={[styles.cardTitle, { color: c.text }]}>Season Projection</Text>
+
+            <View style={styles.winsRow}>
+              <Text style={[styles.winsNumber, { color: winColor }]}>
+                {analysis.projected_wins}
+              </Text>
+              <Text style={[styles.winsLabel, { color: c.subtext }]}>Projected Wins</Text>
+            </View>
+
+            <Text style={[styles.winsRange, { color: c.subtext }]}>
+              Floor: {analysis.win_floor}W — Ceiling: {analysis.win_ceiling}W
+            </Text>
+
+            <View style={styles.probRow}>
+              <View style={[styles.probCard, { backgroundColor: c.accentLight, borderColor: c.border }]}>
+                <Text style={[styles.probPct, { color: c.accent }]}>
+                  {analysis.playoff_probability}%
+                </Text>
+                <Text style={[styles.probLabel, { color: c.subtext }]}>Playoff Chance</Text>
+              </View>
+              <View style={[styles.probCard, { backgroundColor: c.accentLight, borderColor: c.border }]}>
+                <Text style={[styles.probPct, { color: c.accent }]}>
+                  {analysis.superbowl_probability}%
+                </Text>
+                <Text style={[styles.probLabel, { color: c.subtext }]}>Super Bowl Chance</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Player Projections */}
+          <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border }]}>
+            <Text style={[styles.cardTitle, { color: c.text }]}>Player Projections</Text>
+            {Object.entries(analysis.player_projections).map(([name, proj]) => (
+              <View key={name} style={[styles.playerCard, { borderColor: c.border }]}>
+                <View style={styles.playerHeader}>
+                  <Text style={[styles.playerName, { color: c.text }]}>{name}</Text>
+                  <View style={[styles.posBadge, { backgroundColor: c.accentLight }]}>
+                    <Text style={[styles.posText, { color: c.accent }]}>{proj.position}</Text>
+                  </View>
+                </View>
+                {Object.entries(proj.stats).map(([stat, vals]) => (
+                  <View key={stat} style={styles.statRow}>
+                    <Text style={[styles.statLabel, { color: c.subtext }]}>
+                      {STAT_LABELS[stat] ?? stat}
+                    </Text>
+                    <Text style={[styles.statValue, { color: c.text }]}>
+                      {vals.projected_total}
+                    </Text>
+                    <Text style={[styles.statRange, { color: c.subtext }]}>
+                      {vals.floor}–{vals.ceiling}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ))}
+          </View>
+        </>
+      )}
     </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
   scrollContent: {
     alignItems: "center",
-    paddingHorizontal: 5,
-    paddingBottom: 40,
+    paddingHorizontal: 16,
+    paddingBottom: 60,
+    paddingTop: 30,
   },
-  text: {
-    fontSize: 29,
+  title: {
+    fontSize: 28,
     fontWeight: "bold",
-    marginTop: 40,
-  },
-  subText: {
-    fontSize: 16,
-    marginTop: 10,
     textAlign: "center",
   },
-  formContainer: {
-    flexDirection: "column",
+  subtitle: {
+    fontSize: 15,
+    marginTop: 8,
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  card: {
+    width: "100%",
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 20,
     gap: 12,
-    padding: 15,
-    marginTop: 20,
-    width: "90%",
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  button: {
+    padding: 14,
     borderRadius: 10,
+    alignItems: "center",
+    marginTop: 4,
   },
-  lightForm: {
-    backgroundColor: "#edf5ff",
-    boxShadow: "rgba(0, 0, 0, 0.24) 0px 3px 8px",
+  buttonText: {
+    fontWeight: "700",
+    fontSize: 16,
   },
-  darkForm: {
-    backgroundColor: "#02080f",
-    boxShadow: "rgba(250, 250, 250, 0.8) 0px 3px 8px",
+  loadingNote: {
+    fontSize: 13,
+    textAlign: "center",
+    marginTop: -4,
   },
-  lightTable: {
-    width: "95%",
-    marginTop: 20,
+  error: {
+    fontSize: 14,
+    textAlign: "center",
+  },
+  winsRow: {
+    alignItems: "center",
+    marginVertical: 4,
+  },
+  winsNumber: {
+    fontSize: 64,
+    fontWeight: "800",
+    lineHeight: 70,
+  },
+  winsLabel: {
+    fontSize: 16,
+    marginTop: 2,
+  },
+  winsRange: {
+    textAlign: "center",
+    fontSize: 14,
+  },
+  probRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 4,
+  },
+  probCard: {
+    flex: 1,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#02080f",
-    overflow: "hidden",
-  },
-  darkTable: {
-    width: "95%",
-    marginTop: 20,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#edf5ff",
-    overflow: "hidden",
-  },
-  lightContainer: {
-    backgroundColor: "#edf5ff",
-  },
-  darkContainer: {
-    backgroundColor: "#132130",
-  },
-  lightText: {
-    color: "#02080f",
-  },
-  darkText: {
-    color: "#edf5ff",
-  },
-  lightInputText: {
-    color: "#02080f",
-    width: "100%",
-  },
-  darkInputText: {
-    color: "#edf5ff",
-    width: "100%",
-  },
-  lightGenerateButton: {
-    backgroundColor: "#02080f",
-    padding: 10,
-    borderRadius: 10,
+    padding: 12,
     alignItems: "center",
-    marginTop: 10,
   },
-  darkGenerateButton: {
-    backgroundColor: "#edf5ff",
-    padding: 10,
-    borderRadius: 10,
+  probPct: {
+    fontSize: 24,
+    fontWeight: "700",
+  },
+  probLabel: {
+    fontSize: 12,
+    marginTop: 2,
+    textAlign: "center",
+  },
+  playerCard: {
+    borderTopWidth: 1,
+    paddingTop: 12,
+    marginTop: 4,
+    gap: 6,
+  },
+  playerHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    marginTop: 10,
+    marginBottom: 4,
   },
-  disabledGenerateButton: {
-    backgroundColor: "#d4d4d4",
-    padding: 10,
-    borderRadius: 10,
+  playerName: {
+    fontSize: 15,
+    fontWeight: "700",
+    flex: 1,
+  },
+  posBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  posText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  statRow: {
+    flexDirection: "row",
     alignItems: "center",
-    marginTop: 10,
   },
-  lightSaveButton: {
-    backgroundColor: "#008a33",
-    padding: 10,
-    borderRadius: 10,
-    alignItems: "center",
-    marginTop: 10,
+  statLabel: {
+    fontSize: 13,
+    width: 80,
   },
-  darkSaveButton: {
-    backgroundColor: "#34f77c",
-    padding: 10,
-    borderRadius: 10,
-    alignItems: "center",
-    marginTop: 10,
+  statValue: {
+    fontSize: 13,
+    fontWeight: "600",
+    width: 50,
+    textAlign: "right",
   },
-  disabledSaveButton: {
-    backgroundColor: "#d4d4d4",
-    padding: 10,
-    borderRadius: 10,
-    alignItems: "center",
-    marginTop: 10,
-  },
-  lightButtonText: {
-    color: "#edf5ff",
-  },
-  darkButtonText: {
-    color: "#02080f",
-  },
-  lightSaveButtonText: {
-    color: "#ffffff",
-    fontWeight: "bold",
-  },
-  darkSaveButtonText: {
-    color: "#000000",
-    fontWeight: "bold",
-  },
-  disabledSaveButtonText: {
-    color: "#ffffff",
-    fontWeight: "bold",
+  statRange: {
+    fontSize: 12,
+    marginLeft: 8,
   },
 });
 
