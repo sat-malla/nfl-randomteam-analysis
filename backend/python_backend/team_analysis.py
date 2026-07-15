@@ -356,7 +356,7 @@ def get_opponent_strength(opponent, team_stats):
     rushing_factor = 115 / max(avg_rushing, 1)
     return (passing_factor + rushing_factor) / 2
     
-def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300):
+def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300, coach_multiplier=1.0):
     n_games = 17
     schedule = generate_schedule(n_games)
 
@@ -395,7 +395,7 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300):
 
     # vectorized win calculation across all sims and games
     # all_samples: (n_sims, n_games, n_stats)
-    multipliers = opp_strengths * home_boosts  # (n_games,)
+    multipliers = opp_strengths * home_boosts * coach_multiplier  # (n_games,)
 
     passing_per_game = all_samples[:, :, passing_idx] * multipliers if passing_idx is not None else np.zeros((n_season_sims, n_games))
     rushing_per_game = all_samples[:, :, rushing_idx] * multipliers if rushing_idx is not None else np.zeros((n_season_sims, n_games))
@@ -419,11 +419,20 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300):
     
     wins_array = np.array(all_szn_wins)
 
-    player_projs = {}
+    nfl_team_map = {p["name"]: TEAM_MAPPING.get(p["nfl_team"], p["nfl_team"]) for p in team["players"]}
+
+    POS_ORDER = ["QB", "RB", "FB", "WR", "TE", "OT", "G", "C", "DE", "DT", "NT", "DL",
+                 "LB", "OLB", "ILB", "MLB", "CB", "Nickel", "Dime", "FS", "SS", "S", "SAF", "DB", "K", "P", "RS", "LS"]
+
+    player_projs_raw = {}
     for name, stats in all_player_stats.items():
         pos = distributions[name]["position"]
-        player_projs[name] = {
+        primary_stat = POSITION_PRIMARY_STAT.get(pos)
+        primary_arr = np.array(stats.get(primary_stat, [0])) if primary_stat else np.array([0])
+        player_projs_raw[name] = {
             "position": pos,
+            "nfl_team": nfl_team_map.get(name, ""),
+            "_primary_proj": float(np.mean(primary_arr)),
             "stats": {
                 stat: {
                     "projected_total": round(float(np.mean(arr))),
@@ -433,31 +442,118 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300):
                 for stat, arr in {s: np.array(v) for s, v in stats.items()}.items()
             }
         }
+
+    # Sort: by position group first, then by primary stat descending (stronger player first)
+    sorted_names = sorted(
+        player_projs_raw.keys(),
+        key=lambda n: (
+            POS_ORDER.index(player_projs_raw[n]["position"]) if player_projs_raw[n]["position"] in POS_ORDER else 99,
+            -player_projs_raw[n]["_primary_proj"]
+        )
+    )
+    player_projs = {}
+    for name in sorted_names:
+        entry = player_projs_raw[name]
+        player_projs[name] = {k: v for k, v in entry.items() if k != "_primary_proj"}
     
+    win_vals = wins_array.astype(float)
+    playoff_prob_per_sim = 1 / (1 + np.exp(-0.7 * (win_vals - 9.5)))
+    playoff_probability = round(float(np.mean(playoff_prob_per_sim)) * 100, 1)
+
+    avg_wins = float(np.mean(wins_array))
+    win_quality = np.clip((avg_wins - 7) / 6, 0.3, 1.5)
+    superbowl_probability = round(playoff_probability * (1 / 14) * win_quality, 1)
+
     return {
         "schedule": schedule,
         "projected_wins": round(float(np.mean(wins_array)), 1),
         "win_floor": int(np.percentile(wins_array, 10)),
         "win_ceiling": int(np.percentile(wins_array, 90)),
-        "playoff_probability": round(float(np.mean(wins_array >= 9)) * 100, 1),
-        "superbowl_probability": round(float(np.mean(wins_array >= 9)) * 25, 1),
+        "playoff_probability": playoff_probability,
+        "superbowl_probability": superbowl_probability,
         "player_projections": player_projs,
         "win_distribution": {str(w): int(np.sum(wins_array == w)) for w in range(18)},
     }
+
+def fetch_coach_factor(coach_name, qb_name):
+    """
+    Returns a multiplier (0.90–1.10) based on:
+    - Coach's historical win rate from schedules (vs NFL average of ~0.5)
+    - Bonus if coach has coached this QB on the same team in the same season
+    """
+    if not coach_name:
+        return 1.0, {}
+
+    # Fetch all games where this coach was involved
+    home_games = supabase.table("schedules").select("home_score,away_score,season").execute()
+    coach_home = supabase.table("coaches").select("season,team").eq("head_coach", coach_name).execute()
+
+    coach_teams = {row["season"]: row["team"] for row in (coach_home.data or [])}
+
+    if not coach_teams:
+        return 1.0, {"coach": coach_name, "note": "No historical data found"}
+
+    # For each season the coach coached, check home/away win rate
+    wins = 0
+    losses = 0
+    sched_data = supabase.table("schedules").select("season,home_team,away_team,home_score,away_score").execute()
+    df = pd.DataFrame(sched_data.data or [])
+
+    for season, team in coach_teams.items():
+        home = df[(df["season"] == season) & (df["home_team"] == team)]
+        wins += int((home["home_score"] > home["away_score"]).sum())
+        losses += int((home["home_score"] < home["away_score"]).sum())
+        away = df[(df["season"] == season) & (df["away_team"] == team)]
+        wins += int((away["away_score"] > away["home_score"]).sum())
+        losses += int((away["away_score"] < away["home_score"]).sum())
+
+    total = wins + losses
+    win_rate = wins / total if total > 0 else 0.5
+    # Scale: 0.5 win_rate = 1.0x, 0.7 = ~1.06x, 0.3 = ~0.94x
+    coach_multiplier = 0.88 + (win_rate * 0.24)
+    coach_multiplier = float(np.clip(coach_multiplier, 0.90, 1.10))
+
+    # QB–coach familiarity bonus: check if coach coached a team that had this QB
+    qb_familiarity = False
+    qb_data = supabase.table("player_stats").select("season,team").eq("player_display_name", qb_name).eq("position", "QB").execute()
+    qb_seasons = {(row["season"], row["team"]) for row in (qb_data.data or [])}
+    for season, team in coach_teams.items():
+        if (season, team) in qb_seasons:
+            qb_familiarity = True
+            break
+
+    if qb_familiarity:
+        coach_multiplier = float(np.clip(coach_multiplier + 0.03, 0.90, 1.10))
+
+    meta = {
+        "coach": coach_name,
+        "seasons_coached": len(coach_teams),
+        "record": f"{wins}–{losses}",
+        "win_rate": round(win_rate, 3),
+        "coach_multiplier": round(coach_multiplier, 3),
+        "qb_familiarity": qb_familiarity,
+    }
+    return coach_multiplier, meta
+
 
 def run_full_analysis(team_id):
     team = get_generated_team(team_id)
     player_names = [p["name"] for p in team["players"]]
     nfl_teams = list(set(TEAM_MAPPING[p["nfl_team"]] for p in team["players"]))
-    
+
+    qb = next((p["name"] for p in team["players"] if p["position"] == "QB"), "")
+    coach_name = team.get("head_coach", "")
+    coach_multiplier, coach_meta = fetch_coach_factor(coach_name, qb)
+
     player_stats = fetch_player_historical_stats(player_names)
     team_stats = fetch_team_historical_stats(nfl_teams)
 
     dists = build_all_player_dists(team, player_stats)
     corr_matrix = build_corr_matrix(team["players"])
 
-    results = sim_season(team, dists, corr_matrix, team_stats)
-    
+    results = sim_season(team, dists, corr_matrix, team_stats, coach_multiplier=coach_multiplier)
+    results["coach_analysis"] = coach_meta
+
     return results
 
 
@@ -470,6 +566,14 @@ class AnalyzeRequest(BaseModel):
 async def analyze_team(request: AnalyzeRequest):
     try:
         results = run_full_analysis(request.team_id)
+
+        go_url = os.getenv("GO_API_URL", "http://localhost:8000")
+        async with httpx.AsyncClient(timeout=10) as client:
+            await client.post(
+                f"{go_url}/api/analysis/{request.team_id}",
+                json={"team_id": request.team_id, "analysis": results},
+            )
+
         return results
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

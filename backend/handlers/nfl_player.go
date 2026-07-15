@@ -127,10 +127,13 @@ func (h *NFLPlayerHandler) GetManyRandomByPosition(c *fiber.Ctx) error {
 			"message": "position query parameter is required",
 		})
 	}
-	// Use MongoDB $sample aggregation for random selection
+	// Sample a larger pool then sort by depth_chart_order so RB1 always comes before RB2
+	sampleSize := count * 8
 	pipeline := mongo.Pipeline{
 		{{Key: "$match", Value: bson.M{"position": position, "active": true}}},
-		{{Key: "$sample", Value: bson.M{"size": count}}},
+		{{Key: "$sample", Value: bson.M{"size": sampleSize}}},
+		{{Key: "$sort", Value: bson.D{{Key: "depth_chart_order", Value: 1}}}},
+		{{Key: "$limit", Value: count}},
 	}
 	cursor, err := h.collection.Aggregate(ctx, pipeline)
 	if err != nil {

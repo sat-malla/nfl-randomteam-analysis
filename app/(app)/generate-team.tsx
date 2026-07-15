@@ -629,6 +629,11 @@ const GenerateTeam = () => {
       )}
       {generateTeam && (
         <Box style={themeTableStyle}>
+          {headCoach ? (
+            <Text style={[themeTextStyle, { fontSize: 18, fontWeight: "bold", textAlign: "center", paddingVertical: 12, paddingHorizontal: 8 }]}>
+              Head Coach: {headCoach}
+            </Text>
+          ) : null}
           <Table style={{ width: "100%" }}>
             <TableHeader>
               <TableRow>
