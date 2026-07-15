@@ -39,6 +39,7 @@ func main() {
 	handlers.NewEventHandler(server.Group("/event"), eventRepo) // connects HTTP routes /api/event to handler, which uses repo
 	handlers.NewTeamHandler(server.Group("/team"), teamRepo)    // connects HTTP routes /api/team to handler, which uses repo
 	handlers.NewNFLPlayerHandler(server.Group("/players"), db.Collection("nfl_players"))
+	handlers.NewCoachHandler(server.Group("/coaches"))
 
 	sleeperService := services.NewSleeperService(db.Collection("nfl_players"))
 	go func() {

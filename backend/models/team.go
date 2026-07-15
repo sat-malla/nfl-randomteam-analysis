@@ -19,6 +19,7 @@ type Team struct {
 	TeamName    string             `json:"team_name" bson:"team_name"`
 	OffenseType string             `json:"offense_type" bson:"offense_type"`
 	DefenseType string             `json:"defense_type" bson:"defense_type"`
+	HeadCoach   string             `json:"head_coach" bson:"head_coach"`
 	Players     []Player           `json:"players" bson:"players"`
 	CreatedAt   time.Time          `json:"created_at" bson:"created_at"`
 }

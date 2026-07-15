@@ -278,91 +278,58 @@ def build_corr_matrix(team_players):
     return build_pos_correlation_mat(team_players)
 
 # Simulation
-def simulate_game_stats(distributions, corr_mat, n_sims=500):
+def build_flat_corr(distributions, corr_mat):
     flat_keys = []
     for name, data in distributions.items():
         for sc in data["distributions"].keys():
             flat_keys.append((name, sc))
-    
+
     if not flat_keys:
-        return pd.DataFrame()
-    
+        return flat_keys, None
+
     n = len(flat_keys)
     names = list(distributions.keys())
+    name_to_idx = {name: i for i, name in enumerate(names)}
 
     if corr_mat.shape[0] != len(names):
         corr_mat = np.eye(len(names))
-    
+
     flat_corr = np.eye(n)
     for i, (p1, _) in enumerate(flat_keys):
         for j, (p2, _) in enumerate(flat_keys):
             if i == j:
                 continue
-            pi = names.index(p1)
-            pj = names.index(p2)
-            
-            if pi < corr_mat.shape[0] and pj < corr_mat.shape[1]:
-                if p1 == p2:
-                    flat_corr[i][j] = 0.7
-                else:
-                    flat_corr[i][j] = corr_mat[pi][pj] * 0.8
-            else:
-                flat_corr[i][j] = 0.0
-    
-    flat_corr = np.nan_to_num(flat_corr, nan=0.0, posinf=1.0, neginf=-1.0)
-    flat_corr = np.clip(flat_corr, -1.0, 1.0)
+            pi = name_to_idx[p1]
+            pj = name_to_idx[p2]
+            flat_corr[i][j] = 0.7 if p1 == p2 else corr_mat[pi][pj] * 0.8
+
+    flat_corr = np.clip(np.nan_to_num(flat_corr, nan=0.0, posinf=1.0, neginf=-1.0), -1.0, 1.0)
     np.fill_diagonal(flat_corr, 1.0)
 
-    print("flat_corr stats:")
-    print(f"  shape: {flat_corr.shape}")
-    print(f"  min: {np.min(flat_corr)}")
-    print(f"  max: {np.max(flat_corr)}")
-    print(f"  has nan: {np.any(np.isnan(flat_corr))}")
-    print(f"  has inf: {np.any(np.isinf(flat_corr))}")
-    print(f"  diagonal: {np.diag(flat_corr)}")
-    print(flat_corr)
-
-    # positive semidefinite (x^T A x >= 0) -> all eigenvalues are nonnegative
+    # ensure positive semidefinite — done once, not per game
     eigenvalues, eigenvectors = np.linalg.eigh(flat_corr)
     eigenvalues = np.maximum(eigenvalues, 1e-6)
     flat_corr = eigenvectors @ np.diag(eigenvalues) @ eigenvectors.T
 
     if not np.all(np.isfinite(flat_corr)):
-        print("WARNING: flat_corr still has non-finite values, falling back to identity")
         flat_corr = np.eye(n)
 
-    # gaussian copula
-    mean = np.zeros(n)
-    mv_samples = np.random.multivariate_normal(mean, flat_corr, size=n_sims)
+    return flat_keys, flat_corr
+
+def sample_all_games(distributions, flat_keys, flat_corr, n_season_sims, n_games):
+    # Sample all sims × all games in one multivariate_normal call
+    n = len(flat_keys)
+    total_samples = n_season_sims * n_games
+    mv_samples = np.random.multivariate_normal(np.zeros(n), flat_corr, size=total_samples)
     uniform_samples = norm.cdf(mv_samples)
 
-    # applying distributions
-    correlated_stats = np.zeros((n_sims, n))
+    raw = np.zeros((total_samples, n))
     for i, (name, sc) in enumerate(flat_keys):
         dist = distributions[name]["distributions"][sc]
-        correlated_stats[:, i] = dist.ppf(
-            np.clip(uniform_samples[:, i], 1e-6, 1 - 1e-6)
-        )
+        raw[:, i] = dist.ppf(np.clip(uniform_samples[:, i], 1e-6, 1 - 1e-6))
 
-    columns = pd.MultiIndex.from_tuples(flat_keys, names=["player", "stat"])
-    return pd.DataFrame(correlated_stats, columns=columns)
-
-def simulate_single_game(distributions, corr_matrix):
-    game_sims = simulate_game_stats(distributions, corr_matrix, n_sims=500)
-    if game_sims.empty:
-        return {}
-
-    result = {}
-    for name, data in distributions.items():
-        if not data["distributions"]:
-            continue
-        result[name] = {}
-        for sc in data["distributions"].keys():
-            if (name, sc) in game_sims.columns:
-                result[name][sc] = float(
-                    game_sims[(name, sc)].median()
-                )
-    return result
+    # shape: (n_season_sims, n_games, n_stats)
+    return raw.reshape(n_season_sims, n_games, n)
 
 def yards_to_points(passing_yards, rushing_yards, fg_made):
     base_points = (passing_yards + rushing_yards) / 10
@@ -389,59 +356,66 @@ def get_opponent_strength(opponent, team_stats):
     rushing_factor = 115 / max(avg_rushing, 1)
     return (passing_factor + rushing_factor) / 2
     
-def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=1000):
-    schedule = generate_schedule(17)
+def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300):
+    n_games = 17
+    schedule = generate_schedule(n_games)
 
-    all_szn_wins = []
     all_player_stats = {
         p["name"]: {stat: [] for stat in distributions[p["name"]]["distributions"].keys()}
         for p in team["players"]
         if distributions[p["name"]]["distributions"]
     }
 
-    for _ in range(n_season_sims):
-        szn_wins = 0
-        season_totals = {
-            name: {stat: 0 for stat in all_player_stats[name]}
-            for name in all_player_stats
-        }
+    # build corr matrix and sample ALL games for ALL sims in one shot
+    flat_keys, flat_corr = build_flat_corr(distributions, corr_matrix)
+    if flat_corr is None:
+        return {}
 
-        for game in schedule:
-            opp_strength = get_opponent_strength(game["opponent"], team_stats)
-            home_boost = 1.05 if game["home"] else 0.97
-            game_stats = simulate_single_game(distributions, corr_matrix)
+    # shape: (n_season_sims, n_games, n_stats)
+    all_samples = sample_all_games(distributions, flat_keys, flat_corr, n_season_sims, n_games)
+    all_samples = np.maximum(all_samples, 0)
 
-            game_passing = 0
-            game_rushing = 0
-            game_fg = 0
+    # build lookup: stat_key -> column index
+    key_to_idx = {key: i for i, key in enumerate(flat_keys)}
+    stat_col_indices = {name: {} for name in all_player_stats}
+    for name in all_player_stats:
+        for stat in all_player_stats[name]:
+            k = (name, stat)
+            if k in key_to_idx:
+                stat_col_indices[name][stat] = key_to_idx[k]
 
-            for player_name, stats in game_stats.items():
-                if player_name not in season_totals:
-                    continue
-                for stat_col, value in stats.items():
-                    adjusted = max(0, value * opp_strength * home_boost)
-                    season_totals[player_name][stat_col] += adjusted
+    # opponent strengths and home boosts per game
+    opp_strengths = np.array([get_opponent_strength(g["opponent"], team_stats) for g in schedule])
+    home_boosts = np.array([1.05 if g["home"] else 0.97 for g in schedule])
 
-                    if stat_col == "passing_yards":
-                        game_passing += adjusted
-                    elif stat_col == "rushing_yards":
-                        game_rushing += adjusted
-                    elif stat_col == "fg_made":
-                        game_fg += adjusted
+    # find column indices for win calculation
+    passing_idx = key_to_idx.get(next((k for k in flat_keys if k[1] == "passing_yards"), (None, None)), None)
+    rushing_idx = key_to_idx.get(next((k for k in flat_keys if k[1] == "rushing_yards"), (None, None)), None)
+    fg_idx = key_to_idx.get(next((k for k in flat_keys if k[1] == "fg_made"), (None, None)), None)
 
-            team_points = yards_to_points(game_passing, game_rushing, game_fg)
-            opp_points = np.random.normal(
-                loc=team_points * (1 / opp_strength),
-                scale=5
-            )
+    # vectorized win calculation across all sims and games
+    # all_samples: (n_sims, n_games, n_stats)
+    multipliers = opp_strengths * home_boosts  # (n_games,)
 
-            if team_points > opp_points:
-                szn_wins += 1
-            
-        all_szn_wins.append(szn_wins)
-        for name in all_player_stats:
-            for stat in all_player_stats[name]:
-                all_player_stats[name][stat].append(season_totals[name][stat])
+    passing_per_game = all_samples[:, :, passing_idx] * multipliers if passing_idx is not None else np.zeros((n_season_sims, n_games))
+    rushing_per_game = all_samples[:, :, rushing_idx] * multipliers if rushing_idx is not None else np.zeros((n_season_sims, n_games))
+    fg_per_game = all_samples[:, :, fg_idx] * multipliers if fg_idx is not None else np.zeros((n_season_sims, n_games))
+
+    team_points = yards_to_points(passing_per_game, rushing_per_game, fg_per_game)
+    opp_points = np.random.normal(
+        loc=team_points * (1 / opp_strengths),
+        scale=5,
+        size=(n_season_sims, n_games)
+    )
+    wins_matrix = (team_points > opp_points)
+    all_szn_wins = wins_matrix.sum(axis=1)
+
+    # accumulate player season totals
+    for name in all_player_stats:
+        for stat, col_idx in stat_col_indices[name].items():
+            # sum across games with multiplier, shape (n_sims,)
+            season_totals = (all_samples[:, :, col_idx] * multipliers).sum(axis=1)
+            all_player_stats[name][stat] = season_totals.tolist()
     
     wins_array = np.array(all_szn_wins)
 

@@ -166,6 +166,51 @@ def team_stats_preprocess(df):
     
     return df
 
+def coaches_preprocess(df):
+    keep = ["season", "home_team", "home_coach", "away_team", "away_coach"]
+    existing = [col for col in keep if col in df.columns]
+    df = df.select(existing)
+
+    df = df.filter(
+        pl.col("home_coach").is_not_null() & pl.col("away_coach").is_not_null()
+    )
+
+    team_mapping = {
+      "ARI": "Arizona Cardinals", "ARZ": "Arizona Cardinals",
+      "ATL": "Atlanta Falcons", "BAL": "Baltimore Ravens", "BLT": "Baltimore Ravens",
+      "BUF": "Buffalo Bills", "CAR": "Carolina Panthers", "CHI": "Chicago Bears",
+      "CIN": "Cincinnati Bengals", "CLE": "Cleveland Browns", "CLV": "Cleveland Browns",
+      "DAL": "Dallas Cowboys", "DEN": "Denver Broncos", "DET": "Detroit Lions",
+      "GB": "Green Bay Packers", "HOU": "Houston Texans", "HST": "Houston Texans",
+      "IND": "Indianapolis Colts", "JAX": "Jacksonville Jaguars", "KC": "Kansas City Chiefs",
+      "LAR": "Los Angeles Rams", "LA": "Los Angeles Rams", "STL": "Los Angeles Rams", "SL": "Los Angeles Rams",
+      "LAC": "Los Angeles Chargers", "SD": "Los Angeles Chargers",
+      "LV": "Las Vegas Raiders", "OAK": "Las Vegas Raiders",
+      "MIA": "Miami Dolphins", "MIN": "Minnesota Vikings", "NE": "New England Patriots",
+      "NO": "New Orleans Saints", "NYG": "New York Giants", "NYJ": "New York Jets",
+      "PHI": "Philadelphia Eagles", "PIT": "Pittsburgh Steelers", "SF": "San Francisco 49ers",
+      "SEA": "Seattle Seahawks", "TB": "Tampa Bay Buccaneers", "TEN": "Tennessee Titans",
+      "WAS": "Washington Commanders",
+    }
+
+    home = df.select([
+        pl.col("season"),
+        pl.col("home_team").replace(team_mapping).alias("team"),
+        pl.col("home_coach").alias("head_coach"),
+    ])
+    away = df.select([
+        pl.col("season"),
+        pl.col("away_team").replace(team_mapping).alias("team"),
+        pl.col("away_coach").alias("head_coach"),
+    ])
+
+    combined = pl.concat([home, away])
+    # Keep only the most recent coach per season per team
+    combined = combined.sort("season", descending=True).unique(subset=["season", "team"], keep="first")
+
+    return combined.sort(["season", "team"])
+
+
 def schedules_preprocess(df):
     df = df.filter(pl.col("game_type") == "REG")
     
@@ -388,9 +433,6 @@ def depth_charts_preprocess(df):
 
     return df
 
-
-# Main execution
-
 supabase_client = get_client()
 
 # Player stats
@@ -414,6 +456,10 @@ team_stats = team_stats_preprocess(team_stats)
 store_table(supabase_client, "team_stats", team_stats)
 
 # Schedules
-schedules = nfl.load_schedules(seasons=list(range(2015, 2026)))
-schedules = schedules_preprocess(schedules)
+schedules_raw = nfl.load_schedules(seasons=list(range(2015, 2026)))
+schedules = schedules_preprocess(schedules_raw)
 store_table(supabase_client, "schedules", schedules)
+
+# Coaches
+coaches = coaches_preprocess(schedules_raw)
+store_table(supabase_client, "coaches", coaches)

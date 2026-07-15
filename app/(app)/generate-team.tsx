@@ -82,6 +82,7 @@ const GenerateTeam = () => {
     colorScheme === "light" ? styles.lightSaveButtonText : styles.darkSaveButtonText;
 
   const [players, setPlayers] = useState([{ position: "", name: "", nfl_team: "" }]);
+  const [headCoach, setHeadCoach] = useState("");
 
   const abbToTeamNames = {
       "ARI": "Arizona Cardinals",
@@ -440,6 +441,17 @@ const GenerateTeam = () => {
           }
         }
       }
+      // Pick a random coach from the Go backend (which queries Supabase coaches table)
+      try {
+        const coachRes = await fetch(`${API_URL}/api/coaches/random`);
+        const coachResult = await coachRes.json();
+        if (coachResult.status === "Success" && coachResult.data) {
+          setHeadCoach(coachResult.data.head_coach);
+        }
+      } catch (e) {
+        setHeadCoach("");
+      }
+
       setGenerateTeam(true);
       setPlayers(players);
       setSavedTeam(false);
@@ -464,6 +476,7 @@ const GenerateTeam = () => {
       team_name: formData.teamName,
       offense_type: formData.offenseType,
       defense_type: formData.defenseType,
+      head_coach: headCoach,
       players: players,
     };
 
