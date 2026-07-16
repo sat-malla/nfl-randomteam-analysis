@@ -47,6 +47,7 @@ type PlayerProjection = {
 
 type CoachAnalysis = {
   coach: string;
+  team?: string;
   seasons_coached: number;
   record: string;
   win_rate: number;
@@ -476,6 +477,9 @@ const AnalyzeTeam = () => {
               </Text>
               <Text style={[styles.coachName, { color: c.text }]}>
                 {analysis.coach_analysis.coach}
+                {analysis.coach_analysis.team ? (
+                  <Text style={[styles.coachMeta, { color: c.subtext }]}>{` (${analysis.coach_analysis.team})`}</Text>
+                ) : null}
               </Text>
               {analysis.coach_analysis.note ? (
                 <Text style={[styles.coachMeta, { color: c.subtext }]}>

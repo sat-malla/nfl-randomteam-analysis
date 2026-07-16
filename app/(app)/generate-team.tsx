@@ -83,6 +83,7 @@ const GenerateTeam = () => {
 
   const [players, setPlayers] = useState([{ position: "", name: "", nfl_team: "" }]);
   const [headCoach, setHeadCoach] = useState("");
+  const [headCoachTeam, setHeadCoachTeam] = useState("");
 
   const abbToTeamNames = {
       "ARI": "Arizona Cardinals",
@@ -156,7 +157,17 @@ const GenerateTeam = () => {
     try {
       if (formData.offenseType === "3 WR 1 TE" && formData.defenseType === "4-3 Base Defense") {
         for (const position of positions) {
-          if (position == "RB" || position == "OT" || position == "G" || position == "DE" || position == "DT" || position == "CB") {
+          if (position == "RB") {
+            // RB1 from starters (depth 1), RB2 from backups (depth 2+)
+            for (const slot of [1, 2]) {
+              const response = await fetch(`${API_URL}/api/players/random-players?position=RB&count=1&slot=${slot}`)
+              const result = await response.json()
+              if (result.status === "Success" && result.data) {
+                const player = result.data[0]
+                players.push({ position: "RB", name: player.full_name || player.first_name + " " + player.last_name, nfl_team: player.nfl_team })
+              }
+            }
+          } else if (position == "OT" || position == "G" || position == "DE" || position == "DT" || position == "CB") {
             const response = await fetch(`${API_URL}/api/players/random-players?position=${position}&count=2`)
             const result = await response.json()
             if (result.status === "Success" && result.data) {
@@ -224,7 +235,16 @@ const GenerateTeam = () => {
         }
       } else if (formData.offenseType === "2 WR 2 TE" && formData.defenseType === "4-3 Base Defense") {
         for (const position of positions) {
-          if (position == "RB" || position == "WR" || position == "TE" || position == "OT" || position == "G" || position == "DE" || position == "DT" || position == "CB") {
+          if (position == "RB") {
+            for (const slot of [1, 2]) {
+              const response = await fetch(`${API_URL}/api/players/random-players?position=RB&count=1&slot=${slot}`)
+              const result = await response.json()
+              if (result.status === "Success" && result.data) {
+                const player = result.data[0]
+                players.push({ position: "RB", name: player.full_name || player.first_name + " " + player.last_name, nfl_team: player.nfl_team })
+              }
+            }
+          } else if (position == "WR" || position == "TE" || position == "OT" || position == "G" || position == "DE" || position == "DT" || position == "CB") {
             const response = await fetch(`${API_URL}/api/players/random-players?position=${position}&count=2`)
             const result = await response.json()
             if (result.status === "Success" && result.data) {
@@ -292,7 +312,16 @@ const GenerateTeam = () => {
         }
       } else if (formData.offenseType === "3 WR 1 TE" && formData.defenseType === "3-4 Base Defense") {
          for (const position of positions) {
-          if (position == "RB" || position == "OT" || position == "G" || position == "DE" || position == "CB") {
+          if (position == "RB") {
+            for (const slot of [1, 2]) {
+              const response = await fetch(`${API_URL}/api/players/random-players?position=RB&count=1&slot=${slot}`)
+              const result = await response.json()
+              if (result.status === "Success" && result.data) {
+                const player = result.data[0]
+                players.push({ position: "RB", name: player.full_name || player.first_name + " " + player.last_name, nfl_team: player.nfl_team })
+              }
+            }
+          } else if (position == "OT" || position == "G" || position == "DE" || position == "CB") {
             const response = await fetch(`${API_URL}/api/players/random-players?position=${position}&count=2`)
             const result = await response.json()
             if (result.status === "Success" && result.data) {
@@ -374,7 +403,16 @@ const GenerateTeam = () => {
         }
       } else if (formData.offenseType === "2 WR 2 TE" && formData.defenseType === "3-4 Base Defense") {
         for (const position of positions) {
-          if (position == "RB" || position == "WR" || position == "TE" || position == "OT" || position == "G" || position == "DE" || position == "CB") {
+          if (position == "RB") {
+            for (const slot of [1, 2]) {
+              const response = await fetch(`${API_URL}/api/players/random-players?position=RB&count=1&slot=${slot}`)
+              const result = await response.json()
+              if (result.status === "Success" && result.data) {
+                const player = result.data[0]
+                players.push({ position: "RB", name: player.full_name || player.first_name + " " + player.last_name, nfl_team: player.nfl_team })
+              }
+            }
+          } else if (position == "WR" || position == "TE" || position == "OT" || position == "G" || position == "DE" || position == "CB") {
             const response = await fetch(`${API_URL}/api/players/random-players?position=${position}&count=2`)
             const result = await response.json()
             if (result.status === "Success" && result.data) {
@@ -447,6 +485,8 @@ const GenerateTeam = () => {
         const coachResult = await coachRes.json();
         if (coachResult.status === "Success" && coachResult.data) {
           setHeadCoach(coachResult.data.head_coach);
+          const teamAbbrev = coachResult.data.team ?? "";
+          setHeadCoachTeam(abbToTeamNames[teamAbbrev as keyof typeof abbToTeamNames] ?? teamAbbrev);
         }
       } catch (e) {
         setHeadCoach("");
@@ -631,7 +671,7 @@ const GenerateTeam = () => {
         <Box style={themeTableStyle}>
           {headCoach ? (
             <Text style={[themeTextStyle, { fontSize: 18, fontWeight: "bold", textAlign: "center", paddingVertical: 12, paddingHorizontal: 8 }]}>
-              Head Coach: {headCoach}
+              Head Coach: {headCoach}{headCoachTeam ? ` (${headCoachTeam})` : ""}
             </Text>
           ) : null}
           <Table style={{ width: "100%" }}>

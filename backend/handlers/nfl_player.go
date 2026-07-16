@@ -121,17 +121,28 @@ func (h *NFLPlayerHandler) GetManyRandomByPosition(c *fiber.Ctx) error {
 	defer cancel()
 	position := c.Query("position")
 	count := c.QueryInt("count", 1)
+	// slot=1 → starters only (depth_chart_order == 1)
+	// slot=2 → backups (depth_chart_order >= 2)
+	// slot=0 or absent → no filter (old behaviour)
+	slot := c.QueryInt("slot", 0)
 	if position == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(&fiber.Map{
 			"status":  "Failure",
 			"message": "position query parameter is required",
 		})
 	}
-	// Sample a larger pool then sort by depth_chart_order so RB1 always comes before RB2
-	sampleSize := count * 8
+
+	matchFilter := bson.M{"position": position, "active": true}
+	switch slot {
+	case 1:
+		matchFilter["depth_chart_order"] = bson.M{"$eq": 1}
+	case 2:
+		matchFilter["depth_chart_order"] = bson.M{"$gte": 2}
+	}
+
 	pipeline := mongo.Pipeline{
-		{{Key: "$match", Value: bson.M{"position": position, "active": true}}},
-		{{Key: "$sample", Value: bson.M{"size": sampleSize}}},
+		{{Key: "$match", Value: matchFilter}},
+		{{Key: "$sample", Value: bson.M{"size": count * 8}}},
 		{{Key: "$sort", Value: bson.D{{Key: "depth_chart_order", Value: 1}}}},
 		{{Key: "$limit", Value: count}},
 	}

@@ -178,7 +178,13 @@ def fetch_team_historical_stats(teams):
 
 # print(fetch_team_historical_stats(["Buffalo Bills"]))
 
-def build_player_distributions(player_stats, player_name, player_pos):
+# Volume stats that should be scaled down for backup/depth players
+DEPTH_VOLUME_STATS = {"carries", "rushing_yards", "rushing_tds", "receptions", "targets", "receiving_yards", "receiving_tds", "fg_made", "fg_att"}
+
+# Multiplier applied to volume stat means by depth slot (1=starter, 2=backup, 3+=deep)
+DEPTH_SLOT_SCALE = {1: 1.0, 2: 0.50, 3: 0.30}
+
+def build_player_distributions(player_stats, player_name, player_pos, depth_slot=1):
     # Monte Carlo Sampling
     stat_cols = POS_STAT_MAPPING.get(player_pos, [])
     if not stat_cols:
@@ -186,6 +192,7 @@ def build_player_distributions(player_stats, player_name, player_pos):
 
     player_data = player_stats[player_stats["player_display_name"] == player_name].copy()
     distributions = {}
+    vol_scale = DEPTH_SLOT_SCALE.get(depth_slot, DEPTH_SLOT_SCALE[2])
 
     for sc in stat_cols:
         if player_data.empty or sc not in player_data.columns:
@@ -201,22 +208,31 @@ def build_player_distributions(player_stats, player_name, player_pos):
                 else:
                     _, pos_std = POSITION_DEFAULTS.get(sc, (10, 5))
                     std = pos_std
-            
+
+        # Scale volume stats for non-starters so RB2 doesn't match RB1 workload
+        if depth_slot > 1 and sc in DEPTH_VOLUME_STATS:
+            mean = mean * vol_scale
+            std = std * vol_scale
+
         std = max(std, 0.1)
         a = -mean / std
         distribution = stats.truncnorm(a=a, b=5, loc=mean, scale=std)
         distributions[sc] = distribution
-    
+
     return distributions
 
 def build_all_player_dists(team, player_stats):
     result = {}
+    pos_slot_counter = {}  # tracks how many of each position we've seen
     for player in team["players"]:
         name = player["name"]
         position = player["position"]
-        dists = build_player_distributions(player_stats, name, position)
+        pos_slot_counter[position] = pos_slot_counter.get(position, 0) + 1
+        depth_slot = pos_slot_counter[position]
+        dists = build_player_distributions(player_stats, name, position, depth_slot=depth_slot)
         result[name] = {
             "position": position,
+            "depth_slot": depth_slot,
             "distributions": dists
         }
 
@@ -508,19 +524,26 @@ def fetch_coach_factor(coach_name, qb_name):
     if not coach_teams:
         return 1.0, {"coach": coach_name, "note": "No historical data found"}
 
-    # For each season the coach coached, check home/away win rate
+    # For each season the coach coached, fetch only that team's games to avoid the 1000-row Supabase page limit
     wins = 0
     losses = 0
-    sched_data = supabase.table("schedules").select("season,home_team,away_team,home_score,away_score").execute()
-    df = pd.DataFrame(sched_data.data or [])
-
     for season, team in coach_teams.items():
-        home = df[(df["season"] == season) & (df["home_team"] == team)]
-        wins += int((home["home_score"] > home["away_score"]).sum())
-        losses += int((home["home_score"] < home["away_score"]).sum())
-        away = df[(df["season"] == season) & (df["away_team"] == team)]
-        wins += int((away["away_score"] > away["home_score"]).sum())
-        losses += int((away["away_score"] < away["home_score"]).sum())
+        home_data = supabase.table("schedules").select("home_score,away_score") \
+            .eq("season", season).eq("home_team", team).execute()
+        for row in (home_data.data or []):
+            if row["home_score"] is not None and row["away_score"] is not None:
+                if row["home_score"] > row["away_score"]:
+                    wins += 1
+                elif row["home_score"] < row["away_score"]:
+                    losses += 1
+        away_data = supabase.table("schedules").select("home_score,away_score") \
+            .eq("season", season).eq("away_team", team).execute()
+        for row in (away_data.data or []):
+            if row["home_score"] is not None and row["away_score"] is not None:
+                if row["away_score"] > row["home_score"]:
+                    wins += 1
+                elif row["away_score"] < row["home_score"]:
+                    losses += 1
 
     total = wins + losses
     win_rate = wins / total if total > 0 else 0.5
@@ -539,8 +562,13 @@ def fetch_coach_factor(coach_name, qb_name):
     if qb_familiarity:
         coach_multiplier = float(np.clip(coach_multiplier + 0.03, 0.90, 1.10))
 
+    latest_season = max(coach_teams.keys())
+    latest_team_abbrev = coach_teams[latest_season]
+    latest_team_full = TEAM_MAPPING.get(latest_team_abbrev, latest_team_abbrev)
+
     meta = {
         "coach": coach_name,
+        "team": latest_team_full,
         "seasons_coached": len(coach_teams),
         "record": f"{wins}–{losses}",
         "win_rate": round(win_rate, 3),
