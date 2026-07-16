@@ -39,6 +39,7 @@ type StatProjection = {
 };
 
 type PlayerProjection = {
+  name: string;
   position: string;
   nfl_team: string;
   stats: Record<string, StatProjection>;
@@ -60,7 +61,7 @@ type AnalysisResult = {
   win_ceiling: number;
   playoff_probability: number;
   superbowl_probability: number;
-  player_projections: Record<string, PlayerProjection>;
+  player_projections: PlayerProjection[];
   coach_analysis?: CoachAnalysis;
 };
 
@@ -94,41 +95,74 @@ const STAT_LABELS: Record<string, string> = {
   punt_returns: "PR",
 };
 
-const POS_COLORS: Record<string, { bg: string; text: string }> = {
-  QB: { bg: "#fee2e2", text: "#b91c1c" },
-  RB: { bg: "#dbeafe", text: "#1d4ed8" },
-  FB: { bg: "#dbeafe", text: "#1d4ed8" },
-  WR: { bg: "#d1fae5", text: "#065f46" },
-  TE: { bg: "#fef3c7", text: "#92400e" },
-  OT: { bg: "#ede9fe", text: "#5b21b6" },
-  G: { bg: "#ede9fe", text: "#5b21b6" },
-  C: { bg: "#ede9fe", text: "#5b21b6" },
-  OL: { bg: "#ede9fe", text: "#5b21b6" },
-  DE: { bg: "#ffedd5", text: "#9a3412" },
-  DT: { bg: "#ffedd5", text: "#9a3412" },
-  NT: { bg: "#ffedd5", text: "#9a3412" },
-  DL: { bg: "#ffedd5", text: "#9a3412" },
-  LB: { bg: "#fce7f3", text: "#9d174d" },
-  ILB: { bg: "#fce7f3", text: "#9d174d" },
-  OLB: { bg: "#fce7f3", text: "#9d174d" },
-  MLB: { bg: "#fce7f3", text: "#9d174d" },
-  CB: { bg: "#cffafe", text: "#0e7490" },
-  S: { bg: "#e0f2fe", text: "#075985" },
-  FS: { bg: "#e0f2fe", text: "#075985" },
-  SS: { bg: "#e0f2fe", text: "#075985" },
-  DB: { bg: "#e0f2fe", text: "#075985" },
-  SAF: { bg: "#e0f2fe", text: "#075985" },
-  Nickel: { bg: "#cffafe", text: "#0e7490" },
-  Dime: { bg: "#cffafe", text: "#0e7490" },
-  K: { bg: "#f0fdf4", text: "#166534" },
-  P: { bg: "#f0fdf4", text: "#166534" },
-  LS: { bg: "#f5f5f4", text: "#44403c" },
-  RS: { bg: "#f5f5f4", text: "#44403c" },
+const POS_COLORS_LIGHT: Record<string, { bg: string; text: string }> = {
+  QB: { bg: "#dc2626", text: "#ffffff" },
+  RB: { bg: "#1f55ed", text: "#ffffff" },
+  FB: { bg: "#1d4ed8", text: "#ffffff" },
+  WR: { bg: "#059669", text: "#ffffff" },
+  TE: { bg: "#d97706", text: "#ffffff" },
+  OT: { bg: "#7c3aed", text: "#ffffff" },
+  G: { bg: "#7c3aed", text: "#ffffff" },
+  C: { bg: "#7c3aed", text: "#ffffff" },
+  OL: { bg: "#7c3aed", text: "#ffffff" },
+  DE: { bg: "#ea580c", text: "#ffffff" },
+  DT: { bg: "#ea580c", text: "#ffffff" },
+  NT: { bg: "#ea580c", text: "#ffffff" },
+  DL: { bg: "#ea580c", text: "#ffffff" },
+  LB: { bg: "#db2777", text: "#ffffff" },
+  ILB: { bg: "#db2777", text: "#ffffff" },
+  OLB: { bg: "#db2777", text: "#ffffff" },
+  MLB: { bg: "#db2777", text: "#ffffff" },
+  CB: { bg: "#0891b2", text: "#ffffff" },
+  S: { bg: "#004c75", text: "#ffffff" },
+  FS: { bg: "#004c75", text: "#ffffff" },
+  SS: { bg: "#004c75", text: "#ffffff" },
+  DB: { bg: "#004c75", text: "#ffffff" },
+  SAF: { bg: "#004c75", text: "#ffffff" },
+  Nickel: { bg: "#0891b2", text: "#ffffff" },
+  Dime: { bg: "#0891b2", text: "#ffffff" },
+  K: { bg: "#1ec95d", text: "#ffffff" },
+  P: { bg: "#21ccb2", text: "#ffffff" },
+  LS: { bg: "#57534e", text: "#ffffff" },
+  RS: { bg: "#4d2325", text: "#ffffff" },
+};
+
+const POS_COLORS_DARK: Record<string, { bg: string; text: string }> = {
+  QB: { bg: "#f87171", text: "#000000" },
+  RB: { bg: "#6b8ef5", text: "#000000" },
+  FB: { bg: "#60a5fa", text: "#000000" },
+  WR: { bg: "#34d399", text: "#000000" },
+  TE: { bg: "#fbbf24", text: "#000000" },
+  OT: { bg: "#a78bfa", text: "#000000" },
+  G: { bg: "#a78bfa", text: "#000000" },
+  C: { bg: "#a78bfa", text: "#000000" },
+  OL: { bg: "#a78bfa", text: "#000000" },
+  DE: { bg: "#fb923c", text: "#000000" },
+  DT: { bg: "#fb923c", text: "#000000" },
+  NT: { bg: "#fb923c", text: "#000000" },
+  DL: { bg: "#fb923c", text: "#000000" },
+  LB: { bg: "#f472b6", text: "#000000" },
+  ILB: { bg: "#f472b6", text: "#000000" },
+  OLB: { bg: "#f472b6", text: "#000000" },
+  MLB: { bg: "#f472b6", text: "#000000" },
+  CB: { bg: "#22d3ee", text: "#000000" },
+  S: { bg: "#38bdf8", text: "#000000" },
+  FS: { bg: "#38bdf8", text: "#000000" },
+  SS: { bg: "#38bdf8", text: "#000000" },
+  DB: { bg: "#38bdf8", text: "#000000" },
+  SAF: { bg: "#38bdf8", text: "#000000" },
+  Nickel: { bg: "#22d3ee", text: "#000000" },
+  Dime: { bg: "#22d3ee", text: "#000000" },
+  K: { bg: "#4ade80", text: "#000000" },
+  P: { bg: "#2dd4bf", text: "#000000" },
+  LS: { bg: "#a8a29e", text: "#000000" },
+  RS: { bg: "#f87171", text: "#000000" },
 };
 
 const AnalyzeTeam = () => {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
+  const POS_COLORS = isDark ? POS_COLORS_DARK : POS_COLORS_LIGHT;
 
   const [teams, setTeams] = useState<Team[]>([]);
   const [selectedTeamId, setSelectedTeamId] = useState<string>("");
@@ -188,7 +222,7 @@ const AnalyzeTeam = () => {
         setHasSaved(true);
       }
     } catch (_) {
-      // no saved analysis, that's fine
+      // no saved analysis
     }
   };
 
@@ -378,26 +412,52 @@ const AnalyzeTeam = () => {
               <View
                 style={[
                   styles.probCard,
-                  { backgroundColor: c.accentLight, borderColor: c.border },
+                  {
+                    backgroundColor: isDark ? "#60a5fa" : "#1d4ed8",
+                    borderWidth: 0,
+                  },
                 ]}
               >
-                <Text style={[styles.probPct, { color: c.accent }]}>
+                <Text
+                  style={[
+                    styles.probPct,
+                    { color: isDark ? "#000000" : "#ffffff" },
+                  ]}
+                >
                   {analysis.playoff_probability}%
                 </Text>
-                <Text style={[styles.probLabel, { color: c.subtext }]}>
+                <Text
+                  style={[
+                    styles.probLabel,
+                    { color: isDark ? "#00000099" : "#ffffff99" },
+                  ]}
+                >
                   Playoff Chance
                 </Text>
               </View>
               <View
                 style={[
                   styles.probCard,
-                  { backgroundColor: c.accentLight, borderColor: c.border },
+                  {
+                    backgroundColor: isDark ? "#a78bfa" : "#7c3aed",
+                    borderWidth: 0,
+                  },
                 ]}
               >
-                <Text style={[styles.probPct, { color: c.accent }]}>
+                <Text
+                  style={[
+                    styles.probPct,
+                    { color: isDark ? "#000000" : "#ffffff" },
+                  ]}
+                >
                   {analysis.superbowl_probability}%
                 </Text>
-                <Text style={[styles.probLabel, { color: c.subtext }]}>
+                <Text
+                  style={[
+                    styles.probLabel,
+                    { color: isDark ? "#00000099" : "#ffffff99" },
+                  ]}
+                >
                   Super Bowl Chance
                 </Text>
               </View>
@@ -423,10 +483,14 @@ const AnalyzeTeam = () => {
                 </Text>
               ) : (
                 <>
-                <Text style={[styles.coachMeta, { color: c.subtext }]}>Since 2015:</Text>
+                  <Text style={[styles.coachMeta, { color: c.subtext }]}>
+                    Since 2015:
+                  </Text>
                   <Text style={[styles.coachMeta, { color: c.subtext }]}>
                     {analysis.coach_analysis.seasons_coached} season
-                    {analysis.coach_analysis.seasons_coached !== 1 ? "s" : ""}{" "}
+                    {analysis.coach_analysis.seasons_coached !== 1
+                      ? "s"
+                      : ""}{" "}
                     coached · Record: {analysis.coach_analysis.record} · Win
                     rate: {(analysis.coach_analysis.win_rate * 100).toFixed(1)}%
                   </Text>
@@ -437,20 +501,19 @@ const AnalyzeTeam = () => {
                         {
                           backgroundColor:
                             analysis.coach_analysis.coach_multiplier >= 1
-                              ? "#d1fae5"
-                              : "#fee2e2",
+                              ? isDark
+                                ? "#4ade80"
+                                : "#16a34a"
+                              : isDark
+                                ? "#f87171"
+                                : "#dc2626",
                         },
                       ]}
                     >
                       <Text
                         style={[
                           styles.coachBadgeText,
-                          {
-                            color:
-                              analysis.coach_analysis.coach_multiplier >= 1
-                                ? "#065f46"
-                                : "#b91c1c",
-                          },
+                          { color: isDark ? "#000000" : "#ffffff" },
                         ]}
                       >
                         {analysis.coach_analysis.coach_multiplier >= 1
@@ -467,11 +530,14 @@ const AnalyzeTeam = () => {
                       <View
                         style={[
                           styles.coachBadge,
-                          { backgroundColor: "#fef3c7" },
+                          { backgroundColor: isDark ? "#fbbf24" : "#d97706" },
                         ]}
                       >
                         <Text
-                          style={[styles.coachBadgeText, { color: "#92400e" }]}
+                          style={[
+                            styles.coachBadgeText,
+                            { color: isDark ? "#000000" : "#ffffff" },
+                          ]}
                         >
                           Coached QB before
                         </Text>
@@ -492,37 +558,107 @@ const AnalyzeTeam = () => {
             <Text style={[styles.cardTitle, { color: c.text }]}>
               Player Projections
             </Text>
-            <View style={[styles.playerCard, { borderColor: c.border, marginBottom: 4 }]}>
+            <View
+              style={[
+                styles.playerCard,
+                { borderColor: c.border, marginBottom: 4 },
+              ]}
+            >
               <View style={styles.playerHeader}>
                 <View style={{ flex: 1 }}>
-                <Text style={[styles.cardTitle, { color: c.text }]}>Legend</Text>
-                  <Text style={[styles.playerName, { color: c.subtext, fontStyle: "italic" }]}>
+                  <Text style={[styles.cardTitle, { color: c.text }]}>
+                    Legend
+                  </Text>
+                  <Text
+                    style={[
+                      styles.playerName,
+                      { color: c.subtext, fontStyle: "italic" },
+                    ]}
+                  >
                     Player Name - NFL Team
                   </Text>
                 </View>
-                <View style={[styles.posBadge, { backgroundColor: c.accentLight, marginTop: 25 }]}>
-                  <Text style={[styles.posText, { color: c.accent }]}>POS</Text>
+                <View
+                  style={[
+                    styles.posBadge,
+                    {
+                      backgroundColor: isDark ? "#60a5fa" : "#1d4ed8",
+                      marginTop: 25,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.posText,
+                      { color: isDark ? "#000000" : "#ffffff" },
+                    ]}
+                  >
+                    POS
+                  </Text>
                 </View>
               </View>
               <View style={styles.statRow}>
-                <Text style={[styles.statLabel, { color: c.subtext, fontStyle: "italic" }]}>Stat</Text>
-                <Text style={[styles.statValue, { color: c.subtext, fontStyle: "italic" }]}>1260</Text>
-                <Text style={[styles.statRange, { color: c.subtext, fontStyle: "italic" }]}>1072–1446</Text>
+                <Text
+                  style={[
+                    styles.statLabel,
+                    { color: c.subtext, fontStyle: "italic" },
+                  ]}
+                >
+                  Stat
+                </Text>
+                <Text
+                  style={[
+                    styles.statValue,
+                    { color: c.subtext, fontStyle: "italic" },
+                  ]}
+                >
+                  1260
+                </Text>
+                <Text
+                  style={[
+                    styles.statRange,
+                    { color: c.subtext, fontStyle: "italic" },
+                  ]}
+                >
+                  1072-1446
+                </Text>
               </View>
               <View style={{ flexDirection: "row", marginTop: 2 }}>
                 <View style={{ width: 80 }} />
-                <Text style={{ width: 50, fontSize: 10, color: c.subtext, fontStyle: "italic", textAlign: "right" }}>↑ avg</Text>
-                <Text style={{ fontSize: 10, color: c.subtext, fontStyle: "italic", marginLeft: 8 }}>↑ P10–P90 (80% of seasons)</Text>
+                <Text
+                  style={{
+                    width: 50,
+                    fontSize: 10,
+                    color: c.subtext,
+                    fontStyle: "italic",
+                    textAlign: "right",
+                  }}
+                >
+                  ↑ avg
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 10,
+                    color: c.subtext,
+                    fontStyle: "italic",
+                    marginLeft: 8,
+                  }}
+                >
+                  ↑ P10-P90 (80% of seasons)
+                </Text>
               </View>
             </View>
-            {Object.entries(analysis.player_projections).map(([name, proj]) => (
+            {(Array.isArray(analysis.player_projections)
+              ? analysis.player_projections
+              : Object.entries(analysis.player_projections as Record<string, PlayerProjection>).map(([name, p]) => ({ ...p, name }))
+            ).map((proj) => (
               <View
-                key={name}
+                key={proj.name}
                 style={[styles.playerCard, { borderColor: c.border }]}
               >
                 <View style={styles.playerHeader}>
                   <Text style={[styles.playerName, { color: c.text }]}>
-                    {name}
+                    {proj.name}
                     {proj.nfl_team ? ` - ${proj.nfl_team}` : ""}
                   </Text>
                   <View
@@ -544,19 +680,23 @@ const AnalyzeTeam = () => {
                     </Text>
                   </View>
                 </View>
-                {Object.entries(proj.stats).map(([stat, vals]) => (
-                  <View key={stat} style={styles.statRow}>
-                    <Text style={[styles.statLabel, { color: c.subtext }]}>
-                      {STAT_LABELS[stat] ?? stat}
-                    </Text>
-                    <Text style={[styles.statValue, { color: c.text }]}>
-                      {vals.projected_total}
-                    </Text>
-                    <Text style={[styles.statRange, { color: c.subtext }]}>
-                      {vals.floor}–{vals.ceiling}
-                    </Text>
-                  </View>
-                ))}
+                {Object.entries(proj.stats).map(([stat, vals]) => {
+                  const isPct = stat === "fg_pct";
+                  const fmt = (v: number) => isPct ? `${v.toFixed(1)}%` : String(v);
+                  return (
+                    <View key={stat} style={styles.statRow}>
+                      <Text style={[styles.statLabel, { color: c.subtext }]}>
+                        {STAT_LABELS[stat] ?? stat}
+                      </Text>
+                      <Text style={[styles.statValue, { color: c.text }]}>
+                        {fmt(vals.projected_total)}
+                      </Text>
+                      <Text style={[styles.statRange, { color: c.subtext }]}>
+                        {fmt(vals.floor)}-{fmt(vals.ceiling)}
+                      </Text>
+                    </View>
+                  );
+                })}
               </View>
             ))}
           </View>

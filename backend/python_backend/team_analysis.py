@@ -43,7 +43,7 @@ POS_STAT_MAPPING = {
     "S": ["def_tackles_solo", "def_sacks", "def_interceptions", "def_passes_defended", "def_fumbles_forced"],
     "SAF": ["def_tackles_solo", "def_sacks", "def_interceptions", "def_passes_defended", "def_fumbles_forced"],
     "CB": ["def_tackles_solo", "def_sacks", "def_interceptions", "def_passes_defended", "def_fumbles_forced"],
-    "K": ["fg_made", "fg_att", "fg_pct"],
+    "K": ["fg_made", "fg_att"],
     "P": ["punt_return_yards"],
     "OT": [],
     "G": [],
@@ -429,18 +429,33 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300, 
         pos = distributions[name]["position"]
         primary_stat = POSITION_PRIMARY_STAT.get(pos)
         primary_arr = np.array(stats.get(primary_stat, [0])) if primary_stat else np.array([0])
+
+        stat_entries = {}
+        for stat, v in stats.items():
+            arr = np.array(v)
+            stat_entries[stat] = {
+                "projected_total": round(float(np.mean(arr))),
+                "floor": round(float(np.percentile(arr, 10))),
+                "ceiling": round(float(np.percentile(arr, 90))),
+            }
+
+        # Derive fg_pct from simulated fg_made / fg_att so it's internally consistent
+        if pos == "K" and "fg_made" in stats and "fg_att" in stats:
+            made_arr = np.array(stats["fg_made"])
+            att_arr  = np.array(stats["fg_att"])
+            safe_att = np.where(att_arr > 0, att_arr, 1.0)
+            pct_arr  = (made_arr / safe_att) * 100
+            stat_entries["fg_pct"] = {
+                "projected_total": round(float(np.mean(pct_arr)), 1),
+                "floor": round(float(np.percentile(pct_arr, 10)), 1),
+                "ceiling": round(float(np.percentile(pct_arr, 90)), 1),
+            }
+
         player_projs_raw[name] = {
             "position": pos,
             "nfl_team": nfl_team_map.get(name, ""),
             "_primary_proj": float(np.mean(primary_arr)),
-            "stats": {
-                stat: {
-                    "projected_total": round(float(np.mean(arr))),
-                    "floor": round(float(np.percentile(arr, 10))),
-                    "ceiling": round(float(np.percentile(arr, 90))),
-                }
-                for stat, arr in {s: np.array(v) for s, v in stats.items()}.items()
-            }
+            "stats": stat_entries,
         }
 
     # Sort: by position group first, then by primary stat descending (stronger player first)
@@ -451,10 +466,10 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300, 
             -player_projs_raw[n]["_primary_proj"]
         )
     )
-    player_projs = {}
-    for name in sorted_names:
-        entry = player_projs_raw[name]
-        player_projs[name] = {k: v for k, v in entry.items() if k != "_primary_proj"}
+    player_projs = [
+        {"name": name, **{k: v for k, v in player_projs_raw[name].items() if k != "_primary_proj"}}
+        for name in sorted_names
+    ]
     
     win_vals = wins_array.astype(float)
     playoff_prob_per_sim = 1 / (1 + np.exp(-0.7 * (win_vals - 9.5)))
@@ -477,7 +492,7 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300, 
 
 def fetch_coach_factor(coach_name, qb_name):
     """
-    Returns a multiplier (0.90–1.10) based on:
+    Returns a multiplier (0.90-1.10) based on:
     - Coach's historical win rate from schedules (vs NFL average of ~0.5)
     - Bonus if coach has coached this QB on the same team in the same season
     """
@@ -512,8 +527,7 @@ def fetch_coach_factor(coach_name, qb_name):
     # Scale: 0.5 win_rate = 1.0x, 0.7 = ~1.06x, 0.3 = ~0.94x
     coach_multiplier = 0.88 + (win_rate * 0.24)
     coach_multiplier = float(np.clip(coach_multiplier, 0.90, 1.10))
-
-    # QB–coach familiarity bonus: check if coach coached a team that had this QB
+    
     qb_familiarity = False
     qb_data = supabase.table("player_stats").select("season,team").eq("player_display_name", qb_name).eq("position", "QB").execute()
     qb_seasons = {(row["season"], row["team"]) for row in (qb_data.data or [])}

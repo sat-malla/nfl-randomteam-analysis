@@ -53,10 +53,10 @@ export default function RootLayout() {
               onPress={() => {
                 router.back();
               }}
-              style={{ backgroundColor: "transparent" }}
+              style={{ backgroundColor: "transparent", gap: 6 }}
             >
-              <ButtonIcon as={ArrowLeftIcon} style={{ color: "#fff" }} size="xl" />
-              <Text style={{ color: "#fff", fontWeight: "700" }}>Back</Text>
+              <ButtonIcon as={ArrowLeftIcon} style={{ color: "#fff", width: 22, height: 22 }} />
+              <Text style={{ color: "#fff", fontWeight: "700", fontSize: 18 }}>Back</Text>
             </Button>
           ),
           headerRight: () => (
