@@ -30,76 +30,103 @@ POS_STAT_MAPPING = {
     "FB": ["carries", "rushing_yards", "rushing_tds", "receptions", "targets", "receiving_yards", "receiving_tds"],
     "WR": ["receptions", "receiving_yards", "receiving_tds", "targets", "carries", "rushing_yards", "rushing_tds"],
     "TE": ["receptions", "receiving_yards", "receiving_tds", "targets", "carries", "rushing_yards", "rushing_tds"],
-    "DE": ["def_tackles_solo", "def_sacks", "def_interceptions", "def_passes_defended", "def_fumbles_forced"],
-    "DT": ["def_tackles_solo", "def_sacks", "def_interceptions", "def_passes_defended", "def_fumbles_forced"],
-    "NT": ["def_tackles_solo", "def_sacks", "def_interceptions", "def_passes_defended", "def_fumbles_forced"],
-    "DL": ["def_tackles_solo", "def_sacks", "def_interceptions", "def_passes_defended", "def_fumbles_forced"],
-    "LB": ["def_tackles_solo", "def_sacks", "def_interceptions", "def_passes_defended", "def_fumbles_forced"],
-    "OLB": ["def_tackles_solo", "def_sacks", "def_interceptions", "def_passes_defended", "def_fumbles_forced"],
-    "ILB": ["def_tackles_solo", "def_sacks", "def_interceptions", "def_passes_defended", "def_fumbles_forced"],
-    "MLB": ["def_tackles_solo", "def_sacks", "def_interceptions", "def_passes_defended", "def_fumbles_forced"],
-    "FS": ["def_tackles_solo", "def_sacks", "def_interceptions", "def_passes_defended", "def_fumbles_forced"],
-    "SS": ["def_tackles_solo", "def_sacks", "def_interceptions", "def_passes_defended", "def_fumbles_forced"],
-    "S": ["def_tackles_solo", "def_sacks", "def_interceptions", "def_passes_defended", "def_fumbles_forced"],
-    "SAF": ["def_tackles_solo", "def_sacks", "def_interceptions", "def_passes_defended", "def_fumbles_forced"],
-    "CB": ["def_tackles_solo", "def_sacks", "def_interceptions", "def_passes_defended", "def_fumbles_forced"],
-    "K": ["fg_made", "fg_att"],
-    "P": ["punt_return_yards"],
+    "DE": ["def_sacks", "def_tackles_solo", "def_pass_defended"],
+    "DT": ["def_sacks", "def_tackles_solo", "def_pass_defended"],
+    "NT": ["def_tackles_solo", "def_sacks", "def_pass_defended"],
+    "DL": ["def_sacks", "def_tackles_solo", "def_pass_defended"],
+    "LB": ["def_tackles_solo", "def_sacks", "def_interceptions", "def_pass_defended"],
+    "OLB": ["def_tackles_solo", "def_sacks", "def_interceptions", "def_pass_defended"],
+    "ILB": ["def_tackles_solo", "def_sacks", "def_interceptions", "def_pass_defended"],
+    "MLB": ["def_tackles_solo", "def_sacks", "def_interceptions", "def_pass_defended"],
+    "CB": ["def_interceptions", "def_pass_defended", "def_tackles_solo"],
+    "FS": ["def_interceptions", "def_pass_defended", "def_tackles_solo"],
+    "SS": ["def_tackles_solo", "def_interceptions", "def_pass_defended"],
+    "S": ["def_tackles_solo", "def_interceptions", "def_pass_defended"],
+    "SAF": ["def_tackles_solo", "def_interceptions", "def_pass_defended"],
+    # K: fg_made/fg_att are season totals in the DB — divided by 17 in build_player_distributions
+    "K":  ["fg_made", "fg_att"],
+    # P: no punter-specific stats in the schema; season punt volume derived from team drives
+    "P":  ["punt_yards_season", "punt_attempts_season"],
     "OT": [],
-    "G": [],
-    "C": [],
+    "G":  [],
+    "C":  [],
     "LS": [],
-    "RS": ["kickoff_return_yards", "kickoff_returns", "punt_returns", "punt_return_yards"],
+    # RS: season totals in DB — divided by 17 to get per-game, then re-summed over 17 games
+    "RS": ["kickoff_return_yards", "kickoff_returns", "punt_return_yards", "punt_returns"],
 }
 
 POSITION_PRIMARY_STAT = {
-    "QB":     "passing_yards",
-    "RB":     "rushing_yards",
-    "WR":     "receiving_yards",
-    "TE":     "receiving_yards",
-    "K":      "fg_made",
-    "P":      "punt_return_yards",
-    "RS":     "kickoff_return_yards",
-    "LB":     "def_tackles_solo",
-    "OLB":    "def_tackles_solo",
-    "ILB":    "def_tackles_solo",
-    "MLB":    "def_tackles_solo",
-    "CB":     "def_interceptions",
-    "FS":     "def_tackles_solo",
-    "SS":     "def_tackles_solo",
+    "QB": "passing_yards",
+    "RB": "rushing_yards",
+    "WR": "receiving_yards",
+    "TE": "receiving_yards",
+    "K":  "fg_made",
+    "P":  "punt_attempts_season",
+    "RS": "kickoff_return_yards",
+    "LB": "def_tackles_solo",
+    "OLB": "def_tackles_solo",
+    "ILB": "def_tackles_solo",
+    "MLB": "def_tackles_solo",
+    "CB": "def_interceptions",
+    "FS": "def_tackles_solo",
+    "SS": "def_tackles_solo",
     "Nickel": "def_interceptions",
-    "Dime":   "def_interceptions",
-    "DE":     "def_sacks",
-    "DT":     "def_sacks",
-    "NT":     "def_sacks",
-    "DL":     "def_sacks",
-    "OT":     None,
-    "G":      None,
-    "C":      None,
-    "LS":     None,
+    "Dime": "def_interceptions",
+    "DE": "def_sacks",
+    "DT": "def_sacks",
+    "NT": "def_sacks",
+    "DL": "def_sacks",
+    "OT": None,
+    "G": None,
+    "C": None,
+    "LS": None,
 }
 
 POSITION_DEFAULTS = {
-    "passing_yards":         (230, 60),
-    "passing_tds":           (1.5, 1.0),
+    "passing_yards": (230, 60),
+    "passing_tds": (1.5, 1.0),
     "passing_interceptions": (0.8, 0.7),
-    "rushing_yards":         (65, 35),
-    "carries":               (15, 8),
-    "receiving_yards":       (55, 40),
-    "receiving_tds":         (0.4, 0.5),
-    "receptions":            (4, 3),
-    "targets":               (6, 4),
-    "fg_made":               (2, 1),
-    "fg_att":                (2.5, 1),
-    "fg_pct":                (0.82, 0.15),
-    "def_tackles_solo":      (4, 2),
-    "def_sacks":             (0.4, 0.6),
-    "def_interceptions":     (0.1, 0.3),
-    "def_pass_defended":     (0.5, 0.7),
-    "punt_returns":          (2, 1),
-    "punt_return_yards":     (18, 10),
-    "kickoff_returns":       (1.5, 1),
-    "kickoff_return_yards":  (28, 12),
+    "rushing_yards": (65, 35),
+    "carries": (15, 8),
+    "receiving_yards": (55, 40),
+    "receiving_tds": (0.4, 0.5),
+    "receptions": (4, 3),
+    "targets": (6, 4),
+    # K: season totals (÷17 in build_player_distributions → per-game dist → ×17 in sim)
+    # NFL season baseline: ~33 FG att, ~27 FG made for a starting kicker
+    "fg_made": (27, 5),
+    "fg_att": (33, 5),
+    "fg_pct": (0.82, 0.08),
+    "def_tackles_solo": (3.0, 1.5),
+    "def_sacks": (0.4, 0.4),
+    "def_interceptions": (0.02, 0.1),
+    "def_pass_defended": (0.2, 0.3),
+    # RS: season totals (÷17 in build_player_distributions → per-game dist → ×17 in sim)
+    # Season baseline: ~25 KR for ~600 yds, ~20 PR for ~180 yds
+    "kickoff_returns": (25, 8),
+    "kickoff_return_yards": (600, 150),
+    "punt_returns": (20, 6),
+    "punt_return_yards": (180, 60),
+    # P: synthetic season-total columns (punter stats not in schema, use team-drive estimates)
+    # Season baseline: ~70 punts for ~3100 yards
+    "punt_attempts_season": (70, 12),
+    "punt_yards_season": (3100, 400),
+}
+
+POSITION_STAT_DEFAULTS = {
+    "CB":  {"def_tackles_solo": (3.0, 1.5), "def_sacks": (0.05, 0.1),  "def_interceptions": (0.12, 0.2),  "def_pass_defended": (0.5, 0.4)},
+    "FS":  {"def_tackles_solo": (3.5, 1.5), "def_sacks": (0.05, 0.1),  "def_interceptions": (0.12, 0.2),  "def_pass_defended": (0.45, 0.4)},
+    "SS":  {"def_tackles_solo": (4.5, 2.0), "def_sacks": (0.08, 0.15), "def_interceptions": (0.08, 0.15), "def_pass_defended": (0.35, 0.3)},
+    "S":   {"def_tackles_solo": (4.0, 2.0), "def_sacks": (0.06, 0.12), "def_interceptions": (0.10, 0.18), "def_pass_defended": (0.40, 0.35)},
+    "SAF": {"def_tackles_solo": (4.0, 2.0), "def_sacks": (0.06, 0.12), "def_interceptions": (0.10, 0.18), "def_pass_defended": (0.40, 0.35)},
+    "LB":  {"def_tackles_solo": (5.5, 2.0), "def_sacks": (0.25, 0.3),  "def_interceptions": (0.06, 0.12), "def_pass_defended": (0.25, 0.3)},
+    "OLB": {"def_tackles_solo": (4.5, 2.0), "def_sacks": (0.35, 0.4),  "def_interceptions": (0.05, 0.1),  "def_pass_defended": (0.20, 0.25)},
+    "ILB": {"def_tackles_solo": (5.5, 2.0), "def_sacks": (0.20, 0.25), "def_interceptions": (0.06, 0.12), "def_pass_defended": (0.25, 0.3)},
+    "MLB": {"def_tackles_solo": (6.0, 2.5), "def_sacks": (0.18, 0.25), "def_interceptions": (0.05, 0.1),  "def_pass_defended": (0.20, 0.25)},
+    "DE":  {"def_tackles_solo": (3.0, 1.5), "def_sacks": (0.42, 0.45), "def_interceptions": (0.02, 0.06), "def_pass_defended": (0.15, 0.2)},
+    "DT":  {"def_tackles_solo": (3.5, 1.5), "def_sacks": (0.30, 0.4),  "def_interceptions": (0.01, 0.05), "def_pass_defended": (0.10, 0.15)},
+    "NT":  {"def_tackles_solo": (4.0, 1.5), "def_sacks": (0.20, 0.3),  "def_interceptions": (0.01, 0.05), "def_pass_defended": (0.08, 0.12)},
+    "DL":  {"def_tackles_solo": (3.5, 1.5), "def_sacks": (0.35, 0.4),  "def_interceptions": (0.01, 0.05), "def_pass_defended": (0.12, 0.18)},
 }
 
 TEAM_MAPPING = {
@@ -179,13 +206,30 @@ def fetch_team_historical_stats(teams):
 # print(fetch_team_historical_stats(["Buffalo Bills"]))
 
 # Volume stats that should be scaled down for backup/depth players
-DEPTH_VOLUME_STATS = {"carries", "rushing_yards", "rushing_tds", "receptions", "targets", "receiving_yards", "receiving_tds", "fg_made", "fg_att"}
+DEPTH_VOLUME_STATS = {
+    "carries", "rushing_yards", "rushing_tds",
+    "receptions", "targets", "receiving_yards", "receiving_tds",
+    "fg_made", "fg_att",
+    "kickoff_returns", "kickoff_return_yards", "punt_returns", "punt_return_yards",
+    "punt_attempts_season", "punt_yards_season",
+}
 
 # Multiplier applied to volume stat means by depth slot (1=starter, 2=backup, 3+=deep)
 DEPTH_SLOT_SCALE = {1: 1.0, 2: 0.50, 3: 0.30}
 
+# Stats stored as season totals in the DB that must be divided by N_GAMES before
+# building the per-game distribution (the sim then re-sums them over N_GAMES).
+SEASON_TOTAL_STATS = {
+    "fg_made", "fg_att",
+    "kickoff_returns", "kickoff_return_yards",
+    "punt_returns", "punt_return_yards",
+}
+N_GAMES = 17
+
+# Synthetic stats for positions with no real DB column — built entirely from defaults.
+SYNTHETIC_STATS = {"punt_attempts_season", "punt_yards_season"}
+
 def build_player_distributions(player_stats, player_name, player_pos, depth_slot=1):
-    # Monte Carlo Sampling
     stat_cols = POS_STAT_MAPPING.get(player_pos, [])
     if not stat_cols:
         return {}
@@ -193,28 +237,36 @@ def build_player_distributions(player_stats, player_name, player_pos, depth_slot
     player_data = player_stats[player_stats["player_display_name"] == player_name].copy()
     distributions = {}
     vol_scale = DEPTH_SLOT_SCALE.get(depth_slot, DEPTH_SLOT_SCALE[2])
+    pos_defaults = POSITION_STAT_DEFAULTS.get(player_pos, {})
 
     for sc in stat_cols:
-        if player_data.empty or sc not in player_data.columns:
-            mean, std = POSITION_DEFAULTS.get(sc, (10, 5))
+        fallback = pos_defaults.get(sc) or POSITION_DEFAULTS.get(sc, (10, 5))
+
+        if sc in SYNTHETIC_STATS:
+            # No real data exists — always use the season-total default directly.
+            mean, std = fallback
+        elif player_data.empty or sc not in player_data.columns:
+            mean, std = fallback
+            if sc in SEASON_TOTAL_STATS:
+                mean, std = mean / N_GAMES, std / N_GAMES
         else:
             values = pd.to_numeric(player_data[sc], errors='coerce').dropna()
             if values.empty:
-                mean, std = POSITION_DEFAULTS.get(sc, (10, 5))
+                mean, std = fallback
+                if sc in SEASON_TOTAL_STATS:
+                    mean, std = mean / N_GAMES, std / N_GAMES
             else:
                 mean = float(values.mean())
-                if len(values) > 1:
-                    std = float(values.std())
-                else:
-                    _, pos_std = POSITION_DEFAULTS.get(sc, (10, 5))
-                    std = pos_std
+                std = float(values.std()) if len(values) > 1 else fallback[1]
+                # DB stores season totals for these — convert to per-game
+                if sc in SEASON_TOTAL_STATS:
+                    mean, std = mean / N_GAMES, std / N_GAMES
 
-        # Scale volume stats for non-starters so RB2 doesn't match RB1 workload
         if depth_slot > 1 and sc in DEPTH_VOLUME_STATS:
             mean = mean * vol_scale
             std = std * vol_scale
 
-        std = max(std, 0.1)
+        std = max(std, 0.01)
         a = -mean / std
         distribution = stats.truncnorm(a=a, b=5, loc=mean, scale=std)
         distributions[sc] = distribution
@@ -223,7 +275,7 @@ def build_player_distributions(player_stats, player_name, player_pos, depth_slot
 
 def build_all_player_dists(team, player_stats):
     result = {}
-    pos_slot_counter = {}  # tracks how many of each position we've seen
+    pos_slot_counter = {}
     for player in team["players"]:
         name = player["name"]
         position = player["position"]
@@ -293,7 +345,6 @@ def build_pos_correlation_mat(team_players):
 def build_corr_matrix(team_players):
     return build_pos_correlation_mat(team_players)
 
-# Simulation
 def build_flat_corr(distributions, corr_mat):
     flat_keys = []
     for name, data in distributions.items():
@@ -333,7 +384,6 @@ def build_flat_corr(distributions, corr_mat):
     return flat_keys, flat_corr
 
 def sample_all_games(distributions, flat_keys, flat_corr, n_season_sims, n_games):
-    # Sample all sims × all games in one multivariate_normal call
     n = len(flat_keys)
     total_samples = n_season_sims * n_games
     mv_samples = np.random.multivariate_normal(np.zeros(n), flat_corr, size=total_samples)
@@ -344,7 +394,6 @@ def sample_all_games(distributions, flat_keys, flat_corr, n_season_sims, n_games
         dist = distributions[name]["distributions"][sc]
         raw[:, i] = dist.ppf(np.clip(uniform_samples[:, i], 1e-6, 1 - 1e-6))
 
-    # shape: (n_season_sims, n_games, n_stats)
     return raw.reshape(n_season_sims, n_games, n)
 
 def yards_to_points(passing_yards, rushing_yards, fg_made):
@@ -382,16 +431,13 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300, 
         if distributions[p["name"]]["distributions"]
     }
 
-    # build corr matrix and sample ALL games for ALL sims in one shot
     flat_keys, flat_corr = build_flat_corr(distributions, corr_matrix)
     if flat_corr is None:
         return {}
 
-    # shape: (n_season_sims, n_games, n_stats)
     all_samples = sample_all_games(distributions, flat_keys, flat_corr, n_season_sims, n_games)
     all_samples = np.maximum(all_samples, 0)
 
-    # build lookup: stat_key -> column index
     key_to_idx = {key: i for i, key in enumerate(flat_keys)}
     stat_col_indices = {name: {} for name in all_player_stats}
     for name in all_player_stats:
@@ -400,18 +446,14 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300, 
             if k in key_to_idx:
                 stat_col_indices[name][stat] = key_to_idx[k]
 
-    # opponent strengths and home boosts per game
     opp_strengths = np.array([get_opponent_strength(g["opponent"], team_stats) for g in schedule])
     home_boosts = np.array([1.05 if g["home"] else 0.97 for g in schedule])
 
-    # find column indices for win calculation
     passing_idx = key_to_idx.get(next((k for k in flat_keys if k[1] == "passing_yards"), (None, None)), None)
     rushing_idx = key_to_idx.get(next((k for k in flat_keys if k[1] == "rushing_yards"), (None, None)), None)
     fg_idx = key_to_idx.get(next((k for k in flat_keys if k[1] == "fg_made"), (None, None)), None)
 
-    # vectorized win calculation across all sims and games
-    # all_samples: (n_sims, n_games, n_stats)
-    multipliers = opp_strengths * home_boosts * coach_multiplier  # (n_games,)
+    multipliers = opp_strengths * home_boosts * coach_multiplier
 
     passing_per_game = all_samples[:, :, passing_idx] * multipliers if passing_idx is not None else np.zeros((n_season_sims, n_games))
     rushing_per_game = all_samples[:, :, rushing_idx] * multipliers if rushing_idx is not None else np.zeros((n_season_sims, n_games))
@@ -426,10 +468,8 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300, 
     wins_matrix = (team_points > opp_points)
     all_szn_wins = wins_matrix.sum(axis=1)
 
-    # accumulate player season totals
     for name in all_player_stats:
         for stat, col_idx in stat_col_indices[name].items():
-            # sum across games with multiplier, shape (n_sims,)
             season_totals = (all_samples[:, :, col_idx] * multipliers).sum(axis=1)
             all_player_stats[name][stat] = season_totals.tolist()
     
@@ -455,7 +495,6 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300, 
                 "ceiling": round(float(np.percentile(arr, 90))),
             }
 
-        # Derive fg_pct from simulated fg_made / fg_att so it's internally consistent
         if pos == "K" and "fg_made" in stats and "fg_att" in stats:
             made_arr = np.array(stats["fg_made"])
             att_arr  = np.array(stats["fg_att"])
@@ -474,7 +513,6 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300, 
             "stats": stat_entries,
         }
 
-    # Sort: by position group first, then by primary stat descending (stronger player first)
     sorted_names = sorted(
         player_projs_raw.keys(),
         key=lambda n: (
@@ -515,7 +553,6 @@ def fetch_coach_factor(coach_name, qb_name):
     if not coach_name:
         return 1.0, {}
 
-    # Fetch all games where this coach was involved
     home_games = supabase.table("schedules").select("home_score,away_score,season").execute()
     coach_home = supabase.table("coaches").select("season,team").eq("head_coach", coach_name).execute()
 
@@ -524,7 +561,6 @@ def fetch_coach_factor(coach_name, qb_name):
     if not coach_teams:
         return 1.0, {"coach": coach_name, "note": "No historical data found"}
 
-    # For each season the coach coached, fetch only that team's games to avoid the 1000-row Supabase page limit
     wins = 0
     losses = 0
     for season, team in coach_teams.items():
@@ -547,7 +583,6 @@ def fetch_coach_factor(coach_name, qb_name):
 
     total = wins + losses
     win_rate = wins / total if total > 0 else 0.5
-    # Scale: 0.5 win_rate = 1.0x, 0.7 = ~1.06x, 0.3 = ~0.94x
     coach_multiplier = 0.88 + (win_rate * 0.24)
     coach_multiplier = float(np.clip(coach_multiplier, 0.90, 1.10))
     
