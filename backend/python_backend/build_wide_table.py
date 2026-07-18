@@ -24,7 +24,6 @@ Wide row schema (one row = one complete team-season):
 import os
 import pandas as pd
 import numpy as np
-import nflreadpy as nfl
 from supabase import create_client
 from dotenv import load_dotenv
 
@@ -118,67 +117,68 @@ def extract_player_stats() -> pd.DataFrame:
 
 
 def extract_team_stats() -> pd.DataFrame:
+    """Pull team_stats from Supabase — weekly rows, REG season only."""
     ts = fetch_supabase_pages("team_stats", {"season_type": SEASON_TYPE})
     ts = ts[ts["season"].between(START_SEASON, END_SEASON)].copy()
 
     for c in ["passing_yards", "passing_tds", "rushing_yards", "rushing_tds",
-              "def_sacks", "def_interceptions"]:
+              "carries", "def_sacks", "def_interceptions",
+              "sacks_suffered", "def_qb_hits",
+              "pt_att", "pt_yards", "pt_inside_20", "pt_net_yards",
+              "pat_made", "pat_att"]:
         ts[c] = pd.to_numeric(ts.get(c, 0), errors="coerce").fillna(0.0)
 
     ts["team"] = normalise_team(ts["team"])
     return ts
 
 
-def extract_ol_ls_features() -> pd.DataFrame:
-    """
-    Pull snap counts from nflreadpy for all seasons and compute per-team-season:
-      - OL slot snap shares (Tx2, Gx2, Cx1) — ranked by season offense_pct desc
-      - LS primary snap share and roster churn
-      - OL unit proxies sourced from nflreadpy team_stats weekly:
-          ol_sacks_allowed = sum of sacks_suffered
-          ol_qb_hits_allowed = sum of def_qb_hits allowed (opponent def_qb_hits)
-          ol_rush_yards_per_carry = rushing_yards / max(carries, 1)
-    """
-    seasons = list(range(START_SEASON, END_SEASON + 1))
-    print("Loading snap counts from nflreadpy (this may take ~30s)...")
-    sc_raw = nfl.load_snap_counts(seasons=seasons)
-    sc = sc_raw.to_pandas() if hasattr(sc_raw, "to_pandas") else sc_raw.copy()
-    sc = sc[sc["game_type"] == "REG"].copy()
-    sc["team"] = normalise_team(sc["team"])
+def extract_snap_counts() -> pd.DataFrame:
+    """Pull snap_counts from Supabase (OL + LS only, stored by nfl_data_fetch_and_store.py)."""
+    print("  Fetching snap_counts from Supabase...")
+    sc = fetch_supabase_pages("snap_counts", {})
+    sc = sc[sc["season"].between(START_SEASON, END_SEASON)].copy()
     sc["offense_pct"] = pd.to_numeric(sc["offense_pct"], errors="coerce").fillna(0.0)
     sc["st_pct"] = pd.to_numeric(sc["st_pct"], errors="coerce").fillna(0.0)
+    sc["team"] = normalise_team(sc["team"])
+    return sc
 
-    print("Loading weekly team stats from nflreadpy...")
-    ts_raw = nfl.load_team_stats(seasons=seasons)
-    ts = ts_raw.to_pandas() if hasattr(ts_raw, "to_pandas") else ts_raw.copy()
-    ts = ts[ts["season_type"] == "REG"].copy()
-    ts["team"] = normalise_team(ts["team"])
-    for c in ["sacks_suffered", "def_qb_hits", "rushing_yards", "carries"]:
-        ts[c] = pd.to_numeric(ts.get(c, 0), errors="coerce").fillna(0.0)
 
+def build_ol_ls_features(ts: pd.DataFrame, sc: pd.DataFrame) -> pd.DataFrame:
+    """
+    Compute per-team-season OL/LS feature block from already-extracted
+    team_stats (ts) and snap_counts (sc) DataFrames.
+    Both inputs come purely from Supabase — no nflreadpy calls here.
+    """
+    seasons = list(range(START_SEASON, END_SEASON + 1))
     rows = []
+
     for season in seasons:
-        sc_s = sc[sc["season"] == season]
         ts_s = ts[ts["season"] == season]
-        teams = sorted(set(sc_s["team"].dropna().unique()) | set(ts_s["team"].dropna().unique()))
+        sc_s = sc[sc["season"] == season]
+        teams = sorted(
+            set(ts_s["team"].dropna().unique()) |
+            set(sc_s["team"].dropna().unique())
+        )
 
         for team in teams:
             row = {"team": team, "season": int(season)}
 
+            # ── OL unit proxies (summed from weekly team_stats rows) ───────
             ts_t = ts_s[ts_s["team"] == team]
             if not ts_t.empty:
-                row["ol_sacks_allowed"]       = float(ts_t["sacks_suffered"].sum())
-                row["ol_qb_hits_allowed"]     = float(ts_t["def_qb_hits"].sum())
-                total_rush_yds  = float(ts_t["rushing_yards"].sum())
-                total_carries   = float(ts_t["carries"].sum())
+                row["ol_sacks_allowed"]        = float(ts_t["sacks_suffered"].sum())
+                row["ol_qb_hits_allowed"]      = float(ts_t["def_qb_hits"].sum())
+                total_rush_yds = float(ts_t["rushing_yards"].sum())
+                total_carries  = float(ts_t["carries"].sum())
                 row["ol_rush_yards_per_carry"] = round(
                     total_rush_yds / max(total_carries, 1), 2
                 )
             else:
-                row["ol_sacks_allowed"]       = 0.0
-                row["ol_qb_hits_allowed"]     = 0.0
+                row["ol_sacks_allowed"]        = 0.0
+                row["ol_qb_hits_allowed"]      = 0.0
                 row["ol_rush_yards_per_carry"] = 0.0
 
+            # ── OL slot snap shares ────────────────────────────────────────
             sc_t = sc_s[sc_s["team"] == team]
 
             def ol_slots(position_code: str, n_slots: int, col_prefix: str):
@@ -186,9 +186,8 @@ def extract_ol_ls_features() -> pd.DataFrame:
                 if players.empty:
                     for slot in range(1, n_slots + 1):
                         row[f"{col_prefix}{slot}_snap_share"] = 0.0
-                        row[f"{col_prefix}{slot}_games"] = 0
+                        row[f"{col_prefix}{slot}_games"]      = 0
                     return
-                # Season snap share = mean offense_pct across games played
                 agg = (
                     players.groupby("player")
                     .agg(season_snap_share=("offense_pct", "mean"),
@@ -206,10 +205,11 @@ def extract_ol_ls_features() -> pd.DataFrame:
                         row[f"{col_prefix}{slot}_snap_share"] = 0.0
                         row[f"{col_prefix}{slot}_games"]      = 0
 
-            ol_slots("T", 2, "ot") 
-            ol_slots("G", 2, "og") 
-            ol_slots("C", 1, "c") 
+            ol_slots("T", 2, "ot")
+            ol_slots("G", 2, "og")
+            ol_slots("C", 1, "c")
 
+            # ── Long snapper ──────────────────────────────────────────────
             ls_players = sc_t[sc_t["position"] == "LS"].copy()
             if not ls_players.empty:
                 ls_agg = (
@@ -433,7 +433,11 @@ if __name__ == "__main__":
     ts = extract_team_stats()
     print(f"  team_stats:   {ts.shape}")
 
-    ol_ls = extract_ol_ls_features()
+    sc = extract_snap_counts()
+    print(f"  snap_counts:  {sc.shape}")
+
+    print("\n── BUILD OL/LS FEATURES ───────────────────────────────────────────")
+    ol_ls = build_ol_ls_features(ts, sc)
     print(f"  ol_ls:        {ol_ls.shape}")
 
     print("\n── RESHAPE ────────────────────────────────────────────────────────")

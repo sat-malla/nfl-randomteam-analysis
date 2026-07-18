@@ -43,6 +43,7 @@ create table team_stats (
   passing_interceptions float,
   rushing_yards float,
   rushing_tds float,
+  carries float,
   receiving_yards float,
   receiving_tds float,
   def_tackles_solo float,
@@ -51,7 +52,29 @@ create table team_stats (
   def_pass_defended float,
   fg_made float,
   fg_att float,
-  fg_pct float
+  fg_pct float,
+  sacks_suffered float,
+  def_qb_hits float,
+  pt_att float,
+  pt_yards float,
+  pt_inside_20 float,
+  pt_net_yards float,
+  pat_made float,
+  pat_att float
+);
+
+create table snap_counts (
+  id bigserial primary key,
+  game_id text,
+  season int,
+  game_type text,
+  week int,
+  player text,
+  position text,
+  team text,
+  offense_pct float,
+  st_pct float,
+  unique (game_id, player)
 );
 
 create table schedules (
