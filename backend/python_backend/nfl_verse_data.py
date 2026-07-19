@@ -11,6 +11,7 @@ import polars as pl
 
 
 player_stats = nfl.load_player_stats(seasons=list(range(2015, 2026)))
+print(player_stats)
 # # print(player_stats)
 
 # print(player_stats.shape)

@@ -11,3 +11,5 @@ httpx
 certifi
 nflreadpy
 polars
+torch
+scikit-learn
