@@ -1,0 +1,15 @@
+{
+  "latent_dim": 256,
+  "hidden_dim": 512,
+  "cat_emb_dim": 8,
+  "n_continuous": 100,
+  "n_categorical": 2,
+  "cat_dims": [
+    11,
+    5
+  ],
+  "T_steps": 1000,
+  "beta_min": 0.0001,
+  "beta_max": 0.02,
+  "ddpm_sample_steps": 200
+}
