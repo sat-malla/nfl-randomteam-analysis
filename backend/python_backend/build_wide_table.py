@@ -81,6 +81,11 @@ def fetch_supabase_pages(table: str, filters: dict) -> pd.DataFrame:
 
 
 def rank_group(df: pd.DataFrame, rank_col: str, n: int, prefix: str, stat_cols: list) -> dict:
+    # Sum weekly rows per player into season totals before ranking
+    agg_cols = list({rank_col} | set(stat_cols))
+    numeric  = [c for c in agg_cols if c in df.columns]
+    if not df.empty and "player_id" in df.columns:
+        df = df.groupby("player_id")[numeric].sum().reset_index()
     df = df.sort_values(rank_col, ascending=False).head(n).reset_index(drop=True)
     out = {}
     for slot in range(1, n + 1):
@@ -257,8 +262,12 @@ def reshape_to_wide(ps: pd.DataFrame, ts: pd.DataFrame,
                 ps_t[dc] = pd.to_numeric(ps_t.get(dc, 0), errors="coerce").fillna(0.0)
 
             qbs = ps_t[ps_t["position"] == "QB"].copy()
-            if not qbs.empty:
-                qb = qbs.sort_values("attempts", ascending=False).iloc[0]
+            if not qbs.empty and "player_id" in qbs.columns:
+                qb_sum = qbs.groupby("player_id")[[
+                    "attempts", "completions", "passing_yards", "passing_tds",
+                    "passing_interceptions", "carries", "rushing_yards", "rushing_tds",
+                ]].sum().reset_index()
+                qb = qb_sum.sort_values("attempts", ascending=False).iloc[0]
                 row.update({
                     "qb_attempts":      float(qb.get("attempts", 0)),
                     "qb_completions":   float(qb.get("completions", 0)),
@@ -291,14 +300,13 @@ def reshape_to_wide(ps: pd.DataFrame, ts: pd.DataFrame,
             ))
 
             if not ts_t.empty:
-                agg = ts_t.iloc[0]
                 row.update({
-                    "team_passing_yards":     float(agg.get("passing_yards", 0)),
-                    "team_passing_tds":       float(agg.get("passing_tds", 0)),
-                    "team_rushing_yards":     float(agg.get("rushing_yards", 0)),
-                    "team_rushing_tds":       float(agg.get("rushing_tds", 0)),
-                    "team_def_sacks":         float(agg.get("def_sacks", 0)),
-                    "team_def_interceptions": float(agg.get("def_interceptions", 0)),
+                    "team_passing_yards":     float(ts_t["passing_yards"].sum()),
+                    "team_passing_tds":       float(ts_t["passing_tds"].sum()),
+                    "team_rushing_yards":     float(ts_t["rushing_yards"].sum()),
+                    "team_rushing_tds":       float(ts_t["rushing_tds"].sum()),
+                    "team_def_sacks":         float(ts_t["def_sacks"].sum()),
+                    "team_def_interceptions": float(ts_t["def_interceptions"].sum()),
                 })
             else:
                 for k in ["team_passing_yards", "team_passing_tds", "team_rushing_yards",
@@ -332,11 +340,12 @@ def reshape_to_wide(ps: pd.DataFrame, ts: pd.DataFrame,
             ks = ps_t[ps_t["position"] == "K"].copy()
             for kc in ["fg_made", "fg_att", "fg_pct"]:
                 ks[kc] = pd.to_numeric(ks.get(kc, 0), errors="coerce").fillna(0.0)
-            if not ks.empty:
-                k = ks.sort_values("fg_made", ascending=False).iloc[0]
+            if not ks.empty and "player_id" in ks.columns:
+                ks_sum = ks.groupby("player_id")[["fg_made", "fg_att"]].sum().reset_index()
+                k = ks_sum.sort_values("fg_made", ascending=False).iloc[0]
                 row["k_fg_made"] = float(k.get("fg_made", 0))
                 row["k_fg_att"]  = float(k.get("fg_att", 0))
-                row["k_fg_pct"]  = float(k.get("fg_pct", 0))
+                row["k_fg_pct"]  = round(row["k_fg_made"] / max(row["k_fg_att"], 1), 3)
             else:
                 row["k_fg_made"] = 0.0
                 row["k_fg_att"]  = 0.0
