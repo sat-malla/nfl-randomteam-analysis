@@ -194,6 +194,109 @@ type TeamStatsGridProps = {
   isDark: boolean;
 };
 
+type LeaderCategory = {
+  label: string;
+  stat: string;
+  excludePos?: Set<string>;
+  includePos?: Set<string>;
+  unit?: string;
+};
+
+const LEADER_CATEGORIES: LeaderCategory[] = [
+  { label: "Total TD Leader", stat: "total_tds", excludePos: new Set(["QB"]), unit: "TDs" },
+  { label: "Rushing TD Leader", stat: "rushing_tds", unit: "TDs" },
+  { label: "Receiving TD Leader", stat: "receiving_tds", unit: "TDs" },
+  { label: "Scrimmage Yds Leader", stat: "scrimmage_yards", unit: "Yds" },
+  { label: "Rushing Yds Leader", stat: "rushing_yards", unit: "Yds" },
+  { label: "Receiving Yds Leader", stat: "receiving_yards", unit: "Yds" },
+  { label: "Tackles Leader", stat: "def_tackles_solo", includePos: DEF_POSITIONS, unit: "Tkl" },
+  { label: "Sacks Leader", stat: "def_sacks", includePos: DEF_POSITIONS, unit: "Sks" },
+  { label: "Passes Def. Leader", stat: "def_pass_defended", includePos: DEF_POSITIONS, unit: "PD" },
+  { label: "Interceptions Leader", stat: "def_interceptions", includePos: DEF_POSITIONS, unit: "INTs" },
+];
+
+function getPlayerStatValue(p: PlayerProjection, stat: string): number {
+  if (stat === "total_tds") {
+    return (p.stats.rushing_tds?.projected_total ?? 0) + (p.stats.receiving_tds?.projected_total ?? 0);
+  }
+  if (stat === "scrimmage_yards") {
+    return (p.stats.rushing_yards?.projected_total ?? 0) + (p.stats.receiving_yards?.projected_total ?? 0);
+  }
+  return p.stats[stat]?.projected_total ?? 0;
+}
+
+function findLeader(projections: PlayerProjection[], cat: LeaderCategory): { name: string; value: number } | null {
+  let best: { name: string; value: number } | null = null;
+  for (const p of projections) {
+    if (cat.excludePos && cat.excludePos.has(p.position)) continue;
+    if (cat.includePos && !cat.includePos.has(p.position)) continue;
+    const val = getPlayerStatValue(p, cat.stat);
+    if (val > 0 && (best === null || val > best.value)) {
+      best = { name: p.name, value: val };
+    }
+  }
+  return best;
+}
+
+function shortName(full: string): string {
+  const parts = full.trim().split(" ");
+  if (parts.length < 2) return full;
+  return `${parts[0][0]}. ${parts.slice(1).join(" ")}`;
+}
+
+type TeamLeadersGridProps = {
+  analysis: AnalysisResult;
+  c: Record<string, string>;
+  isDark: boolean;
+};
+
+function TeamLeadersGrid({ analysis, c, isDark }: TeamLeadersGridProps) {
+  const projections = Array.isArray(analysis.player_projections)
+    ? analysis.player_projections
+    : Object.entries(analysis.player_projections as Record<string, PlayerProjection>).map(([name, p]) => ({ ...p, name }));
+
+  return (
+    <View style={[{ width: "100%", borderRadius: 14, borderWidth: 1, padding: 16, marginBottom: 20, gap: 12 }, { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow }]}>
+      <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: 4, color: c.text }}>Team Leaders</Text>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+        {LEADER_CATEGORIES.map((cat) => {
+          const leader = findLeader(projections, cat);
+          return (
+            <View
+              key={cat.label}
+              style={{
+                width: "47%",
+                flexGrow: 1,
+                backgroundColor: isDark ? "#0d1f2d" : "#f0f7ff",
+                borderRadius: 10,
+                borderWidth: 1,
+                borderColor: c.border,
+                padding: 10,
+              }}
+            >
+              <Text style={{ fontSize: 10, fontWeight: "700", color: c.subtext, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 4 }}>
+                {cat.label}
+              </Text>
+              {leader ? (
+                <>
+                  <Text style={{ fontSize: 15, fontWeight: "800", color: c.text }} numberOfLines={1}>
+                    {shortName(leader.name)}
+                  </Text>
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: isDark ? "#60a5fa" : "#1d4ed8", marginTop: 2 }}>
+                    {leader.value} {cat.unit}
+                  </Text>
+                </>
+              ) : (
+                <Text style={{ fontSize: 13, color: c.subtext }}>—</Text>
+              )}
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 function TeamStatsGrid({ analysis, c, isDark }: TeamStatsGridProps) {
   const projections = Array.isArray(analysis.player_projections)
     ? analysis.player_projections
@@ -546,6 +649,7 @@ const AnalyzeTeam = () => {
           </View>
 
           <TeamStatsGrid analysis={analysis} c={c} isDark={isDark} />
+          <TeamLeadersGrid analysis={analysis} c={c} isDark={isDark} />
 
           {analysis.coach_analysis && analysis.coach_analysis.coach && (
             <View
