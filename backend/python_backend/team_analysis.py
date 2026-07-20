@@ -25,7 +25,7 @@ mongo_db = mongo_client["nfl-random-teams"]
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 POS_STAT_MAPPING = {
-    "QB": ["passing_yards", "passing_tds", "interceptions", "carries", "rushing_yards", "rushing_tds"],
+    "QB": ["passing_yards", "passing_tds", "passing_interceptions", "carries", "rushing_yards", "rushing_tds"],
     "RB": ["carries", "rushing_yards", "rushing_tds", "receptions", "targets", "receiving_yards", "receiving_tds"],
     "FB": ["carries", "rushing_yards", "rushing_tds", "receptions", "targets", "receiving_yards", "receiving_tds"],
     "WR": ["receptions", "receiving_yards", "receiving_tds", "targets", "carries", "rushing_yards", "rushing_tds"],
@@ -40,18 +40,15 @@ POS_STAT_MAPPING = {
     "MLB": ["def_tackles_solo", "def_sacks", "def_interceptions", "def_pass_defended"],
     "CB": ["def_interceptions", "def_pass_defended", "def_tackles_solo"],
     "FS": ["def_interceptions", "def_pass_defended", "def_tackles_solo"],
-    "SS": ["def_tackles_solo", "def_interceptions", "def_pass_defended"],
-    "S": ["def_tackles_solo", "def_interceptions", "def_pass_defended"],
-    "SAF": ["def_tackles_solo", "def_interceptions", "def_pass_defended"],
-    # K: fg_made/fg_att are season totals in the DB — divided by 17 in build_player_distributions
+    "SS": ["def_interceptions", "def_pass_defended", "def_tackles_solo"],
+    "S": ["def_interceptions", "def_pass_defended", "def_tackles_solo"],
+    "SAF": ["def_interceptions", "def_pass_defended", "def_tackles_solo"],
     "K":  ["fg_made", "fg_att"],
-    # P: no punter-specific stats in the schema; season punt volume derived from team drives
     "P":  ["punt_yards_season", "punt_attempts_season"],
     "OT": [],
     "G":  [],
     "C":  [],
     "LS": [],
-    # RS: season totals in DB — divided by 17 to get per-game, then re-summed over 17 games
     "RS": ["kickoff_return_yards", "kickoff_returns", "punt_return_yards", "punt_returns"],
 }
 
@@ -60,8 +57,8 @@ POSITION_PRIMARY_STAT = {
     "RB": "rushing_yards",
     "WR": "receiving_yards",
     "TE": "receiving_yards",
-    "K":  "fg_made",
-    "P":  "punt_attempts_season",
+    "K": "fg_made",
+    "P": "punt_attempts_season",
     "RS": "kickoff_return_yards",
     "LB": "def_tackles_solo",
     "OLB": "def_tackles_solo",
@@ -82,51 +79,11 @@ POSITION_PRIMARY_STAT = {
     "LS": None,
 }
 
-POSITION_DEFAULTS = {
-    "passing_yards": (230, 60),
-    "passing_tds": (1.5, 1.0),
-    "passing_interceptions": (0.8, 0.7),
-    "rushing_yards": (65, 35),
-    "carries": (15, 8),
-    "receiving_yards": (55, 40),
-    "receiving_tds": (0.4, 0.5),
-    "receptions": (4, 3),
-    "targets": (6, 4),
-    # K: season totals (÷17 in build_player_distributions → per-game dist → ×17 in sim)
-    # NFL season baseline: ~33 FG att, ~27 FG made for a starting kicker
-    "fg_made": (27, 5),
-    "fg_att": (33, 5),
-    "fg_pct": (0.82, 0.08),
-    "def_tackles_solo": (3.0, 1.5),
-    "def_sacks": (0.4, 0.4),
-    "def_interceptions": (0.02, 0.1),
-    "def_pass_defended": (0.2, 0.3),
-    # RS: season totals (÷17 in build_player_distributions → per-game dist → ×17 in sim)
-    # Season baseline: ~25 KR for ~600 yds, ~20 PR for ~180 yds
-    "kickoff_returns": (25, 8),
-    "kickoff_return_yards": (600, 150),
-    "punt_returns": (20, 6),
-    "punt_return_yards": (180, 60),
-    # P: synthetic season-total columns (punter stats not in schema, use team-drive estimates)
-    # Season baseline: ~70 punts for ~3100 yards
-    "punt_attempts_season": (70, 12),
-    "punt_yards_season": (3100, 400),
-}
+_POS_STATS_CACHE: dict[str, pd.DataFrame] = {}
 
-POSITION_STAT_DEFAULTS = {
-    "CB":  {"def_tackles_solo": (3.0, 1.5), "def_sacks": (0.05, 0.1),  "def_interceptions": (0.12, 0.2),  "def_pass_defended": (0.5, 0.4)},
-    "FS":  {"def_tackles_solo": (3.5, 1.5), "def_sacks": (0.05, 0.1),  "def_interceptions": (0.12, 0.2),  "def_pass_defended": (0.45, 0.4)},
-    "SS":  {"def_tackles_solo": (4.5, 2.0), "def_sacks": (0.08, 0.15), "def_interceptions": (0.08, 0.15), "def_pass_defended": (0.35, 0.3)},
-    "S":   {"def_tackles_solo": (4.0, 2.0), "def_sacks": (0.06, 0.12), "def_interceptions": (0.10, 0.18), "def_pass_defended": (0.40, 0.35)},
-    "SAF": {"def_tackles_solo": (4.0, 2.0), "def_sacks": (0.06, 0.12), "def_interceptions": (0.10, 0.18), "def_pass_defended": (0.40, 0.35)},
-    "LB":  {"def_tackles_solo": (5.5, 2.0), "def_sacks": (0.25, 0.3),  "def_interceptions": (0.06, 0.12), "def_pass_defended": (0.25, 0.3)},
-    "OLB": {"def_tackles_solo": (4.5, 2.0), "def_sacks": (0.35, 0.4),  "def_interceptions": (0.05, 0.1),  "def_pass_defended": (0.20, 0.25)},
-    "ILB": {"def_tackles_solo": (5.5, 2.0), "def_sacks": (0.20, 0.25), "def_interceptions": (0.06, 0.12), "def_pass_defended": (0.25, 0.3)},
-    "MLB": {"def_tackles_solo": (6.0, 2.5), "def_sacks": (0.18, 0.25), "def_interceptions": (0.05, 0.1),  "def_pass_defended": (0.20, 0.25)},
-    "DE":  {"def_tackles_solo": (3.0, 1.5), "def_sacks": (0.42, 0.45), "def_interceptions": (0.02, 0.06), "def_pass_defended": (0.15, 0.2)},
-    "DT":  {"def_tackles_solo": (3.5, 1.5), "def_sacks": (0.30, 0.4),  "def_interceptions": (0.01, 0.05), "def_pass_defended": (0.10, 0.15)},
-    "NT":  {"def_tackles_solo": (4.0, 1.5), "def_sacks": (0.20, 0.3),  "def_interceptions": (0.01, 0.05), "def_pass_defended": (0.08, 0.12)},
-    "DL":  {"def_tackles_solo": (3.5, 1.5), "def_sacks": (0.35, 0.4),  "def_interceptions": (0.01, 0.05), "def_pass_defended": (0.12, 0.18)},
+_RATE_STATS = {
+    "def_tackles_solo", "def_interceptions", "def_pass_defended",
+    "passing_interceptions", "passing_tds", "passing_yards", "carries",
 }
 
 TEAM_MAPPING = {
@@ -197,6 +154,14 @@ def fetch_player_historical_stats(player_names):
     response = supabase.table("player_stats").select("*").in_("player_display_name", player_names).gte("season", 2021).execute()
     return pd.DataFrame(response.data)
 
+def fetch_player_return_stats(player_names):
+    response = supabase.table("return_stats").select("*").in_("player_display_name", player_names).gte("season", 2021).execute()
+    return pd.DataFrame(response.data)
+
+def fetch_player_punt_stats(player_names):
+    response = supabase.table("punt_stats").select("*").in_("player_display_name", player_names).gte("season", 2021).execute()
+    return pd.DataFrame(response.data)
+
 # print(fetch_player_historical_stats(["Josh Allen", "Justin Herbert"]))
 
 def fetch_team_historical_stats(teams):
@@ -205,7 +170,49 @@ def fetch_team_historical_stats(teams):
 
 # print(fetch_team_historical_stats(["Buffalo Bills"]))
 
-# Volume stats that should be scaled down for backup/depth players
+def fetch_position_stats(position: str) -> pd.DataFrame:
+    if position in _POS_STATS_CACHE:
+        return _POS_STATS_CACHE[position]
+    if position == "RS":
+        response = supabase.table("return_stats").select("*").gte("season", 2021).execute()
+    elif position == "P":
+        response = supabase.table("punt_stats").select("*").gte("season", 2021).execute()
+    else:
+        response = supabase.table("player_stats").select("*").eq("position", position).gte("season", 2021).execute()
+    df = pd.DataFrame(response.data) if response.data else pd.DataFrame()
+    _POS_STATS_CACHE[position] = df
+    return df
+
+
+def get_position_dist(all_stats_df: pd.DataFrame, position: str, stat: str) -> tuple[float, float]:
+    def _compute(df: pd.DataFrame) -> tuple[float, float] | None:
+        if df.empty or stat not in df.columns:
+            return None
+        if position in ("RS", "P"):
+            pos_df = df
+        else:
+            pos_df = df[df["position"] == position] if "position" in df.columns else df
+        if pos_df.empty:
+            return None
+        group_cols = [c for c in ["player_display_name", "season"] if c in pos_df.columns]
+        if group_cols:
+            pos_df = pos_df.groupby(group_cols)[stat].sum().reset_index()
+        values = pd.to_numeric(pos_df[stat], errors="coerce").dropna()
+        if stat not in _RATE_STATS:
+            values = values[values > 0]
+        if len(values) < 5:
+            return None
+        return float(values.mean()), float(values.std()) if len(values) > 1 else float(values.mean() * 0.3)
+
+    result = _compute(all_stats_df)
+    if result is None:
+        pos_df = fetch_position_stats(position)
+        result = _compute(pos_df)
+    if result is None:
+        return (1.0, 0.5)
+    return result
+
+
 DEPTH_VOLUME_STATS = {
     "carries", "rushing_yards", "rushing_tds",
     "receptions", "targets", "receiving_yards", "receiving_tds",
@@ -214,11 +221,8 @@ DEPTH_VOLUME_STATS = {
     "punt_attempts_season", "punt_yards_season",
 }
 
-# Multiplier applied to volume stat means by depth slot (1=starter, 2=backup, 3+=deep)
 DEPTH_SLOT_SCALE = {1: 1.0, 2: 0.50, 3: 0.30}
 
-# Stats stored as season totals in the DB that must be divided by N_GAMES before
-# building the per-game distribution (the sim then re-sums them over N_GAMES).
 SEASON_TOTAL_STATS = {
     "fg_made", "fg_att",
     "kickoff_returns", "kickoff_return_yards",
@@ -226,8 +230,37 @@ SEASON_TOTAL_STATS = {
 }
 N_GAMES = 17
 
-# Synthetic stats for positions with no real DB column — built entirely from defaults.
 SYNTHETIC_STATS = {"punt_attempts_season", "punt_yards_season"}
+
+
+_POS_STAT_CAPS = {
+    # Offensive skill — per game caps
+    "WR":  {"carries": 0.25, "rushing_yards": 3.0, "rushing_tds": 0.04},
+    "TE":  {"carries": 0.04, "rushing_yards": 0.3, "rushing_tds": 0.003},
+    "QB":  {"rushing_tds": 0.5, "passing_interceptions": 1.0},
+    "RB":  {"rushing_tds": 1.2, "receiving_tds": 0.5},
+    # D-line — season caps (divided by 17 before building dist)
+    # Elite DE: 15 sacks (Rashan Gary). Average: 3-5. Most: 0-3.
+    "DE":  {"def_sacks": 15, "def_tackles_solo": 55, "def_pass_defended": 6},
+    "DT":  {"def_sacks": 8,  "def_tackles_solo": 45, "def_pass_defended": 4},
+    "NT":  {"def_sacks": 5,  "def_tackles_solo": 40, "def_pass_defended": 3},
+    "DL":  {"def_sacks": 10, "def_tackles_solo": 50, "def_pass_defended": 5},
+    # LB — season caps
+    # Starter: 80-107 tackles, 1-3 sacks, 0-1 INTs, 3-5 PD
+    "LB":  {"def_tackles_solo": 110, "def_sacks": 5,  "def_interceptions": 3, "def_pass_defended": 8},
+    "OLB": {"def_tackles_solo": 80,  "def_sacks": 8,  "def_interceptions": 2, "def_pass_defended": 6},
+    "ILB": {"def_tackles_solo": 110, "def_sacks": 4,  "def_interceptions": 3, "def_pass_defended": 7},
+    "MLB": {"def_tackles_solo": 120, "def_sacks": 3,  "def_interceptions": 3, "def_pass_defended": 7},
+    # DB — season caps
+    # CB: 50-54 tackles, 0 sacks, 1-2 INTs, 7-14 PD
+    # S: 60-107 tackles, 2-6 INTs, 5-7 PD
+    "CB":  {"def_tackles_solo": 70,  "def_interceptions": 5,  "def_pass_defended": 16},
+    "FS":  {"def_tackles_solo": 80,  "def_interceptions": 6,  "def_pass_defended": 12},
+    "SS":  {"def_tackles_solo": 80,  "def_interceptions": 4,  "def_pass_defended": 10},
+    "S":   {"def_tackles_solo": 80,  "def_interceptions": 6,  "def_pass_defended": 12},
+    "SAF": {"def_tackles_solo": 80,  "def_interceptions": 6,  "def_pass_defended": 12},
+}
+
 
 def build_player_distributions(player_stats, player_name, player_pos, depth_slot=1):
     stat_cols = POS_STAT_MAPPING.get(player_pos, [])
@@ -237,34 +270,35 @@ def build_player_distributions(player_stats, player_name, player_pos, depth_slot
     player_data = player_stats[player_stats["player_display_name"] == player_name].copy()
     distributions = {}
     vol_scale = DEPTH_SLOT_SCALE.get(depth_slot, DEPTH_SLOT_SCALE[2])
-    pos_defaults = POSITION_STAT_DEFAULTS.get(player_pos, {})
 
     for sc in stat_cols:
-        fallback = pos_defaults.get(sc) or POSITION_DEFAULTS.get(sc, (10, 5))
+        if player_data.empty or sc not in player_data.columns:
+            pos_mean, pos_std = get_position_dist(player_stats, player_pos, sc)
+            season_mean = max(0.0, float(np.random.normal(pos_mean, pos_std)))
+            mean = season_mean / N_GAMES
+            std = max(pos_std / N_GAMES, 0.01)
 
-        if sc in SYNTHETIC_STATS:
-            # No real data exists — always use the season-total default directly.
-            mean, std = fallback
-        elif player_data.empty or sc not in player_data.columns:
-            mean, std = fallback
-            if sc in SEASON_TOTAL_STATS:
-                mean, std = mean / N_GAMES, std / N_GAMES
         else:
-            values = pd.to_numeric(player_data[sc], errors='coerce').dropna()
-            if values.empty:
-                mean, std = fallback
-                if sc in SEASON_TOTAL_STATS:
-                    mean, std = mean / N_GAMES, std / N_GAMES
+            values = pd.to_numeric(player_data[sc], errors="coerce").dropna()
+            if values.empty or (sc not in _RATE_STATS and (values == 0).all()):
+                pos_mean, pos_std = get_position_dist(player_stats, player_pos, sc)
+                season_mean = max(0.0, float(np.random.normal(pos_mean, pos_std)))
+                mean = season_mean / N_GAMES
+                std = max(pos_std / N_GAMES, 0.01)
             else:
                 mean = float(values.mean())
-                std = float(values.std()) if len(values) > 1 else fallback[1]
-                # DB stores season totals for these — convert to per-game
+                pos_mean, pos_std = get_position_dist(player_stats, player_pos, sc)
+                std = float(values.std()) if len(values) > 1 else pos_std
                 if sc in SEASON_TOTAL_STATS:
                     mean, std = mean / N_GAMES, std / N_GAMES
 
         if depth_slot > 1 and sc in DEPTH_VOLUME_STATS:
             mean = mean * vol_scale
             std = std * vol_scale
+
+        pos_caps = _POS_STAT_CAPS.get(player_pos, {})
+        if sc in pos_caps:
+            mean = min(mean, pos_caps[sc])
 
         std = max(std, 0.01)
         a = -mean / std
@@ -273,7 +307,7 @@ def build_player_distributions(player_stats, player_name, player_pos, depth_slot
 
     return distributions
 
-def build_all_player_dists(team, player_stats):
+def build_all_player_dists(team, player_stats, return_stats=None, punt_stats=None):
     result = {}
     pos_slot_counter = {}
     for player in team["players"]:
@@ -281,7 +315,13 @@ def build_all_player_dists(team, player_stats):
         position = player["position"]
         pos_slot_counter[position] = pos_slot_counter.get(position, 0) + 1
         depth_slot = pos_slot_counter[position]
-        dists = build_player_distributions(player_stats, name, position, depth_slot=depth_slot)
+        if position == "RS" and return_stats is not None:
+            stats_df = return_stats
+        elif position == "P" and punt_stats is not None:
+            stats_df = punt_stats
+        else:
+            stats_df = player_stats
+        dists = build_player_distributions(stats_df, name, position, depth_slot=depth_slot)
         result[name] = {
             "position": position,
             "depth_slot": depth_slot,
@@ -383,6 +423,112 @@ def build_flat_corr(distributions, corr_mat):
 
     return flat_keys, flat_corr
 
+def fetch_tabsyn_sample() -> dict:
+    """Call the TabSyn inference microservice and return one generated team-season row."""
+    tabsyn_url = os.getenv("TABSYN_URL", "http://localhost:8002")
+    try:
+        with httpx.Client(timeout=30) as client:
+            resp = client.post(f"{tabsyn_url}/generate", json={"n_samples": 1})
+            resp.raise_for_status()
+            return resp.json()["samples"][0]
+    except Exception:
+        return {}
+
+
+_TABSYN_STAT_MAP = {
+    # (wide_col, position_slot, internal_stat)
+    "qb_passing_yards":   ("QB", 1, "passing_yards"),
+    "qb_passing_tds":     ("QB", 1, "passing_tds"),
+    "qb_interceptions":   ("QB", 1, "passing_interceptions"),
+    "qb_carries":         ("QB", 1, "carries"),
+    "qb_rushing_yards":   ("QB", 1, "rushing_yards"),
+    "qb_rushing_tds":     ("QB", 1, "rushing_tds"),
+    "wr1_targets": ("WR", 1, "targets"),
+    "wr1_receptions": ("WR", 1, "receptions"),
+    "wr1_receiving_yards":("WR", 1, "receiving_yards"),
+    "wr1_receiving_tds": ("WR", 1, "receiving_tds"),
+    "wr2_targets": ("WR", 2, "targets"),
+    "wr2_receptions": ("WR", 2, "receptions"),
+    "wr2_receiving_yards": ("WR", 2, "receiving_yards"),
+    "wr2_receiving_tds": ("WR", 2, "receiving_tds"),
+    "wr3_targets": ("WR", 3, "targets"),
+    "wr3_receptions": ("WR", 3, "receptions"),
+    "wr3_receiving_yards": ("WR", 3, "receiving_yards"),
+    "wr3_receiving_tds": ("WR", 3, "receiving_tds"),
+    "rb1_carries": ("RB", 1, "carries"),
+    "rb1_rushing_yards": ("RB", 1, "rushing_yards"),
+    "rb1_rushing_tds": ("RB", 1, "rushing_tds"),
+    "rb1_receptions":("RB", 1, "receptions"),
+    "rb1_receiving_yards": ("RB", 1, "receiving_yards"),
+    "rb1_receiving_tds": ("RB", 1, "receiving_tds"),
+    "rb2_carries": ("RB", 2, "carries"),
+    "rb2_rushing_yards": ("RB", 2, "rushing_yards"),
+    "rb2_rushing_tds": ("RB", 2, "rushing_tds"),
+    "rb2_receptions": ("RB", 2, "receptions"),
+    "rb2_receiving_yards": ("RB", 2, "receiving_yards"),
+    "rb2_receiving_tds": ("RB", 2, "receiving_tds"),
+    "te1_targets": ("TE", 1, "targets"),
+    "te1_receptions": ("TE", 1, "receptions"),
+    "te1_receiving_yards": ("TE", 1, "receiving_yards"),
+    "te1_receiving_tds": ("TE", 1, "receiving_tds"),
+    "te2_targets": ("TE", 2, "targets"),
+    "te2_receptions": ("TE", 2, "receptions"),
+    "te2_receiving_yards": ("TE", 2, "receiving_yards"),
+    "te2_receiving_tds": ("TE", 2, "receiving_tds"),
+    "k_fg_made": ("K",  1, "fg_made"),
+    "k_fg_att": ("K",  1, "fg_att"),
+}
+
+
+def apply_tabsyn_priors(distributions: dict, tabsyn_row: dict) -> dict:
+    """
+    Override each player's distribution means with TabSyn season totals.
+    Keeps the historical STD so variance is preserved; only the center shifts.
+    Players are matched by position + depth slot order.
+    """
+    if not tabsyn_row:
+        return distributions
+
+    pos_slot_names: dict[tuple, str] = {}
+    pos_counter: dict[str, int] = {}
+    for name, data in distributions.items():
+        pos = data["position"]
+        pos_counter[pos] = pos_counter.get(pos, 0) + 1
+        pos_slot_names[(pos, pos_counter[pos])] = name
+
+    for wide_col, (pos, slot, stat) in _TABSYN_STAT_MAP.items():
+        if wide_col not in tabsyn_row:
+            continue
+        player_name = pos_slot_names.get((pos, slot))
+        if player_name is None:
+            continue
+        player_dists = distributions[player_name]["distributions"]
+        if stat not in player_dists:
+            continue
+
+        _SEASON_CAPS = {
+            "passing_interceptions": 20, "passing_tds": 55,
+            "rushing_tds": 15, "receiving_tds": 20,
+            "fg_made": 40, "fg_att": 50,
+        }
+        _STD_CAPS = {
+            "passing_yards": 80, "passing_tds": 2.5, "passing_interceptions": 1.0,
+            "rushing_yards": 40, "rushing_tds": 0.5, "carries": 8,
+            "receiving_yards": 40, "receiving_tds": 0.4, "receptions": 4, "targets": 5,
+            "def_sacks": 0.5, "def_tackles_solo": 3, "def_interceptions": 0.3,
+            "def_pass_defended": 0.5, "fg_made": 2, "fg_att": 3,
+        }
+        season_val = min(float(tabsyn_row[wide_col]), _SEASON_CAPS.get(stat, 99999))
+        tabsyn_mean = season_val / N_GAMES
+        old_dist = player_dists[stat]
+        old_std = old_dist.args[3] if hasattr(old_dist, "args") and len(old_dist.args) >= 4 else old_dist.kwds.get("scale", 1.0)
+        old_std = float(np.clip(old_std, 0.01, _STD_CAPS.get(stat, 999)))
+        a = -tabsyn_mean / old_std
+        player_dists[stat] = stats.truncnorm(a=a, b=5, loc=tabsyn_mean, scale=old_std)
+
+    return distributions
+
+
 def sample_all_games(distributions, flat_keys, flat_corr, n_season_sims, n_games):
     n = len(flat_keys)
     total_samples = n_season_sims * n_games
@@ -439,6 +585,24 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300, 
     all_samples = np.maximum(all_samples, 0)
 
     key_to_idx = {key: i for i, key in enumerate(flat_keys)}
+
+    for name in all_player_stats:
+        rec_idx = key_to_idx.get((name, "receptions"))
+        tgt_idx = key_to_idx.get((name, "targets"))
+        if rec_idx is not None and tgt_idx is not None:
+            all_samples[:, :, rec_idx] = np.minimum(
+                all_samples[:, :, rec_idx], all_samples[:, :, tgt_idx]
+            )
+        car_idx = key_to_idx.get((name, "carries"))
+        ryd_idx = key_to_idx.get((name, "rushing_yards"))
+        rtd_idx = key_to_idx.get((name, "rushing_tds"))
+        pos = distributions[name]["position"]
+        if pos in ("WR", "TE") and car_idx is not None:
+            no_carry = all_samples[:, :, car_idx] < 0.5
+            if ryd_idx is not None:
+                all_samples[:, :, ryd_idx] = np.where(no_carry, 0.0, all_samples[:, :, ryd_idx])
+            if rtd_idx is not None:
+                all_samples[:, :, rtd_idx] = np.where(no_carry, 0.0, all_samples[:, :, rtd_idx])
     stat_col_indices = {name: {} for name in all_player_stats}
     for name in all_player_stats:
         for stat in all_player_stats[name]:
@@ -470,7 +634,10 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300, 
 
     for name in all_player_stats:
         for stat, col_idx in stat_col_indices[name].items():
-            season_totals = (all_samples[:, :, col_idx] * multipliers).sum(axis=1)
+            if stat in SYNTHETIC_STATS:
+                season_totals = all_samples[:, :, col_idx].mean(axis=1)
+            else:
+                season_totals = (all_samples[:, :, col_idx] * multipliers).sum(axis=1)
             all_player_stats[name][stat] = season_totals.tolist()
     
     wins_array = np.array(all_szn_wins)
@@ -497,11 +664,14 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300, 
 
         if pos == "K" and "fg_made" in stats and "fg_att" in stats:
             made_arr = np.array(stats["fg_made"])
-            att_arr  = np.array(stats["fg_att"])
+            att_arr = np.array(stats["fg_att"])
             safe_att = np.where(att_arr > 0, att_arr, 1.0)
-            pct_arr  = (made_arr / safe_att) * 100
+            pct_arr = (made_arr / safe_att) * 100
+            proj_made = stat_entries["fg_made"]["projected_total"]
+            proj_att = stat_entries["fg_att"]["projected_total"]
+            proj_pct = round((proj_made / proj_att) * 100, 1) if proj_att > 0 else 0.0
             stat_entries["fg_pct"] = {
-                "projected_total": round(float(np.mean(pct_arr)), 1),
+                "projected_total": proj_pct,
                 "floor": round(float(np.percentile(pct_arr, 10)), 1),
                 "ceiling": round(float(np.percentile(pct_arr, 90)), 1),
             }
@@ -614,6 +784,7 @@ def fetch_coach_factor(coach_name, qb_name):
 
 
 def run_full_analysis(team_id):
+    _POS_STATS_CACHE.clear()
     team = get_generated_team(team_id)
     player_names = [p["name"] for p in team["players"]]
     nfl_teams = list(set(TEAM_MAPPING[p["nfl_team"]] for p in team["players"]))
@@ -623,9 +794,13 @@ def run_full_analysis(team_id):
     coach_multiplier, coach_meta = fetch_coach_factor(coach_name, qb)
 
     player_stats = fetch_player_historical_stats(player_names)
+    return_stats = fetch_player_return_stats(player_names)
+    punt_stats = fetch_player_punt_stats(player_names)
     team_stats = fetch_team_historical_stats(nfl_teams)
 
-    dists = build_all_player_dists(team, player_stats)
+    dists = build_all_player_dists(team, player_stats, return_stats=return_stats, punt_stats=punt_stats)
+    tabsyn_row = fetch_tabsyn_sample()
+    dists = apply_tabsyn_priors(dists, tabsyn_row)
     corr_matrix = build_corr_matrix(team["players"])
 
     results = sim_season(team, dists, corr_matrix, team_stats, coach_multiplier=coach_multiplier)
