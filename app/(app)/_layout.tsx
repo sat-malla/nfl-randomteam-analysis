@@ -1,8 +1,8 @@
-import { Button, ButtonIcon, ButtonText } from "@/components/ui/button";
+import { Button, ButtonIcon } from "@/components/ui/button";
 import { GluestackUIProvider } from "@/components/ui/gluestack-ui-provider";
 import { Heading } from "@/components/ui/heading";
 import { CloseIcon, Icon, SettingsIcon, ArrowLeftIcon, InfoIcon } from "@/components/ui/icon";
-import { Switch } from "@/components/ui/switch";
+import { Switch } from "react-native";
 import { Text } from "@/components/ui/text";
 import { Stack, useRouter } from "expo-router";
 import { useState } from "react";
@@ -21,16 +21,15 @@ import "@/global.css";
 
 export default function RootLayout() {
   const [showDrawer, setShowDrawer] = useState(false);
-  const [theme, setTheme] = useState(false);
 
   const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
   const router = useRouter();
 
-  const themeTextStyle = colorScheme === 'light' ? styles.lightText : styles.darkText;
+  const themeTextStyle = isDark ? styles.darkText : styles.lightText;
 
   const toggleTheme = (newValue: boolean) => {
-    setTheme(newValue);
     Appearance.setColorScheme(newValue ? 'dark' : 'light');
   }
 
@@ -123,27 +122,16 @@ export default function RootLayout() {
           </DrawerHeader>
           <DrawerBody style={{ marginTop: 30 }}>
             <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 12 }}>
-              <Text style={{ fontWeight: "bold" }} size="lg" >Dark Mode</Text>
+              <Text style={{ fontWeight: "bold" }} size="lg">Dark Mode</Text>
               <Switch
-                size="md"
-                trackColor={{ false: "#d4d4d4", true: "#525252" }}
-                thumbColor="#fafafa"
-                ios_backgroundColor="#d4d4d4"
+                trackColor={{ false: "#ccc", true: "#3b82f6" }}
+                thumbColor="#fff"
                 onValueChange={toggleTheme}
-                value={theme}
+                value={isDark}
               />
             </View>
           </DrawerBody>
-          <DrawerFooter>
-            <Button
-              variant="outline"
-              onPress={() => {
-                setShowDrawer(false);
-              }}
-            >
-              <ButtonText>Cancel</ButtonText>
-            </Button>
-          </DrawerFooter>
+          <DrawerFooter />
         </DrawerContent>
       </Drawer>
     </GluestackUIProvider>
@@ -151,26 +139,12 @@ export default function RootLayout() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1
-  },
-  text: {
-    fontSize: 29,
-    fontWeight: "bold",
-    marginTop: 40,
-  },
-  lightContainer: {
-    backgroundColor: '#edf5ff'
-  },
-  darkContainer: {
-    backgroundColor: "#132130"
-  },
   lightText: {
-    color: "#02080f"
+    color: "#02080f",
   },
   darkText: {
-    color: "#edf5ff"
-  }
+    color: "#edf5ff",
+  },
 });
 
 
