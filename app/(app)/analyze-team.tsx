@@ -705,6 +705,50 @@ const AnalyzeTeam = () => {
               </View>
             ))}
           </View>
+
+          <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border }]}>
+            <Text style={[styles.cardTitle, { color: c.text }]}>Position Legend</Text>
+            {[
+              { label: "Offense", entries: [
+                ["QB", "Quarterback"], ["RB", "Running Back"], ["FB", "Fullback"],
+                ["WR", "Wide Receiver"], ["TE", "Tight End"],
+              ]},
+              { label: "Offensive Line", entries: [
+                ["OT", "Offensive Tackle"], ["G", "Guard"], ["C", "Center"],
+              ]},
+              { label: "Defensive Line", entries: [
+                ["DE", "Defensive End"], ["DT", "Defensive Tackle"], ["NT", "Nose Tackle"],
+              ]},
+              { label: "Linebackers", entries: [
+                ["LB", "Linebacker"], ["OLB", "Outside Linebacker"],
+                ["ILB", "Inside Linebacker"], ["MLB", "Middle Linebacker"],
+              ]},
+              { label: "Defensive Backs", entries: [
+                ["CB", "Cornerback"], ["FS", "Free Safety"],
+                ["SS", "Strong Safety"], ["S", "Safety"],
+              ]},
+              { label: "Special Teams", entries: [
+                ["K", "Kicker"], ["P", "Punter"],
+                ["LS", "Long Snapper"], ["RS", "Return Specialist"],
+              ]},
+            ].map((group) => (
+              <View key={group.label} style={{ marginBottom: 10 }}>
+                <Text style={{ fontSize: 12, fontWeight: "700", color: c.subtext, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.8 }}>
+                  {group.label}
+                </Text>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+                  {group.entries.map(([abbr, name]) => (
+                    <View key={abbr} style={{ flexDirection: "row", alignItems: "center", width: "47%" }}>
+                      <View style={{ backgroundColor: POS_COLORS[abbr]?.bg ?? c.accentLight, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2, marginRight: 6, minWidth: 34, alignItems: "center" }}>
+                        <Text style={{ fontSize: 11, fontWeight: "700", color: POS_COLORS[abbr]?.text ?? c.accent }}>{abbr}</Text>
+                      </View>
+                      <Text style={{ fontSize: 12, color: c.subtext, flexShrink: 1 }}>{name}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ))}
+          </View>
         </>
       )}
     </ScrollView>

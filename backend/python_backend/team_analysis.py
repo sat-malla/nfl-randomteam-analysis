@@ -219,6 +219,7 @@ DEPTH_VOLUME_STATS = {
     "fg_made", "fg_att",
     "kickoff_returns", "kickoff_return_yards", "punt_returns", "punt_return_yards",
     "punt_attempts_season", "punt_yards_season",
+    "def_tackles_solo", "def_sacks", "def_interceptions", "def_pass_defended",
 }
 
 DEPTH_SLOT_SCALE = {1: 1.0, 2: 0.50, 3: 0.30}
@@ -234,31 +235,23 @@ SYNTHETIC_STATS = {"punt_attempts_season", "punt_yards_season"}
 
 
 _POS_STAT_CAPS = {
-    # Offensive skill — per game caps
     "WR":  {"carries": 0.25, "rushing_yards": 3.0, "rushing_tds": 0.04},
     "TE":  {"carries": 0.04, "rushing_yards": 0.3, "rushing_tds": 0.003},
     "QB":  {"rushing_tds": 0.5, "passing_interceptions": 1.0},
     "RB":  {"rushing_tds": 1.2, "receiving_tds": 0.5},
-    # D-line — season caps (divided by 17 before building dist)
-    # Elite DE: 15 sacks (Rashan Gary). Average: 3-5. Most: 0-3.
-    "DE":  {"def_sacks": 15, "def_tackles_solo": 55, "def_pass_defended": 6},
-    "DT":  {"def_sacks": 8,  "def_tackles_solo": 45, "def_pass_defended": 4},
-    "NT":  {"def_sacks": 5,  "def_tackles_solo": 40, "def_pass_defended": 3},
-    "DL":  {"def_sacks": 10, "def_tackles_solo": 50, "def_pass_defended": 5},
-    # LB — season caps
-    # Starter: 80-107 tackles, 1-3 sacks, 0-1 INTs, 3-5 PD
-    "LB":  {"def_tackles_solo": 110, "def_sacks": 5,  "def_interceptions": 3, "def_pass_defended": 8},
-    "OLB": {"def_tackles_solo": 80,  "def_sacks": 8,  "def_interceptions": 2, "def_pass_defended": 6},
-    "ILB": {"def_tackles_solo": 110, "def_sacks": 4,  "def_interceptions": 3, "def_pass_defended": 7},
-    "MLB": {"def_tackles_solo": 120, "def_sacks": 3,  "def_interceptions": 3, "def_pass_defended": 7},
-    # DB — season caps
-    # CB: 50-54 tackles, 0 sacks, 1-2 INTs, 7-14 PD
-    # S: 60-107 tackles, 2-6 INTs, 5-7 PD
-    "CB":  {"def_tackles_solo": 70,  "def_interceptions": 5,  "def_pass_defended": 16},
-    "FS":  {"def_tackles_solo": 80,  "def_interceptions": 6,  "def_pass_defended": 12},
-    "SS":  {"def_tackles_solo": 80,  "def_interceptions": 4,  "def_pass_defended": 10},
-    "S":   {"def_tackles_solo": 80,  "def_interceptions": 6,  "def_pass_defended": 12},
-    "SAF": {"def_tackles_solo": 80,  "def_interceptions": 6,  "def_pass_defended": 12},
+    "DE":  {"def_sacks": 0.88, "def_tackles_solo": 3.2, "def_pass_defended": 0.35},
+    "DT":  {"def_sacks": 0.47, "def_tackles_solo": 2.6, "def_pass_defended": 0.24},
+    "NT":  {"def_sacks": 0.29, "def_tackles_solo": 2.4, "def_pass_defended": 0.18},
+    "DL":  {"def_sacks": 0.59, "def_tackles_solo": 2.9, "def_pass_defended": 0.29},
+    "LB":  {"def_tackles_solo": 6.5, "def_sacks": 0.29, "def_interceptions": 0.18, "def_pass_defended": 0.47},
+    "OLB": {"def_tackles_solo": 4.7, "def_sacks": 0.47, "def_interceptions": 0.12, "def_pass_defended": 0.35},
+    "ILB": {"def_tackles_solo": 6.5, "def_sacks": 0.24, "def_interceptions": 0.18, "def_pass_defended": 0.41},
+    "MLB": {"def_tackles_solo": 7.1, "def_sacks": 0.18, "def_interceptions": 0.18, "def_pass_defended": 0.41},
+    "CB":  {"def_tackles_solo": 4.1, "def_interceptions": 0.29, "def_pass_defended": 0.94},
+    "FS":  {"def_tackles_solo": 4.7, "def_interceptions": 0.35, "def_pass_defended": 0.71},
+    "SS":  {"def_tackles_solo": 4.7, "def_interceptions": 0.24, "def_pass_defended": 0.59},
+    "S":   {"def_tackles_solo": 4.7, "def_interceptions": 0.35, "def_pass_defended": 0.71},
+    "SAF": {"def_tackles_solo": 4.7, "def_interceptions": 0.35, "def_pass_defended": 0.71},
 }
 
 
@@ -289,7 +282,7 @@ def build_player_distributions(player_stats, player_name, player_pos, depth_slot
                 mean = float(values.mean())
                 pos_mean, pos_std = get_position_dist(player_stats, player_pos, sc)
                 std = float(values.std()) if len(values) > 1 else pos_std
-                if sc in SEASON_TOTAL_STATS:
+                if sc not in SEASON_TOTAL_STATS:
                     mean, std = mean / N_GAMES, std / N_GAMES
 
         if depth_slot > 1 and sc in DEPTH_VOLUME_STATS:
@@ -477,6 +470,43 @@ _TABSYN_STAT_MAP = {
     "te2_receiving_tds": ("TE", 2, "receiving_tds"),
     "k_fg_made": ("K",  1, "fg_made"),
     "k_fg_att": ("K",  1, "fg_att"),
+    "edge1_sacks":         ("DE",  1, "def_sacks"),
+    "edge1_tackles":       ("DE",  1, "def_tackles_solo"),
+    "edge1_pass_defended": ("DE",  1, "def_pass_defended"),
+    "edge2_sacks":         ("DE",  2, "def_sacks"),
+    "edge2_tackles":       ("DE",  2, "def_tackles_solo"),
+    "edge2_pass_defended": ("DE",  2, "def_pass_defended"),
+    "dt1_tackles":       ("DT",  1, "def_tackles_solo"),
+    "dt1_sacks":         ("DT",  1, "def_sacks"),
+    "dt1_pass_defended": ("DT",  1, "def_pass_defended"),
+    "dt2_tackles":       ("DT",  2, "def_tackles_solo"),
+    "dt2_sacks":         ("DT",  2, "def_sacks"),
+    "dt2_pass_defended": ("DT",  2, "def_pass_defended"),
+    "lb1_tackles":         ("LB",  1, "def_tackles_solo"),
+    "lb1_sacks":           ("LB",  1, "def_sacks"),
+    "lb1_interceptions":   ("LB",  1, "def_interceptions"),
+    "lb1_pass_defended":   ("LB",  1, "def_pass_defended"),
+    "lb2_tackles":         ("LB",  2, "def_tackles_solo"),
+    "lb2_sacks":           ("LB",  2, "def_sacks"),
+    "lb2_interceptions":   ("LB",  2, "def_interceptions"),
+    "lb2_pass_defended":   ("LB",  2, "def_pass_defended"),
+    "cb1_interceptions":   ("CB",  1, "def_interceptions"),
+    "cb1_pass_defended":   ("CB",  1, "def_pass_defended"),
+    "cb1_tackles":         ("CB",  1, "def_tackles_solo"),
+    "cb2_interceptions":   ("CB",  2, "def_interceptions"),
+    "cb2_pass_defended":   ("CB",  2, "def_pass_defended"),
+    "cb2_tackles":         ("CB",  2, "def_tackles_solo"),
+    "s1_tackles":        ("FS",  1, "def_tackles_solo"),
+    "s1_interceptions":  ("FS",  1, "def_interceptions"),
+    "s1_pass_defended":  ("FS",  1, "def_pass_defended"),
+}
+
+_POS_ALIASES = {
+    "DE": ["DE", "OLB"],
+    "DT": ["DT", "NT", "DL"],
+    "LB": ["LB", "ILB", "MLB", "OLB"],
+    "CB": ["CB"],
+    "FS": ["FS", "SS", "S", "SAF"],
 }
 
 
@@ -499,7 +529,12 @@ def apply_tabsyn_priors(distributions: dict, tabsyn_row: dict) -> dict:
     for wide_col, (pos, slot, stat) in _TABSYN_STAT_MAP.items():
         if wide_col not in tabsyn_row:
             continue
-        player_name = pos_slot_names.get((pos, slot))
+        aliases = _POS_ALIASES.get(pos, [pos])
+        player_name = None
+        for alias_pos in aliases:
+            player_name = pos_slot_names.get((alias_pos, slot))
+            if player_name is not None:
+                break
         if player_name is None:
             continue
         player_dists = distributions[player_name]["distributions"]
