@@ -87,10 +87,16 @@ export default function RootLayout() {
             title: "Generate"
           }}
         />
-        <Stack.Screen 
+        <Stack.Screen
           name="analyze-team"
           options={{
             title: "Analyze",
+          }}
+        />
+        <Stack.Screen
+          name="view-teams"
+          options={{
+            title: "View Teams",
           }}
         />
       </Stack>

@@ -20,9 +20,10 @@ export default function Index() {
 
   const GridButtons = [
     { id: 1, title: "Generate New Team", link: "/generate-team" },
-    { id: 2, title: "Analyze Team", link: "/analyze-team" },
-    { id: 3, title: "How it Works", link: "/" },
-    { id: 4, title: "About the Creator", link: "/" },
+    { id: 2, title: "View Generated Teams", link: "/view-teams" },
+    { id: 3, title: "Analyze Team", link: "/analyze-team" },
+    { id: 4, title: "How it Works", link: "/" },
+    { id: 5, title: "About the Creator", link: "/" },
   ];
 
   return (
