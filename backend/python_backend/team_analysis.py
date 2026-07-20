@@ -782,6 +782,10 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300, 
     win_quality = np.clip((avg_wins - 7) / 6, 0.3, 1.5)
     superbowl_probability = round(playoff_probability * (1 / 14) * win_quality, 1)
 
+    # Team-level aggregated season stats from the simulation
+    avg_team_points = float(np.mean(team_points.sum(axis=1)))
+    avg_opp_points = float(np.mean(opp_points.sum(axis=1)))
+
     return {
         "schedule": schedule,
         "projected_wins": round(float(np.mean(wins_array)), 1),
@@ -791,6 +795,9 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300, 
         "superbowl_probability": superbowl_probability,
         "player_projections": player_projs,
         "win_distribution": {str(w): int(np.sum(wins_array == w)) for w in range(18)},
+        "points_for": round(avg_team_points, 1),
+        "points_against": round(avg_opp_points, 1),
+        "points_per_game": round(avg_team_points / n_games, 1),
     }
 
 def fetch_coach_factor(coach_name, qb_name):

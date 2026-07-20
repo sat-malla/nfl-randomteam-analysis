@@ -64,6 +64,9 @@ type AnalysisResult = {
   superbowl_probability: number;
   player_projections: PlayerProjection[];
   coach_analysis?: CoachAnalysis;
+  points_for?: number;
+  points_against?: number;
+  points_per_game?: number;
 };
 
 type Team = {
@@ -160,6 +163,81 @@ const POS_COLORS_DARK: Record<string, { bg: string; text: string }> = {
   LS: { bg: "#a8a29e", text: "#000000" },
   RS: { bg: "#f87171", text: "#000000" },
 };
+
+const OFF_POSITIONS = new Set(["QB", "RB", "FB", "WR", "TE"]);
+const DEF_POSITIONS = new Set(["DE", "DT", "NT", "DL", "LB", "OLB", "ILB", "MLB", "CB", "FS", "SS", "S", "SAF", "DB", "Nickel", "Dime"]);
+
+function aggregateTeamStats(projections: PlayerProjection[]) {
+  let scrimmageYards = 0;
+  let offTDs = 0;
+  let sacks = 0;
+  let defINTs = 0;
+
+  for (const p of projections) {
+    const s = p.stats;
+    if (OFF_POSITIONS.has(p.position)) {
+      scrimmageYards += (s.rushing_yards?.projected_total ?? 0) + (s.receiving_yards?.projected_total ?? 0);
+      offTDs += (s.rushing_tds?.projected_total ?? 0) + (s.receiving_tds?.projected_total ?? 0) + (s.passing_tds?.projected_total ?? 0);
+    }
+    if (DEF_POSITIONS.has(p.position)) {
+      sacks += s.def_sacks?.projected_total ?? 0;
+      defINTs += s.def_interceptions?.projected_total ?? 0;
+    }
+  }
+
+  return { scrimmageYards: Math.round(scrimmageYards), offTDs: Math.round(offTDs), sacks: Math.round(sacks), defINTs: Math.round(defINTs) };
+}
+
+type TeamStatsGridProps = {
+  analysis: AnalysisResult;
+  c: Record<string, string>;
+  isDark: boolean;
+};
+
+function TeamStatsGrid({ analysis, c, isDark }: TeamStatsGridProps) {
+  const projections = Array.isArray(analysis.player_projections)
+    ? analysis.player_projections
+    : Object.entries(analysis.player_projections as Record<string, PlayerProjection>).map(([name, p]) => ({ ...p, name }));
+
+  const { scrimmageYards, offTDs, sacks, defINTs } = aggregateTeamStats(projections);
+
+  const cells = [
+    { label: "Points For", value: analysis.points_for != null ? String(analysis.points_for) : "—", sub: "season total" },
+    { label: "Points Against", value: analysis.points_against != null ? String(analysis.points_against) : "—", sub: "season total" },
+    { label: "Points/Game", value: analysis.points_per_game != null ? String(analysis.points_per_game) : "—", sub: "avg per game" },
+    { label: "Scrimmage Yds", value: String(scrimmageYards), sub: "season total" },
+    { label: "Offensive TDs", value: String(offTDs), sub: "season total" },
+    { label: "Team Sacks", value: String(sacks), sub: "season total" },
+    { label: "Interceptions", value: String(defINTs), sub: "season total" },
+  ];
+
+  return (
+    <View style={[{ width: "100%", borderRadius: 14, borderWidth: 1, padding: 16, marginBottom: 20, gap: 12 }, { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow }]}>
+      <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: 4, color: c.text }}>Team Statistics</Text>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+        {cells.map((cell) => (
+          <View
+            key={cell.label}
+            style={{
+              width: "30%",
+              flexGrow: 1,
+              backgroundColor: isDark ? "#0d1f2d" : "#f0f7ff",
+              borderRadius: 10,
+              borderWidth: 1,
+              borderColor: c.border,
+              padding: 10,
+              alignItems: "center",
+            }}
+          >
+            <Text style={{ fontSize: 22, fontWeight: "800", color: c.text }}>{cell.value}</Text>
+            <Text style={{ fontSize: 12, fontWeight: "600", color: c.text, marginTop: 2, textAlign: "center" }}>{cell.label}</Text>
+            <Text style={{ fontSize: 10, color: c.subtext, marginTop: 1 }}>{cell.sub}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
 
 const AnalyzeTeam = () => {
   const colorScheme = useColorScheme();
@@ -466,6 +544,8 @@ const AnalyzeTeam = () => {
               </View>
             </View>
           </View>
+
+          <TeamStatsGrid analysis={analysis} c={c} isDark={isDark} />
 
           {analysis.coach_analysis && analysis.coach_analysis.coach && (
             <View
