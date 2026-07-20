@@ -17,7 +17,7 @@ func ConnectToDatabase(uri string) *mongo.Client {
 		panic(err)
 	}
 
-	err = client.Ping(ctx, nil) // quick ping to database to make sure connection work (robustness)
+	err = client.Ping(ctx, nil) // quick ping to database to make sure connection work
 	if err != nil {
 		panic(err)
 	}

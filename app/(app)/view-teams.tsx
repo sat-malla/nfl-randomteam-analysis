@@ -393,6 +393,7 @@ export default function ViewTeams() {
     text: isDark ? "#edf5ff" : "#02080f",
     subtext: isDark ? "#a0b4c8" : "#4a5568",
     border: isDark ? "#1e3a52" : "#bfdbfe",
+    shadow: isDark ? "rgba(250,250,250,0.8) 0px 3px 8px" : "rgba(0,0,0,0.24) 0px 3px 8px",
   };
 
   const getDeviceUuid = async () => {
@@ -450,7 +451,7 @@ export default function ViewTeams() {
         Pick one of your generated teams and see the full roster.
       </Text>
 
-      <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border }]}>
+      <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow }]}>
         <FormControl size="lg">
           <VStack space="md">
             <FormControlLabel>
@@ -494,7 +495,7 @@ export default function ViewTeams() {
 
       {selectedTeam && !loading && (
         <>
-          <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border }]}>
+          <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow }]}>
             <Text style={[styles.teamName, { color: c.text }]}>
               {selectedTeam.team_name}
             </Text>

@@ -269,6 +269,7 @@ const AnalyzeTeam = () => {
     green: isDark ? "#34f77c" : "#008a33",
     amber: isDark ? "#fbbf24" : "#d97706",
     red: isDark ? "#f87171" : "#dc2626",
+    shadow: isDark ? "rgba(250,250,250,0.8) 0px 3px 8px" : "rgba(0,0,0,0.24) 0px 3px 8px",
   };
 
   const winColor =
@@ -293,7 +294,7 @@ const AnalyzeTeam = () => {
       <View
         style={[
           styles.card,
-          { backgroundColor: c.card, borderColor: c.border },
+          { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow },
         ]}
       >
         <FormControl size="lg">
@@ -390,7 +391,7 @@ const AnalyzeTeam = () => {
           <View
             style={[
               styles.card,
-              { backgroundColor: c.card, borderColor: c.border },
+              { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow },
             ]}
           >
             <Text style={[styles.cardTitle, { color: c.text }]}>
@@ -470,7 +471,7 @@ const AnalyzeTeam = () => {
             <View
               style={[
                 styles.card,
-                { backgroundColor: c.card, borderColor: c.border },
+                { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow },
               ]}
             >
               <Text style={[styles.cardTitle, { color: c.text }]}>
@@ -557,7 +558,7 @@ const AnalyzeTeam = () => {
           <View
             style={[
               styles.card,
-              { backgroundColor: c.card, borderColor: c.border },
+              { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow },
             ]}
           >
             <Text style={[styles.cardTitle, { color: c.text }]}>
@@ -706,7 +707,7 @@ const AnalyzeTeam = () => {
             ))}
           </View>
 
-          <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border }]}>
+          <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow }]}>
             <Text style={[styles.cardTitle, { color: c.text }]}>Position Legend</Text>
             {[
               { label: "Offense", entries: [

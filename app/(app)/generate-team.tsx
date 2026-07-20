@@ -648,7 +648,7 @@ const GenerateTeam = () => {
           disabled={isFormFilled}
           onPress={handleGenerateTeam}
         >
-          <Text style={isFormFilled ? styles.lightButtonText : themeGenerateButtonTextStyle}>Generate Team</Text>
+          <Text style={themeGenerateButtonTextStyle}>Generate Team</Text>
         </TouchableOpacity>
         { generateTeam && (
           <TouchableOpacity
@@ -774,21 +774,21 @@ const styles = StyleSheet.create({
   },
   lightGenerateButton: {
     backgroundColor: "#02080f",
-    padding: 10,
+    padding: 14,
     borderRadius: 10,
     alignItems: "center",
     marginTop: 10,
   },
   darkGenerateButton: {
     backgroundColor: "#edf5ff",
-    padding: 10,
+    padding: 14,
     borderRadius: 10,
     alignItems: "center",
     marginTop: 10,
   },
   disabledGenerateButton: {
-    backgroundColor: "#d4d4d4",
-    padding: 10,
+    backgroundColor: "#9ca3af",
+    padding: 14,
     borderRadius: 10,
     alignItems: "center",
     marginTop: 10,
@@ -816,9 +816,13 @@ const styles = StyleSheet.create({
   },
   lightButtonText: {
     color: "#edf5ff",
+    fontWeight: "700",
+    fontSize: 16,
   },
   darkButtonText: {
     color: "#02080f",
+    fontWeight: "700",
+    fontSize: 16,
   },
   lightSaveButtonText: {
     color: "#ffffff",

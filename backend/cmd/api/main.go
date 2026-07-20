@@ -22,7 +22,7 @@ func main() {
 	mongoURI := os.Getenv("MONGO_URI")
 
 	client := database.ConnectToDatabase(mongoURI)
-	db := client.Database("nfl-random-teams") // chooses the database we want to use
+	db := client.Database("nfl-random-teams")
 	app := fiber.New(fiber.Config{
 		AppName:      "NFL Random Team Analysis",
 		ServerHeader: "Fiber",

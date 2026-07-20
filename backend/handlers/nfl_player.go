@@ -22,15 +22,15 @@ func (h *NFLPlayerHandler) SyncPlayers(c *fiber.Ctx) error {
 	err := h.sleeperService.SyncPlayers(ctx)
 	if err != nil {
 		return c.Status(fiber.StatusBadGateway).JSON(&fiber.Map{
-			"status":  "Failure",
+			"status": "Failure",
 			"message": "Failed to sync players: " + err.Error(),
 		})
 	}
 	count, _ := h.collection.CountDocuments(ctx, bson.M{})
 	return c.Status(fiber.StatusOK).JSON(&fiber.Map{
-		"status":  "Success",
+		"status": "Success",
 		"message": "Players synced successfully",
-		"count":   count,
+		"count": count,
 	})
 }
 
@@ -49,8 +49,8 @@ func (h *NFLPlayerHandler) GetAllPlayers(c *fiber.Ctx) error {
 	cursor.All(ctx, &players)
 	return c.Status(fiber.StatusOK).JSON(&fiber.Map{
 		"status": "Success",
-		"data":   players,
-		"count":  len(players),
+		"data": players,
+		"count": len(players),
 	})
 }
 
@@ -65,7 +65,7 @@ func (h *NFLPlayerHandler) GetByPosition(c *fiber.Ctx) error {
 	cursor, err := h.collection.Find(ctx, filter)
 	if err != nil {
 		return c.Status(fiber.StatusBadGateway).JSON(&fiber.Map{
-			"status":  "Failure",
+			"status": "Failure",
 			"message": "Failed to fetch players",
 		})
 	}
@@ -74,8 +74,8 @@ func (h *NFLPlayerHandler) GetByPosition(c *fiber.Ctx) error {
 	cursor.All(ctx, &players)
 	return c.Status(fiber.StatusOK).JSON(&fiber.Map{
 		"status": "Success",
-		"data":   players,
-		"count":  len(players),
+		"data": players,
+		"count": len(players),
 	})
 }
 
@@ -85,11 +85,10 @@ func (h *NFLPlayerHandler) GetRandomByPosition(c *fiber.Ctx) error {
 	position := c.Query("position")
 	if position == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(&fiber.Map{
-			"status":  "Failure",
+			"status": "Failure",
 			"message": "position query parameter is required",
 		})
 	}
-	// Use MongoDB $sample aggregation for random selection
 	pipeline := mongo.Pipeline{
 		{{Key: "$match", Value: bson.M{"position": position, "active": true}}},
 		{{Key: "$sample", Value: bson.M{"size": 1}}},
@@ -97,7 +96,7 @@ func (h *NFLPlayerHandler) GetRandomByPosition(c *fiber.Ctx) error {
 	cursor, err := h.collection.Aggregate(ctx, pipeline)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(&fiber.Map{
-			"status":  "Failure",
+			"status": "Failure",
 			"message": "Failed to fetch random player",
 		})
 	}
@@ -106,13 +105,13 @@ func (h *NFLPlayerHandler) GetRandomByPosition(c *fiber.Ctx) error {
 	cursor.All(ctx, &players)
 	if len(players) == 0 {
 		return c.Status(fiber.StatusNotFound).JSON(&fiber.Map{
-			"status":  "Failure",
+			"status": "Failure",
 			"message": "No players found for position: " + position,
 		})
 	}
 	return c.Status(fiber.StatusOK).JSON(&fiber.Map{
 		"status": "Success",
-		"data":   players[0],
+		"data": players[0],
 	})
 }
 
@@ -121,13 +120,10 @@ func (h *NFLPlayerHandler) GetManyRandomByPosition(c *fiber.Ctx) error {
 	defer cancel()
 	position := c.Query("position")
 	count := c.QueryInt("count", 1)
-	// slot=1 → starters only (depth_chart_order == 1)
-	// slot=2 → backups (depth_chart_order >= 2)
-	// slot=0 or absent → no filter (old behaviour)
 	slot := c.QueryInt("slot", 0)
 	if position == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(&fiber.Map{
-			"status":  "Failure",
+			"status": "Failure",
 			"message": "position query parameter is required",
 		})
 	}
@@ -149,7 +145,7 @@ func (h *NFLPlayerHandler) GetManyRandomByPosition(c *fiber.Ctx) error {
 	cursor, err := h.collection.Aggregate(ctx, pipeline)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(&fiber.Map{
-			"status":  "Failure",
+			"status": "Failure",
 			"message": "Failed to fetch random players",
 		})
 	}
@@ -158,13 +154,13 @@ func (h *NFLPlayerHandler) GetManyRandomByPosition(c *fiber.Ctx) error {
 	cursor.All(ctx, &players)
 	if len(players) == 0 {
 		return c.Status(fiber.StatusNotFound).JSON(&fiber.Map{
-			"status":  "Failure",
+			"status": "Failure",
 			"message": "No players found for position: " + position,
 		})
 	}
 	return c.Status(fiber.StatusOK).JSON(&fiber.Map{
 		"status": "Success",
-		"data":   players,
+		"data": players,
 	})
 }
 
@@ -174,13 +170,11 @@ func (h *NFLPlayerHandler) GetOneFromManyPositions(c *fiber.Ctx) error {
 	positions := c.Query("positions")
 	if positions == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(&fiber.Map{
-			"status":  "Failure",
+			"status": "Failure",
 			"message": "positions query parameter is required",
 		})
 	}
 	positionList := strings.Split(positions, ",")
-
-	// Use MongoDB $sample aggregation for random selection
 	pipeline := mongo.Pipeline{
 		{{Key: "$match", Value: bson.M{"position": bson.M{"$in": positionList}, "active": true}}},
 		{{Key: "$sample", Value: bson.M{"size": 1}}},
@@ -188,7 +182,7 @@ func (h *NFLPlayerHandler) GetOneFromManyPositions(c *fiber.Ctx) error {
 	cursor, err := h.collection.Aggregate(ctx, pipeline)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(&fiber.Map{
-			"status":  "Failure",
+			"status": "Failure",
 			"message": "Failed to fetch random players",
 		})
 	}
@@ -197,20 +191,20 @@ func (h *NFLPlayerHandler) GetOneFromManyPositions(c *fiber.Ctx) error {
 	cursor.All(ctx, &players)
 	if len(players) == 0 {
 		return c.Status(fiber.StatusNotFound).JSON(&fiber.Map{
-			"status":  "Failure",
+			"status": "Failure",
 			"message": "No players found for positions: " + positions,
 		})
 	}
 	return c.Status(fiber.StatusOK).JSON(&fiber.Map{
 		"status": "Success",
-		"data":   players[0],
+		"data": players[0],
 	})
 }
 
 func NewNFLPlayerHandler(router fiber.Router, collection *mongo.Collection) {
 	sleeperService := services.NewSleeperService(collection)
 	handler := &NFLPlayerHandler{
-		collection:     collection,
+		collection: collection,
 		sleeperService: sleeperService,
 	}
 	router.Post("/sync", handler.SyncPlayers)                               // POST /api/players/sync - fetch from Sleeper
