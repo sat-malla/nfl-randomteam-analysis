@@ -567,7 +567,14 @@ def get_opponent_strength(opponent, team_stats):
     rushing_factor = 115 / max(avg_rushing, 1)
     return (passing_factor + rushing_factor) / 2
     
-def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300, coach_multiplier=1.0):
+OL_POSITIONS = {"OT", "G", "C", "OL"}
+
+def compute_ol_multiplier(team_players):
+    ol_count = sum(1 for p in team_players if p["position"] in OL_POSITIONS)
+    raw = 1.0 - max(0, (5 - ol_count)) * 0.07
+    return float(np.clip(raw, 0.72, 1.0))
+
+def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300, coach_multiplier=1.0, ol_multiplier=1.0):
     n_games = 17
     schedule = generate_schedule(n_games)
 
@@ -632,12 +639,24 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300, 
     wins_matrix = (team_points > opp_points)
     all_szn_wins = wins_matrix.sum(axis=1)
 
+    _OL_BOOSTED_STATS = {"rushing_yards", "carries", "rushing_tds", "passing_yards", "passing_tds"}
+    _OL_HURT_STATS = {"passing_interceptions"}
+    _OL_AFFECTED_POS = {"RB", "FB", "QB", "WR", "TE"}
+
     for name in all_player_stats:
+        pos = distributions[name]["position"]
         for stat, col_idx in stat_col_indices[name].items():
             if stat in SYNTHETIC_STATS:
                 season_totals = all_samples[:, :, col_idx].mean(axis=1)
             else:
-                season_totals = (all_samples[:, :, col_idx] * multipliers).sum(axis=1)
+                stat_mult = multipliers.copy()
+                if pos in _OL_AFFECTED_POS:
+                    if stat in _OL_BOOSTED_STATS:
+                        stat_mult = stat_mult * ol_multiplier
+                    elif stat in _OL_HURT_STATS:
+                        int_penalty = 1.0 + (1.0 - ol_multiplier) * 1.5
+                        stat_mult = stat_mult * int_penalty
+                season_totals = (all_samples[:, :, col_idx] * stat_mult).sum(axis=1)
             all_player_stats[name][stat] = season_totals.tolist()
     
     wins_array = np.array(all_szn_wins)
@@ -803,7 +822,8 @@ def run_full_analysis(team_id):
     dists = apply_tabsyn_priors(dists, tabsyn_row)
     corr_matrix = build_corr_matrix(team["players"])
 
-    results = sim_season(team, dists, corr_matrix, team_stats, coach_multiplier=coach_multiplier)
+    ol_multiplier = compute_ol_multiplier(team["players"])
+    results = sim_season(team, dists, corr_matrix, team_stats, coach_multiplier=coach_multiplier, ol_multiplier=ol_multiplier)
     results["coach_analysis"] = coach_meta
 
     return results
