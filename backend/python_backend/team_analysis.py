@@ -430,12 +430,12 @@ def fetch_tabsyn_sample() -> dict:
 
 _TABSYN_STAT_MAP = {
     # (wide_col, position_slot, internal_stat)
-    "qb_passing_yards":   ("QB", 1, "passing_yards"),
-    "qb_passing_tds":     ("QB", 1, "passing_tds"),
-    "qb_interceptions":   ("QB", 1, "passing_interceptions"),
-    "qb_carries":         ("QB", 1, "carries"),
-    "qb_rushing_yards":   ("QB", 1, "rushing_yards"),
-    "qb_rushing_tds":     ("QB", 1, "rushing_tds"),
+    "qb_passing_yards": ("QB", 1, "passing_yards"),
+    "qb_passing_tds": ("QB", 1, "passing_tds"),
+    "qb_interceptions": ("QB", 1, "passing_interceptions"),
+    "qb_carries": ("QB", 1, "carries"),
+    "qb_rushing_yards": ("QB", 1, "rushing_yards"),
+    "qb_rushing_tds": ("QB", 1, "rushing_tds"),
     "wr1_targets": ("WR", 1, "targets"),
     "wr1_receptions": ("WR", 1, "receptions"),
     "wr1_receiving_yards":("WR", 1, "receiving_yards"),
@@ -468,37 +468,37 @@ _TABSYN_STAT_MAP = {
     "te2_receptions": ("TE", 2, "receptions"),
     "te2_receiving_yards": ("TE", 2, "receiving_yards"),
     "te2_receiving_tds": ("TE", 2, "receiving_tds"),
-    "k_fg_made": ("K",  1, "fg_made"),
-    "k_fg_att": ("K",  1, "fg_att"),
-    "edge1_sacks":         ("DE",  1, "def_sacks"),
-    "edge1_tackles":       ("DE",  1, "def_tackles_solo"),
-    "edge1_pass_defended": ("DE",  1, "def_pass_defended"),
-    "edge2_sacks":         ("DE",  2, "def_sacks"),
-    "edge2_tackles":       ("DE",  2, "def_tackles_solo"),
-    "edge2_pass_defended": ("DE",  2, "def_pass_defended"),
-    "dt1_tackles":       ("DT",  1, "def_tackles_solo"),
-    "dt1_sacks":         ("DT",  1, "def_sacks"),
-    "dt1_pass_defended": ("DT",  1, "def_pass_defended"),
-    "dt2_tackles":       ("DT",  2, "def_tackles_solo"),
-    "dt2_sacks":         ("DT",  2, "def_sacks"),
-    "dt2_pass_defended": ("DT",  2, "def_pass_defended"),
-    "lb1_tackles":         ("LB",  1, "def_tackles_solo"),
-    "lb1_sacks":           ("LB",  1, "def_sacks"),
-    "lb1_interceptions":   ("LB",  1, "def_interceptions"),
-    "lb1_pass_defended":   ("LB",  1, "def_pass_defended"),
-    "lb2_tackles":         ("LB",  2, "def_tackles_solo"),
-    "lb2_sacks":           ("LB",  2, "def_sacks"),
-    "lb2_interceptions":   ("LB",  2, "def_interceptions"),
-    "lb2_pass_defended":   ("LB",  2, "def_pass_defended"),
-    "cb1_interceptions":   ("CB",  1, "def_interceptions"),
-    "cb1_pass_defended":   ("CB",  1, "def_pass_defended"),
-    "cb1_tackles":         ("CB",  1, "def_tackles_solo"),
-    "cb2_interceptions":   ("CB",  2, "def_interceptions"),
-    "cb2_pass_defended":   ("CB",  2, "def_pass_defended"),
-    "cb2_tackles":         ("CB",  2, "def_tackles_solo"),
-    "s1_tackles":        ("FS",  1, "def_tackles_solo"),
-    "s1_interceptions":  ("FS",  1, "def_interceptions"),
-    "s1_pass_defended":  ("FS",  1, "def_pass_defended"),
+    "k_fg_made": ("K", 1, "fg_made"),
+    "k_fg_att": ("K", 1, "fg_att"),
+    "edge1_sacks": ("DE", 1, "def_sacks"),
+    "edge1_tackles": ("DE", 1, "def_tackles_solo"),
+    "edge1_pass_defended": ("DE", 1, "def_pass_defended"),
+    "edge2_sacks": ("DE", 2, "def_sacks"),
+    "edge2_tackles": ("DE", 2, "def_tackles_solo"),
+    "edge2_pass_defended": ("DE", 2, "def_pass_defended"),
+    "dt1_tackles": ("DT", 1, "def_tackles_solo"),
+    "dt1_sacks": ("DT", 1, "def_sacks"),
+    "dt1_pass_defended": ("DT", 1, "def_pass_defended"),
+    "dt2_tackles": ("DT", 2, "def_tackles_solo"),
+    "dt2_sacks": ("DT", 2, "def_sacks"),
+    "dt2_pass_defended": ("DT", 2, "def_pass_defended"),
+    "lb1_tackles": ("LB", 1, "def_tackles_solo"),
+    "lb1_sacks": ("LB", 1, "def_sacks"),
+    "lb1_interceptions": ("LB", 1, "def_interceptions"),
+    "lb1_pass_defended": ("LB", 1, "def_pass_defended"),
+    "lb2_tackles": ("LB", 2, "def_tackles_solo"),
+    "lb2_sacks": ("LB", 2, "def_sacks"),
+    "lb2_interceptions": ("LB", 2, "def_interceptions"),
+    "lb2_pass_defended": ("LB", 2, "def_pass_defended"),
+    "cb1_interceptions": ("CB", 1, "def_interceptions"),
+    "cb1_pass_defended": ("CB", 1, "def_pass_defended"),
+    "cb1_tackles": ("CB", 1, "def_tackles_solo"),
+    "cb2_interceptions": ("CB", 2, "def_interceptions"),
+    "cb2_pass_defended": ("CB", 2, "def_pass_defended"),
+    "cb2_tackles": ("CB", 2, "def_tackles_solo"),
+    "s1_tackles": ("FS", 1, "def_tackles_solo"),
+    "s1_interceptions": ("FS", 1, "def_interceptions"),
+    "s1_pass_defended": ("FS", 1, "def_pass_defended"),
 }
 
 _POS_ALIASES = {
@@ -666,9 +666,34 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300, 
     fg_per_game = all_samples[:, :, fg_idx] * multipliers if fg_idx is not None else np.zeros((n_season_sims, n_games))
 
     team_points = yards_to_points(passing_per_game, rushing_per_game, fg_per_game)
+    
+    DEF_POSITIONS = {"DE", "DT", "NT", "DL", "LB", "OLB", "ILB", "MLB", "CB", "FS", "SS", "S", "SAF", "DB", "Nickel", "Dime"}
+    def_sack_mean = 0.0
+    def_tackle_mean = 0.0
+    def_count = 0
+    for name in all_player_stats:
+        pos = distributions[name].get("position", "")
+        if pos in DEF_POSITIONS:
+            dist_map = distributions[name].get("distributions", {})
+            if "def_sacks" in dist_map:
+                def_sack_mean += dist_map["def_sacks"].mean()
+            if "def_tackles_solo" in dist_map:
+                def_tackle_mean += dist_map["def_tackles_solo"].mean()
+            def_count += 1
+    # League average ~2.5 sacks/game team total, ~25 tackles/game team total
+    sack_score = np.clip(def_sack_mean / max(2.5, 0.01), 0.7, 1.4)
+    tackle_score = np.clip(def_tackle_mean / max(25.0, 0.01), 0.7, 1.4)
+    def_quality = float(np.clip((sack_score + tackle_score) / 2, 0.82, 1.18))
+
+    # Opponent scores from a fixed NFL average baseline (~23 pts/game), adjusted by:
+    # - opponent offensive strength (opp_strengths: >1 = tough offense)
+    # - our defensive quality (def_quality: >1 = our D is good → opp scores less)
+    # - game-to-game variance (scale=10 for realistic spread)
+    NFL_AVG_PTS = 23.0
+    opp_base = (NFL_AVG_PTS * opp_strengths) / def_quality
     opp_points = np.random.normal(
-        loc=team_points * (1 / opp_strengths),
-        scale=5,
+        loc=opp_base,
+        scale=10.0,
         size=(n_season_sims, n_games)
     )
     wins_matrix = (team_points > opp_points)
