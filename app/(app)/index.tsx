@@ -23,7 +23,6 @@ export default function Index() {
     { id: 2, title: "View Generated Teams", link: "/view-teams" },
     { id: 3, title: "Analyze Team", link: "/analyze-team" },
     { id: 4, title: "How it Works", link: "/" },
-    { id: 5, title: "About the Creator", link: "/" },
   ];
 
   return (

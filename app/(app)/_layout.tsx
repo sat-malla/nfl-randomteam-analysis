@@ -1,7 +1,7 @@
 import { Button, ButtonIcon, ButtonText } from "@/components/ui/button";
 import { GluestackUIProvider } from "@/components/ui/gluestack-ui-provider";
 import { Heading } from "@/components/ui/heading";
-import { CloseIcon, Icon, SettingsIcon, ArrowLeftIcon } from "@/components/ui/icon";
+import { CloseIcon, Icon, SettingsIcon, ArrowLeftIcon, InfoIcon } from "@/components/ui/icon";
 import { Switch } from "@/components/ui/switch";
 import { Text } from "@/components/ui/text";
 import { Stack, useRouter } from "expo-router";
@@ -55,8 +55,7 @@ export default function RootLayout() {
               }}
               style={{ backgroundColor: "transparent", gap: 6 }}
             >
-              <ButtonIcon as={ArrowLeftIcon} style={{ color: "#fff", width: 22, height: 22 }} />
-              <Text style={{ color: "#fff", fontWeight: "700", fontSize: 18 }}>Back</Text>
+              <ButtonIcon as={ArrowLeftIcon} style={{ color: "#fff", width: 25, height: 25, marginBottom: 4 }} />
             </Button>
           ),
           headerRight: () => (
@@ -77,7 +76,13 @@ export default function RootLayout() {
           options={{
             title: "Home",
             headerLeft: () => (
-              <View style={{ width: 49 }} />
+              <Button
+                size="sm"
+                onPress={() => {}}
+                style={{ backgroundColor: "transparent" }}
+              >
+                <ButtonIcon as={InfoIcon} style={{ color: "#fff", width: 27, height: 27, marginBottom: 4 }} />
+              </Button>
             ),
           }}
         />

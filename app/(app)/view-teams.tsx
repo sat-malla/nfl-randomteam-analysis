@@ -447,7 +447,7 @@ export default function ViewTeams() {
     >
       <Text style={[styles.title, { color: c.text }]}>View Generated Teams</Text>
       <Text style={[styles.subtitle, { color: c.subtext }]}>
-        Pick a team to see their full roster on the field.
+        Pick one of your generated teams and see the full roster.
       </Text>
 
       <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border }]}>
