@@ -1,6 +1,7 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { Href, useRouter } from "expo-router";
 import {
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -26,7 +27,11 @@ export default function Index() {
   ];
 
   return (
-    <View style={[styles.container, themeContainerStyle]}>
+    <ScrollView
+      style={[styles.scrollView, themeContainerStyle]}
+      contentContainerStyle={[styles.container]}
+      showsVerticalScrollIndicator={false}
+    >
       <Text
         style={[
           {
@@ -76,17 +81,20 @@ export default function Index() {
           </TouchableOpacity>
         ))}
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
 const SKEW = "-8deg";
 
 const styles = StyleSheet.create({
-  container: {
+  scrollView: {
     flex: 1,
+  },
+  container: {
     alignItems: "center",
     paddingHorizontal: 10,
+    paddingBottom: 40,
   },
   lightContainer: {
     backgroundColor: "#edf5ff",
