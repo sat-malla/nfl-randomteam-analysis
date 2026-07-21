@@ -172,27 +172,21 @@ function groupPlayersByRows(
 }
 
 function FootballField({ width, height }: { width: number; height: number }) {
-  // Pure playing field — no endzones, just 10 yards segments (defense goal line to offense goal line)
   const totalSegments = 10;
   const segH = height / totalSegments;
   const stripeColors = ["#1a6b2a", "#1e7a30"];
-
-  // 9 yard lines at segment boundaries (10, 20, 30, 40, 50, 40, 30, 20, 10)
   const yardLabels = ["10", "20", "30", "40", "50", "40", "30", "20", "10"];
   const hashInset = width * 0.28;
   const hashLen = 7;
 
   return (
     <Svg width={width} height={height} style={StyleSheet.absoluteFillObject} pointerEvents="none">
-      {/* Base */}
       <Rect x={0} y={0} width={width} height={height} fill="#1a6b2a" />
 
-      {/* Alternating stripes */}
       {Array.from({ length: totalSegments }).map((_, i) => (
         <Rect key={`s${i}`} x={0} y={i * segH} width={width} height={segH} fill={stripeColors[i % 2]} />
       ))}
 
-      {/* Yard lines */}
       {yardLabels.map((label, i) => {
         const y = (i + 1) * segH;
         const is50 = label === "50";
@@ -236,13 +230,11 @@ const OT_POSITIONS = new Set(["OT"]);
 const G_POSITIONS = new Set(["G"]);
 const C_POSITIONS = new Set(["C", "OL"]);
 
-// OT, G, C, G, OT
 function sortOLine(players: Player[]): Player[] {
   const ots = players.filter((p) => OT_POSITIONS.has(p.position));
   const gs = players.filter((p) => G_POSITIONS.has(p.position));
   const cs = players.filter((p) => C_POSITIONS.has(p.position));
   const other = players.filter((p) => !OT_POSITIONS.has(p.position) && !G_POSITIONS.has(p.position) && !C_POSITIONS.has(p.position));
-  // Left OT, left G, center(s), right G, right OT
   const leftOT = ots[0] ? [ots[0]] : [];
   const rightOT = ots[1] ? [ots[1]] : [];
   const leftG = gs[0] ? [gs[0]] : [];
@@ -340,7 +332,6 @@ function SpecialTeamsField({
             fill="#ffffff" fontSize={13} fontWeight="bold" opacity={0.85}>50</SvgText>
           <Rect x={1} y={1} width={fieldWidth - 2} height={miniHeight - 2} fill="none" stroke="#ffffff" strokeWidth={2} opacity={0.75} />
         </Svg>
-        {/* ST cards centered vertically */}
         <View style={{
           position: "absolute",
           top: 0,
@@ -386,7 +377,7 @@ function FieldView({
   const defenseRows = groupPlayersByRows(defensePlayers, DEFENSE_ROW_ORDER);
   const offenseRows = groupPlayersByRows(offensePlayers, OFFENSE_ROW_ORDER);
   const halfH = fieldHeight / 2;
-  const CARD_H = 70; // approx player card height for centering
+  const CARD_H = 70;
   const offRowH = offenseRows.length > 0 ? (halfH - 14 * 2) / offenseRows.length : 0;
 
   return (
@@ -627,7 +618,7 @@ export default function ViewTeams() {
           <FieldView team={selectedTeam} posColors={posColors} c={c} />
           <SpecialTeamsField team={selectedTeam} posColors={posColors} c={c} />
 
-          <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border, marginTop: 16 }]}>
+          <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow, marginTop: 16 }]}>
             <Text style={[styles.sectionTitle, { color: c.text }]}>Full Roster</Text>
             {selectedTeam.players.map((player, idx) => (
               <View
@@ -710,7 +701,6 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   fieldWrapper: {
-    borderRadius: 12,
     overflow: "hidden",
     position: "relative",
     marginTop: 4,
