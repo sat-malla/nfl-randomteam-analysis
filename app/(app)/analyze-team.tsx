@@ -212,11 +212,11 @@ const LEADER_CATEGORIES: LeaderCategory[] = [
   { label: "Total TD Leader", stat: "total_tds", excludePos: new Set(["QB"]), unit: "TDs" },
   { label: "Rushing TD Leader", stat: "rushing_tds", unit: "TDs" },
   { label: "Receiving TD Leader", stat: "receiving_tds", unit: "TDs" },
-  { label: "Scrimmage Yds Leader", stat: "scrimmage_yards", unit: "Yds" },
-  { label: "Rushing Yds Leader", stat: "rushing_yards", unit: "Yds" },
-  { label: "Receiving Yds Leader", stat: "receiving_yards", unit: "Yds" },
-  { label: "Tackles Leader", stat: "def_tackles_solo", includePos: DEF_POSITIONS, unit: "Tkl" },
-  { label: "Sacks Leader", stat: "def_sacks", includePos: DEF_POSITIONS, unit: "Sks" },
+  { label: "Scrimmage Yds Leader", stat: "scrimmage_yards", unit: "Yards" },
+  { label: "Rushing Yds Leader", stat: "rushing_yards", unit: "Yards" },
+  { label: "Receiving Yds Leader", stat: "receiving_yards", unit: "Yards" },
+  { label: "Tackles Leader", stat: "def_tackles_solo", includePos: DEF_POSITIONS, unit: "Tackles" },
+  { label: "Sacks Leader", stat: "def_sacks", includePos: DEF_POSITIONS, unit: "Sacks" },
   { label: "Passes Def. Leader", stat: "def_pass_defended", includePos: DEF_POSITIONS, unit: "PD" },
   { label: "Interceptions Leader", stat: "def_interceptions", includePos: DEF_POSITIONS, unit: "INTs" },
 ];
@@ -231,14 +231,14 @@ function getPlayerStatValue(p: PlayerProjection, stat: string): number {
   return p.stats[stat]?.projected_total ?? 0;
 }
 
-function findLeader(projections: PlayerProjection[], cat: LeaderCategory): { name: string; value: number; position: string } | null {
-  let best: { name: string; value: number; position: string } | null = null;
+function findLeader(projections: PlayerProjection[], cat: LeaderCategory): { name: string; value: number; position: string; nfl_team: string } | null {
+  let best: { name: string; value: number; position: string; nfl_team: string } | null = null;
   for (const p of projections) {
     if (cat.excludePos && cat.excludePos.has(p.position)) continue;
     if (cat.includePos && !cat.includePos.has(p.position)) continue;
     const val = getPlayerStatValue(p, cat.stat);
     if (val > 0 && (best === null || val > best.value)) {
-      best = { name: p.name, value: val, position: p.position };
+      best = { name: p.name, value: val, position: p.position, nfl_team: p.nfl_team };
     }
   }
   return best;
@@ -300,6 +300,11 @@ function TeamLeadersGrid({ analysis, c, isDark }: TeamLeadersGridProps) {
                   <Text style={{ fontSize: 13, fontWeight: "700", color: text, opacity: 0.85 }}>
                     {leader.value} {cat.unit}
                   </Text>
+                  {leader.nfl_team ? (
+                    <Text style={{ fontSize: 10, color: text, opacity: 0.8, marginTop: 4 }} numberOfLines={1}>
+                      {leader.nfl_team}
+                    </Text>
+                  ) : null}
                 </>
               ) : (
                 <Text style={{ fontSize: 13, color: text, opacity: 0.6 }}>—</Text>

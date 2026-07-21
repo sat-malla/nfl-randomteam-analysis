@@ -29,15 +29,17 @@ POS_STAT_MAPPING = {
     "RB": ["carries", "rushing_yards", "rushing_tds", "receptions", "targets", "receiving_yards", "receiving_tds"],
     "FB": ["carries", "rushing_yards", "rushing_tds", "receptions", "targets", "receiving_yards", "receiving_tds"],
     "WR": ["receptions", "receiving_yards", "receiving_tds", "targets", "carries", "rushing_yards", "rushing_tds"],
-    "TE": ["receptions", "receiving_yards", "receiving_tds", "targets", "carries", "rushing_yards", "rushing_tds"],
+    "TE": ["receptions", "receiving_yards", "receiving_tds", "targets"],
     "DE": ["def_sacks", "def_tackles_solo", "def_pass_defended"],
     "DT": ["def_sacks", "def_tackles_solo", "def_pass_defended"],
     "NT": ["def_tackles_solo", "def_sacks", "def_pass_defended"],
     "DL": ["def_sacks", "def_tackles_solo", "def_pass_defended"],
-    "LB": ["def_tackles_solo", "def_sacks", "def_interceptions", "def_pass_defended"],
+    "LB":  ["def_tackles_solo", "def_sacks", "def_interceptions", "def_pass_defended"],
     "OLB": ["def_tackles_solo", "def_sacks", "def_interceptions", "def_pass_defended"],
     "ILB": ["def_tackles_solo", "def_sacks", "def_interceptions", "def_pass_defended"],
     "MLB": ["def_tackles_solo", "def_sacks", "def_interceptions", "def_pass_defended"],
+    "SLB": ["def_tackles_solo", "def_sacks", "def_interceptions", "def_pass_defended"],
+    "WLB": ["def_tackles_solo", "def_sacks", "def_interceptions", "def_pass_defended"],
     "CB": ["def_interceptions", "def_pass_defended", "def_tackles_solo"],
     "FS": ["def_interceptions", "def_pass_defended", "def_tackles_solo"],
     "SS": ["def_interceptions", "def_pass_defended", "def_tackles_solo"],
@@ -60,10 +62,12 @@ POSITION_PRIMARY_STAT = {
     "K": "fg_made",
     "P": "punt_attempts_season",
     "RS": "kickoff_return_yards",
-    "LB": "def_tackles_solo",
+    "LB":  "def_tackles_solo",
     "OLB": "def_tackles_solo",
     "ILB": "def_tackles_solo",
     "MLB": "def_tackles_solo",
+    "SLB": "def_tackles_solo",
+    "WLB": "def_tackles_solo",
     "CB": "def_interceptions",
     "FS": "def_tackles_solo",
     "SS": "def_tackles_solo",
@@ -209,7 +213,11 @@ def get_position_dist(all_stats_df: pd.DataFrame, position: str, stat: str) -> t
         pos_df = fetch_position_stats(position)
         result = _compute(pos_df)
     if result is None:
-        return (1.0, 0.5)
+        # Use cap as a reasonable per-game mean if available, else skip with near-zero
+        cap = _POS_STAT_CAPS.get(position, {}).get(stat)
+        if cap is not None:
+            return (cap, cap * 0.4)
+        return (0.0, 0.01)
     return result
 
 
@@ -236,7 +244,7 @@ SYNTHETIC_STATS = {"punt_attempts_season", "punt_yards_season"}
 
 _POS_STAT_CAPS = {
     "WR":  {"carries": 0.25, "rushing_yards": 3.0, "rushing_tds": 0.04},
-    "TE":  {"carries": 0.04, "rushing_yards": 0.3, "rushing_tds": 0.003},
+    "TE":  {},
     "QB":  {"rushing_tds": 0.5, "passing_interceptions": 1.0},
     "RB":  {"rushing_tds": 1.2, "receiving_tds": 0.5},
     "DE":  {"def_sacks": 0.88, "def_tackles_solo": 3.2, "def_pass_defended": 0.35},
@@ -247,6 +255,8 @@ _POS_STAT_CAPS = {
     "OLB": {"def_tackles_solo": 4.7, "def_sacks": 0.47, "def_interceptions": 0.12, "def_pass_defended": 0.35},
     "ILB": {"def_tackles_solo": 6.5, "def_sacks": 0.24, "def_interceptions": 0.18, "def_pass_defended": 0.41},
     "MLB": {"def_tackles_solo": 7.1, "def_sacks": 0.18, "def_interceptions": 0.18, "def_pass_defended": 0.41},
+    "SLB": {"def_tackles_solo": 5.3, "def_sacks": 0.35, "def_interceptions": 0.15, "def_pass_defended": 0.41},
+    "WLB": {"def_tackles_solo": 5.3, "def_sacks": 0.29, "def_interceptions": 0.15, "def_pass_defended": 0.41},
     "CB":  {"def_tackles_solo": 4.1, "def_interceptions": 0.29, "def_pass_defended": 0.94},
     "FS":  {"def_tackles_solo": 4.7, "def_interceptions": 0.35, "def_pass_defended": 0.71},
     "SS":  {"def_tackles_solo": 4.7, "def_interceptions": 0.24, "def_pass_defended": 0.59},
@@ -260,7 +270,10 @@ def build_player_distributions(player_stats, player_name, player_pos, depth_slot
     if not stat_cols:
         return {}
 
-    player_data = player_stats[player_stats["player_display_name"] == player_name].copy()
+    if "player_display_name" not in player_stats.columns:
+        player_data = pd.DataFrame()
+    else:
+        player_data = player_stats[player_stats["player_display_name"] == player_name].copy()
     distributions = {}
     vol_scale = DEPTH_SLOT_SCALE.get(depth_slot, DEPTH_SLOT_SCALE[2])
 
@@ -268,16 +281,24 @@ def build_player_distributions(player_stats, player_name, player_pos, depth_slot
         if player_data.empty or sc not in player_data.columns:
             pos_mean, pos_std = get_position_dist(player_stats, player_pos, sc)
             season_mean = max(0.0, float(np.random.normal(pos_mean, pos_std)))
-            mean = season_mean / N_GAMES
-            std = max(pos_std / N_GAMES, 0.01)
+            if sc in SEASON_TOTAL_STATS:
+                mean = season_mean
+                std = max(pos_std, 0.01)
+            else:
+                mean = season_mean / N_GAMES
+                std = max(pos_std / N_GAMES, 0.01)
 
         else:
             values = pd.to_numeric(player_data[sc], errors="coerce").dropna()
             if values.empty or (sc not in _RATE_STATS and (values == 0).all()):
                 pos_mean, pos_std = get_position_dist(player_stats, player_pos, sc)
                 season_mean = max(0.0, float(np.random.normal(pos_mean, pos_std)))
-                mean = season_mean / N_GAMES
-                std = max(pos_std / N_GAMES, 0.01)
+                if sc in SEASON_TOTAL_STATS:
+                    mean = season_mean
+                    std = max(pos_std, 0.01)
+                else:
+                    mean = season_mean / N_GAMES
+                    std = max(pos_std / N_GAMES, 0.01)
             else:
                 mean = float(values.mean())
                 pos_mean, pos_std = get_position_dist(player_stats, player_pos, sc)
@@ -327,7 +348,7 @@ def build_pos_correlation_mat(team_players):
     n = len(team_players)
     corr = np.eye(n)
     offense_pos = {"QB", "RB", "WR", "TE"}
-    defense_pos = {"LB", "CB", "FS", "SS", "Nickel", "Dime", "DE", "DT", "NT"}
+    defense_pos = {"LB", "OLB", "ILB", "MLB", "SLB", "WLB", "CB", "FS", "SS", "Nickel", "Dime", "DE", "DT", "NT"}
     ol_pos  = {"OT", "G", "C", "LS"}
 
     for i, p1 in enumerate(team_players):
@@ -502,9 +523,9 @@ _TABSYN_STAT_MAP = {
 }
 
 _POS_ALIASES = {
-    "DE": ["DE", "OLB"],
+    "DE": ["DE"],
     "DT": ["DT", "NT", "DL"],
-    "LB": ["LB", "ILB", "MLB", "OLB"],
+    "LB": ["LB", "ILB", "MLB", "OLB", "SLB", "WLB"],
     "CB": ["CB"],
     "FS": ["FS", "SS", "S", "SAF"],
 }
@@ -667,7 +688,7 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300, 
 
     team_points = yards_to_points(passing_per_game, rushing_per_game, fg_per_game)
 
-    DEF_POSITIONS = {"DE", "DT", "NT", "DL", "LB", "OLB", "ILB", "MLB", "CB", "FS", "SS", "S", "SAF", "DB", "Nickel", "Dime"}
+    DEF_POSITIONS = {"DE", "DT", "NT", "DL", "LB", "OLB", "ILB", "MLB", "SLB", "WLB", "CB", "FS", "SS", "S", "SAF", "DB", "Nickel", "Dime"}
     def_sack_mean = 0.0
     def_tackle_mean = 0.0
     def_count = 0
@@ -701,7 +722,7 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300, 
     for name in all_player_stats:
         pos = distributions[name]["position"]
         for stat, col_idx in stat_col_indices[name].items():
-            if stat in SYNTHETIC_STATS:
+            if stat in SYNTHETIC_STATS or stat in SEASON_TOTAL_STATS:
                 season_totals = all_samples[:, :, col_idx].mean(axis=1)
             else:
                 stat_mult = multipliers.copy()
@@ -719,7 +740,7 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300, 
     nfl_team_map = {p["name"]: TEAM_MAPPING.get(p["nfl_team"], p["nfl_team"]) for p in team["players"]}
 
     POS_ORDER = ["QB", "RB", "FB", "WR", "TE", "OT", "G", "C", "DE", "DT", "NT", "DL",
-                 "LB", "OLB", "ILB", "MLB", "CB", "Nickel", "Dime", "FS", "SS", "S", "SAF", "DB", "K", "P", "RS", "LS"]
+                 "LB", "OLB", "ILB", "MLB", "SLB", "WLB", "CB", "Nickel", "Dime", "FS", "SS", "S", "SAF", "DB", "K", "P", "RS", "LS"]
 
     player_projs_raw = {}
     for name, stats in all_player_stats.items():
@@ -789,8 +810,8 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300, 
         "superbowl_probability": superbowl_probability,
         "player_projections": player_projs,
         "win_distribution": {str(w): int(np.sum(wins_array == w)) for w in range(18)},
-        "points_for": round(avg_team_points, 1),
-        "points_against": round(avg_opp_points, 1),
+        "points_for": round(avg_team_points),
+        "points_against": round(avg_opp_points),
         "points_per_game": round(avg_team_points / n_games, 1),
     }
 
