@@ -803,7 +803,7 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300, 
 
     return {
         "schedule": schedule,
-        "projected_wins": round(float(np.mean(wins_array)), 1),
+        "projected_wins": int(round(float(np.mean(wins_array)))),
         "win_floor": int(np.percentile(wins_array, 10)),
         "win_ceiling": int(np.percentile(wins_array, 90)),
         "playoff_probability": playoff_probability,

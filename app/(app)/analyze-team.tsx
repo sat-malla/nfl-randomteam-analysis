@@ -259,7 +259,7 @@ function TeamLeadersGrid({ analysis, c, isDark }: TeamLeadersGridProps) {
 
   return (
     <View style={[{ width: "100%", borderRadius: 14, borderWidth: 1, padding: 16, marginBottom: 20, gap: 12 }, { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow }]}>
-      <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: 4, color: c.text }}>Team Leaders</Text>
+      <Text style={{ fontSize: 18, fontFamily: "Montserrat_700Bold", marginBottom: 4, color: c.text }}>Team Leaders</Text>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
         {LEADER_CATEGORIES.map((cat) => {
           const leader = findLeader(projections, cat);
@@ -275,7 +275,7 @@ function TeamLeadersGrid({ analysis, c, isDark }: TeamLeadersGridProps) {
                 padding: 12,
               }}
             >
-              <Text style={{ fontSize: 11, fontWeight: "800", color: text, marginBottom: 6, opacity: 0.8 }}>
+              <Text style={{ fontSize: 11, fontFamily: "Montserrat_700Bold", color: text, marginBottom: 6, opacity: 0.8 }}>
                 {cat.label}
               </Text>
               {leader ? (
@@ -283,14 +283,14 @@ function TeamLeadersGrid({ analysis, c, isDark }: TeamLeadersGridProps) {
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 3 }}>
                     {posBadge && (
                       <View style={{ backgroundColor: posBadge.bg, borderRadius: 4, paddingHorizontal: 5, paddingVertical: 2, borderWidth: 1, borderColor: text }}>
-                        <Text style={{ fontSize: 10, fontWeight: "700", color: posBadge.text }}>{leader.position}</Text>
+                        <Text style={{ fontSize: 10, fontFamily: "Montserrat_700Bold", color: posBadge.text }}>{leader.position}</Text>
                       </View>
                     )}
-                    <Text style={{ fontSize: 16, fontWeight: "800", color: text, flexShrink: 1 }} numberOfLines={1}>
+                    <Text style={{ fontSize: 16, fontFamily: "Montserrat_700Bold", color: text, flexShrink: 1 }} numberOfLines={1}>
                       {shortName(leader.name)}
                     </Text>
                   </View>
-                  <Text style={{ fontSize: 13, fontWeight: "700", color: text, opacity: 0.85 }}>
+                  <Text style={{ fontSize: 13, fontFamily: "Montserrat_700Bold", color: text, opacity: 0.85 }}>
                     {leader.value} {cat.unit}
                   </Text>
                   {leader.nfl_team ? (
@@ -334,7 +334,7 @@ function TeamStatsGrid({ analysis, c, isDark }: TeamStatsGridProps) {
 
   return (
     <View style={[{ width: "100%", borderRadius: 14, borderWidth: 1, padding: 16, marginBottom: 20, gap: 12 }, { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow }]}>
-      <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: 4, color: c.text }}>Team Statistics</Text>
+      <Text style={{ fontSize: 18, fontFamily: "Montserrat_700Bold", marginBottom: 4, color: c.text }}>Team Statistics</Text>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
         {cells.map((cell) => (
           <View
@@ -348,9 +348,9 @@ function TeamStatsGrid({ analysis, c, isDark }: TeamStatsGridProps) {
               alignItems: "center",
             }}
           >
-            <Text style={{ fontSize: 26, fontWeight: "900", color: text, lineHeight: 30 }}>{cell.value}</Text>
-            <Text style={{ fontSize: 11, fontWeight: "700", color: text, marginTop: 4, textAlign: "center", opacity: 0.9 }}>{cell.label}</Text>
-            <Text style={{ fontSize: 10, color: text, marginTop: 1, opacity: 0.65 }}>{cell.sub}</Text>
+            <Text style={{ fontSize: 26, fontFamily: "Montserrat_700Bold", color: text, lineHeight: 30 }}>{cell.value}</Text>
+            <Text style={{ fontSize: 11, fontFamily: "Montserrat_700Bold", color: text, marginTop: 4, textAlign: "center", opacity: 0.9 }}>{cell.label}</Text>
+            <Text style={{ fontSize: 10, fontFamily: "Montserrat_400Regular", color: text, marginTop: 1, opacity: 0.65 }}>{cell.sub}</Text>
           </View>
         ))}
       </View>
@@ -437,7 +437,7 @@ function AIChatPanel({ visible, onClose, teamId, analysis, c, isDark }: AIChatPa
             <View style={[aiStyles.panelHeader, { borderBottomColor: c.border }]}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                 <View style={aiStyles.aiDot} />
-                <Text style={{ fontSize: 15, fontWeight: "700", color: c.text }}>AI Analysis</Text>
+                <Text style={{ fontSize: 15, fontFamily: "Montserrat_700Bold", color: c.text }}>AI Analysis</Text>
               </View>
               <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <Text style={{ fontSize: 20, color: c.subtext, lineHeight: 24 }}>×</Text>
@@ -461,7 +461,7 @@ function AIChatPanel({ visible, onClose, teamId, analysis, c, isDark }: AIChatPa
                       : { alignSelf: "flex-end", backgroundColor: userBubble },
                   ]}
                 >
-                  <Text style={{ fontSize: 13, color: item.role === "ai" ? aiBubbleText : "#ffffff", lineHeight: 18 }}>
+                  <Text style={{ fontSize: 13, fontFamily: "Montserrat_400Regular", color: item.role === "ai" ? aiBubbleText : "#ffffff", lineHeight: 18 }}>
                     {item.text}
                   </Text>
                 </View>
@@ -482,7 +482,7 @@ function AIChatPanel({ visible, onClose, teamId, analysis, c, isDark }: AIChatPa
                   style={[aiStyles.summarizeBtn, { backgroundColor: isDark ? "#1d4ed8" : "#1d4ed8" }]}
                   onPress={() => sendToAI("Summarize this team's analysis")}
                 >
-                  <Text style={{ color: "#ffffff", fontWeight: "700", fontSize: 14 }}>✦ Summarize</Text>
+                  <Text style={{ color: "#ffffff", fontFamily: "Montserrat_700Bold", fontSize: 14 }}>✦ Summarize</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -504,7 +504,7 @@ function AIChatPanel({ visible, onClose, teamId, analysis, c, isDark }: AIChatPa
                 onPress={() => { if (input.trim() && !aiLoading) sendToAI(input.trim()); }}
                 disabled={!input.trim() || aiLoading}
               >
-                <Text style={{ color: "#ffffff", fontWeight: "700", fontSize: 16 }}>↑</Text>
+                <Text style={{ color: "#ffffff", fontFamily: "Montserrat_700Bold", fontSize: 16 }}>↑</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -675,7 +675,7 @@ const AnalyzeTeam = () => {
         <FormControl size="lg">
           <VStack space="md">
             <FormControlLabel>
-              <FormControlLabelText style={{ color: c.text }}>
+              <FormControlLabelText style={{ color: c.text, fontFamily: "Montserrat_700Bold" }}>
                 Choose Team
               </FormControlLabelText>
             </FormControlLabel>
@@ -690,7 +690,7 @@ const AnalyzeTeam = () => {
               >
                 <SelectInput
                   placeholder="Select a team"
-                  style={{ flex: 1, color: c.text }}
+                  style={{ flex: 1, color: c.text, fontFamily: "Montserrat_400Regular" }}
                 />
                 <SelectIcon style={{ marginRight: 10 }} as={ChevronDownIcon} />
               </SelectTrigger>
@@ -1110,16 +1110,16 @@ const AnalyzeTeam = () => {
               ]},
             ].map((group) => (
               <View key={group.label} style={{ marginBottom: 10 }}>
-                <Text style={{ fontSize: 13, fontWeight: "800", color: c.subtext, marginBottom: 6 }}>
+                <Text style={{ fontSize: 13, fontFamily: "Montserrat_700Bold", color: c.subtext, marginBottom: 6 }}>
                   {group.label}
                 </Text>
                 <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
                   {group.entries.map(([abbr, name]) => (
                     <View key={abbr} style={{ flexDirection: "row", alignItems: "center", width: "47%" }}>
                       <View style={{ backgroundColor: POS_COLORS[abbr]?.bg ?? c.accentLight, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2, marginRight: 6, minWidth: 34, alignItems: "center" }}>
-                        <Text style={{ fontSize: 11, fontWeight: "700", color: POS_COLORS[abbr]?.text ?? c.accent }}>{abbr}</Text>
+                        <Text style={{ fontSize: 11, fontFamily: "Montserrat_700Bold", color: POS_COLORS[abbr]?.text ?? c.accent }}>{abbr}</Text>
                       </View>
-                      <Text style={{ fontSize: 12, color: c.subtext, flexShrink: 1 }}>{name}</Text>
+                      <Text style={{ fontSize: 12, fontFamily: "Montserrat_400Regular", color: c.subtext, flexShrink: 1 }}>{name}</Text>
                     </View>
                   ))}
                 </View>
@@ -1138,7 +1138,7 @@ const AnalyzeTeam = () => {
         activeOpacity={0.85}
       >
         <Text style={{ fontSize: 20 }}>✦</Text>
-        <Text style={{ color: "#ffffff", fontWeight: "700", fontSize: 12, marginTop: 1 }}>AI</Text>
+        <Text style={{ color: "#ffffff", fontFamily: "Montserrat_700Bold", fontSize: 12, marginTop: 1 }}>AI</Text>
       </TouchableOpacity>
     </Animated.View>
 
@@ -1165,11 +1165,12 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: "bold",
+    fontFamily: "Montserrat_700Bold",
     textAlign: "center",
   },
   subtitle: {
     fontSize: 15,
+    fontFamily: "Montserrat_400Regular",
     marginTop: 8,
     textAlign: "center",
     marginBottom: 20,
@@ -1184,7 +1185,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 18,
-    fontWeight: "700",
+    fontFamily: "Montserrat_700Bold",
     marginBottom: 4,
   },
   button: {
@@ -1194,16 +1195,18 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   buttonText: {
-    fontWeight: "700",
+    fontFamily: "Montserrat_700Bold",
     fontSize: 16,
   },
   loadingNote: {
     fontSize: 13,
+    fontFamily: "Montserrat_400Regular",
     textAlign: "center",
     marginTop: -4,
   },
   error: {
     fontSize: 14,
+    fontFamily: "Montserrat_400Regular",
     textAlign: "center",
   },
   winsRow: {
@@ -1212,15 +1215,17 @@ const styles = StyleSheet.create({
   },
   winsNumber: {
     fontSize: 64,
-    fontWeight: "800",
+    fontFamily: "Montserrat_700Bold",
     lineHeight: 70,
   },
   winsLabel: {
     fontSize: 16,
+    fontFamily: "Montserrat_400Regular",
     marginTop: 2,
   },
   winsRange: {
     textAlign: "center",
+    fontFamily: "Montserrat_400Regular",
     fontSize: 14,
   },
   probRow: {
@@ -1237,19 +1242,21 @@ const styles = StyleSheet.create({
   },
   probPct: {
     fontSize: 24,
-    fontWeight: "700",
+    fontFamily: "Montserrat_700Bold",
   },
   probLabel: {
     fontSize: 12,
+    fontFamily: "Montserrat_400Regular",
     marginTop: 2,
     textAlign: "center",
   },
   coachName: {
     fontSize: 20,
-    fontWeight: "700",
+    fontFamily: "Montserrat_700Bold",
   },
   coachMeta: {
     fontSize: 13,
+    fontFamily: "Montserrat_400Regular",
     lineHeight: 18,
   },
   coachRow: {
@@ -1265,7 +1272,7 @@ const styles = StyleSheet.create({
   },
   coachBadgeText: {
     fontSize: 13,
-    fontWeight: "600",
+    fontFamily: "Montserrat_700Bold",
   },
   legend: {
     borderRadius: 8,
@@ -1276,7 +1283,7 @@ const styles = StyleSheet.create({
   },
   legendTitle: {
     fontSize: 12,
-    fontWeight: "700",
+    fontFamily: "Montserrat_700Bold",
     marginBottom: 2,
     textTransform: "uppercase",
     letterSpacing: 0.5,
@@ -1287,7 +1294,7 @@ const styles = StyleSheet.create({
   },
   legendBold: {
     fontSize: 13,
-    fontWeight: "700",
+    fontFamily: "Montserrat_700Bold",
     width: 40,
     textAlign: "right",
   },
@@ -1313,7 +1320,7 @@ const styles = StyleSheet.create({
   },
   playerName: {
     fontSize: 15,
-    fontWeight: "700",
+    fontFamily: "Montserrat_700Bold",
     flex: 1,
   },
   posBadge: {
@@ -1323,7 +1330,7 @@ const styles = StyleSheet.create({
   },
   posText: {
     fontSize: 12,
-    fontWeight: "600",
+    fontFamily: "Montserrat_700Bold",
   },
   statRow: {
     flexDirection: "row",
@@ -1331,16 +1338,18 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 13,
+    fontFamily: "Montserrat_400Regular",
     width: 80,
   },
   statValue: {
     fontSize: 13,
-    fontWeight: "600",
+    fontFamily: "Montserrat_700Bold",
     width: 50,
     textAlign: "right",
   },
   statRange: {
     fontSize: 12,
+    fontFamily: "Montserrat_400Regular",
     marginLeft: 8,
   },
 });

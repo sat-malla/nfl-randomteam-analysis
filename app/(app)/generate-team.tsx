@@ -569,7 +569,7 @@ const GenerateTeam = () => {
       showsVerticalScrollIndicator={true}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={[styles.text, themeTextStyle]}>Generate a New NFL Team</Text>
+      <Text style={[styles.text, themeTextStyle]}>Generate a New Random NFL Team</Text>
       <Text style={[styles.subText, themeTextStyle]}>
         Generate a new NFL randomly-generated team picking across all 32 NFL
         Teams and various positions.
@@ -580,23 +580,23 @@ const GenerateTeam = () => {
       <View style={[styles.formContainer, themeFormStyle]}>
         <FormControl size="lg">
           <VStack space="md">
-            <Heading size="lg">Team Preferences</Heading>
+            <Heading size="lg" style={{ fontFamily: "Montserrat_700Bold" }}>Team Preferences</Heading>
             <FormControlLabel style={{ marginTop: 15 }}>
-              <FormControlLabelText>Team Name</FormControlLabelText>
+              <FormControlLabelText style={{ fontFamily: "Montserrat_700Bold" }}>Team Name</FormControlLabelText>
             </FormControlLabel>
             <Input size="lg">
               <InputField
                 type="text"
                 placeholder="Team Name"
                 value={formData.teamName}
-                style={themeInputTextStyle}
+                style={[themeInputTextStyle, { fontFamily: "Montserrat_400Regular" }]}
                 onChangeText={(text) =>
                   setFormData({ ...formData, teamName: text })
                 }
               />
             </Input>
             <FormControlLabel style={{ marginTop: 15 }}>
-              <FormControlLabelText>Type of Offense</FormControlLabelText>
+              <FormControlLabelText style={{ fontFamily: "Montserrat_700Bold" }}>Type of Offense</FormControlLabelText>
             </FormControlLabel>
             <Select
               onValueChange={(value) =>
@@ -611,7 +611,7 @@ const GenerateTeam = () => {
                   justifyContent: "space-between",
                 }}
               >
-                <SelectInput placeholder="Select option" style={{ flex: 1 }} />
+                <SelectInput placeholder="Select option" style={{ flex: 1, fontFamily: "Montserrat_400Regular" }} />
                 <SelectIcon style={{ marginRight: 10 }} as={ChevronDownIcon} />
               </SelectTrigger>
               <SelectPortal>
@@ -632,7 +632,7 @@ const GenerateTeam = () => {
               </SelectPortal>
             </Select>
             <FormControlLabel style={{ marginTop: 15 }}>
-              <FormControlLabelText>Type of Defense</FormControlLabelText>
+              <FormControlLabelText style={{ fontFamily: "Montserrat_700Bold" }}>Type of Defense</FormControlLabelText>
             </FormControlLabel>
             <Select
               onValueChange={(value) =>
@@ -647,7 +647,7 @@ const GenerateTeam = () => {
                   justifyContent: "space-between",
                 }}
               >
-                <SelectInput placeholder="Select option" style={{ flex: 1 }} />
+                <SelectInput placeholder="Select option" style={{ flex: 1, fontFamily: "Montserrat_400Regular" }} />
                 <SelectIcon style={{ marginRight: 10 }} as={ChevronDownIcon} />
               </SelectTrigger>
               <SelectPortal>
@@ -696,7 +696,7 @@ const GenerateTeam = () => {
       {generateTeam && (
         <Box style={themeTableStyle}>
           {headCoach ? (
-            <Text style={[themeTextStyle, { fontSize: 18, fontWeight: "bold", textAlign: "center", paddingVertical: 12, paddingHorizontal: 8 }]}>
+            <Text style={[themeTextStyle, { fontSize: 18, fontFamily: "Montserrat_700Bold", textAlign: "center", paddingVertical: 12, paddingHorizontal: 8 }]}>
               Head Coach: {headCoach}{headCoachTeam ? ` (${headCoachTeam})` : ""}
             </Text>
           ) : null}
@@ -738,11 +738,13 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: 29,
-    fontWeight: "bold",
+    fontFamily: "Montserrat_700Bold",
     marginTop: 40,
+    textAlign: "center",
   },
   subText: {
     fontSize: 16,
+    fontFamily: "Montserrat_400Regular",
     marginTop: 10,
     textAlign: "center",
   },
@@ -755,6 +757,7 @@ const styles = StyleSheet.create({
     width: "100%",
     borderRadius: 14,
     borderWidth: 1,
+    fontFamily: "Montserrat_400Regular",
   },
   lightForm: {
     backgroundColor: "#ffffff",
@@ -848,27 +851,27 @@ const styles = StyleSheet.create({
   },
   lightButtonText: {
     color: "#edf5ff",
-    fontWeight: "700",
+    fontFamily: "Montserrat_700Bold",
     fontSize: 16,
   },
   darkButtonText: {
     color: "#02080f",
-    fontWeight: "700",
+    fontFamily: "Montserrat_700Bold",
     fontSize: 16,
   },
   lightSaveButtonText: {
     color: "#ffffff",
-    fontWeight: "700",
+    fontFamily: "Montserrat_700Bold",
     fontSize: 16,
   },
   darkSaveButtonText: {
     color: "#000000",
-    fontWeight: "700",
+    fontFamily: "Montserrat_700Bold",
     fontSize: 16,
   },
   disabledSaveButtonText: {
     color: "#ffffff",
-    fontWeight: "700",
+    fontFamily: "Montserrat_700Bold",
     fontSize: 16,
   },
 });

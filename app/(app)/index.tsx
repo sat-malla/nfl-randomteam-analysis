@@ -36,7 +36,7 @@ export default function Index() {
         style={[
           {
             fontSize: 25,
-            fontWeight: "bold",
+            fontFamily: "Montserrat_700Bold",
             marginTop: 40,
             textAlign: "center",
           },
@@ -49,7 +49,7 @@ export default function Index() {
         style={[
           {
             fontSize: 20,
-            fontWeight: "semibold",
+            fontFamily: "Montserrat_400Regular",
             marginTop: 15,
             textAlign: "center",
           },
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   buttonText: {
     transform: [{ skewX: "8deg" }],
     fontSize: 20,
-    fontWeight: "bold",
+    fontFamily: "Montserrat_700Bold",
     color: "#02080f",
     letterSpacing: 0.5,
   },
@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: 29,
-    fontWeight: "bold",
+    fontFamily: "Montserrat_700Bold",
     marginTop: 40,
   },
   gridRow: {

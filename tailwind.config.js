@@ -20,6 +20,8 @@ module.exports = {
     extend: {
       fontFamily: {
         michroma: ["Michroma", "sans-serif"],
+        montserrat: ["Montserrat_400Regular", "sans-serif"],
+        "montserrat-bold": ["Montserrat_700Bold", "sans-serif"],
       },
       colors: {
         primary: {

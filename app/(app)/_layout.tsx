@@ -5,9 +5,10 @@ import { CloseIcon, Icon, SettingsIcon, ArrowLeftIcon, InfoIcon } from "@/compon
 import { Switch } from "react-native";
 import { Text } from "@/components/ui/text";
 import { Stack, useRouter } from "expo-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useFonts, Montserrat_400Regular, Montserrat_700Bold } from "@expo-google-fonts/montserrat";
 import { Appearance, StyleSheet, View, useColorScheme } from "react-native";
-
+import * as SplashScreen from "expo-splash-screen";
 import {
   Drawer,
   DrawerBackdrop,
@@ -19,13 +20,25 @@ import {
 } from "@/components/ui/drawer";
 import "@/global.css";
 
+SplashScreen.preventAutoHideAsync();
+
 export default function RootLayout() {
   const [showDrawer, setShowDrawer] = useState(false);
-
+  const [fontsLoaded] = useFonts({
+    Montserrat_400Regular,
+    Montserrat_700Bold,
+  });
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
-
   const router = useRouter();
+
+  useEffect(() => {
+    if (fontsLoaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
+
+  if (!fontsLoaded) return null;
 
   const themeTextStyle = isDark ? styles.darkText : styles.lightText;
 
@@ -42,7 +55,7 @@ export default function RootLayout() {
           },
           headerTintColor: "#fff",
           headerTitleStyle: {
-            fontWeight: "bold",
+            fontFamily: "Montserrat_700Bold",
             fontSize: 25,
           },
           headerTitleAlign: "center",
@@ -122,7 +135,7 @@ export default function RootLayout() {
           </DrawerHeader>
           <DrawerBody style={{ marginTop: 30 }}>
             <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 12 }}>
-              <Text style={{ fontWeight: "bold" }} size="lg">Dark Mode</Text>
+              <Text style={{ fontFamily: "Montserrat_700Bold" }} size="lg">Dark Mode</Text>
               <Switch
                 trackColor={{ false: "#ccc", true: "#3b82f6" }}
                 thumbColor="#fff"
@@ -141,9 +154,11 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   lightText: {
     color: "#02080f",
+    fontFamily: "Montserrat_400Regular",
   },
   darkText: {
     color: "#edf5ff",
+    fontFamily: "Montserrat_400Regular",
   },
 });
 

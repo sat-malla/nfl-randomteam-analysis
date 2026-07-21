@@ -108,7 +108,7 @@ const actionsheetItemStyle = tva({
 });
 
 const actionsheetItemTextStyle = tva({
-  base: 'text-typography-700 font-normal font-body tracking-md text-left mx-2',
+  base: 'text-typography-700 font-normal font-montserrat tracking-md text-left mx-2',
   variants: {
     isTruncated: {
       true: '',
@@ -170,7 +170,7 @@ const actionsheetSectionListStyle = tva({
 });
 
 const actionsheetSectionHeaderTextStyle = tva({
-  base: 'leading-5 font-bold font-heading my-0 text-typography-500 p-3 uppercase',
+  base: 'leading-5 font-bold font-montserrat-bold my-0 text-typography-500 p-3 uppercase',
   variants: {
     isTruncated: {
       true: '',

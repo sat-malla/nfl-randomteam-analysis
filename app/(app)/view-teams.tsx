@@ -329,7 +329,7 @@ function SpecialTeamsField({
   return (
     <View style={{ width: fieldWidth, marginTop: 12 }}>
       <View style={{ height: 1, backgroundColor: c.border, marginBottom: 12 }} />
-      <Text style={{ textAlign: "center", color: c.subtext, fontWeight: "800", fontSize: 13, marginBottom: 6 }}>
+      <Text style={{ textAlign: "center", color: c.subtext, fontFamily: "Montserrat_700Bold", fontSize: 13, marginBottom: 6 }}>
         Special Teams
       </Text>
       <View style={[styles.fieldWrapper, { width: fieldWidth, height: miniHeight }]}>
@@ -394,7 +394,7 @@ function FieldView({
 
   return (
     <View style={{ width: fieldWidth, marginBottom: 4 }}>
-      <Text style={{ textAlign: "center", color: c.subtext, fontWeight: "800", fontSize: 13, marginBottom: 6 }}>
+      <Text style={{ textAlign: "center", color: c.subtext, fontFamily: "Montserrat_700Bold", fontSize: 13, marginBottom: 6 }}>
         Defense
       </Text>
 
@@ -460,7 +460,7 @@ function FieldView({
         })}
       </View>
 
-      <Text style={{ textAlign: "center", color: c.subtext, fontWeight: "800", fontSize: 13, marginTop: 6 }}>
+      <Text style={{ textAlign: "center", color: c.subtext, fontFamily: "Montserrat_700Bold", fontSize: 13, marginTop: 6 }}>
         Offense
       </Text>
     </View>
@@ -667,11 +667,12 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 26,
-    fontWeight: "bold",
+    fontFamily: "Montserrat_700Bold",
     textAlign: "center",
   },
   subtitle: {
     fontSize: 14,
+    fontFamily: "Montserrat_400Regular",
     marginTop: 8,
     textAlign: "center",
     marginBottom: 20,
@@ -686,11 +687,12 @@ const styles = StyleSheet.create({
   },
   teamName: {
     fontSize: 22,
-    fontWeight: "800",
+    fontFamily: "Montserrat_700Bold",
     textAlign: "center",
   },
   teamMeta: {
     fontSize: 14,
+    fontFamily: "Montserrat_400Regular",
     textAlign: "center",
   },
   schemeRow: {
@@ -706,11 +708,11 @@ const styles = StyleSheet.create({
   },
   schemeText: {
     fontSize: 12,
-    fontWeight: "600",
+    fontFamily: "Montserrat_700Bold",
   },
   sectionTitle: {
     fontSize: 17,
-    fontWeight: "700",
+    fontFamily: "Montserrat_700Bold",
     marginBottom: 4,
   },
   fieldWrapper: {
@@ -739,16 +741,17 @@ const styles = StyleSheet.create({
   },
   posText: {
     fontSize: 10,
-    fontWeight: "800",
+    fontFamily: "Montserrat_700Bold",
   },
   playerName: {
     fontSize: 10,
-    fontWeight: "600",
+    fontFamily: "Montserrat_700Bold",
     color: "#ffffff",
     textAlign: "center",
   },
   playerTeam: {
     fontSize: 9,
+    fontFamily: "Montserrat_400Regular",
     color: "rgba(255,255,255,0.6)",
     textAlign: "center",
   },
@@ -768,15 +771,16 @@ const styles = StyleSheet.create({
   },
   rosterPos: {
     fontSize: 11,
-    fontWeight: "700",
+    fontFamily: "Montserrat_700Bold",
   },
   rosterName: {
     flex: 1,
     fontSize: 14,
-    fontWeight: "600",
+    fontFamily: "Montserrat_700Bold",
   },
   rosterTeam: {
     fontSize: 12,
+    fontFamily: "Montserrat_400Regular",
   },
   viewButton: {
     padding: 14,
@@ -785,7 +789,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   viewButtonText: {
-    fontWeight: "700",
+    fontFamily: "Montserrat_700Bold",
     fontSize: 16,
   },
 });
