@@ -406,7 +406,7 @@ def build_flat_corr(distributions, corr_mat):
     flat_corr = np.clip(np.nan_to_num(flat_corr, nan=0.0, posinf=1.0, neginf=-1.0), -1.0, 1.0)
     np.fill_diagonal(flat_corr, 1.0)
 
-    # ensure positive semidefinite — done once, not per game
+    # ensure positive semidefinite - done once, not per game
     eigenvalues, eigenvectors = np.linalg.eigh(flat_corr)
     eigenvalues = np.maximum(eigenvalues, 1e-6)
     flat_corr = eigenvectors @ np.diag(eigenvalues) @ eigenvectors.T
@@ -666,7 +666,7 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300, 
     fg_per_game = all_samples[:, :, fg_idx] * multipliers if fg_idx is not None else np.zeros((n_season_sims, n_games))
 
     team_points = yards_to_points(passing_per_game, rushing_per_game, fg_per_game)
-    
+
     DEF_POSITIONS = {"DE", "DT", "NT", "DL", "LB", "OLB", "ILB", "MLB", "CB", "FS", "SS", "S", "SAF", "DB", "Nickel", "Dime"}
     def_sack_mean = 0.0
     def_tackle_mean = 0.0
@@ -680,15 +680,10 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300, 
             if "def_tackles_solo" in dist_map:
                 def_tackle_mean += dist_map["def_tackles_solo"].mean()
             def_count += 1
-    # League average ~2.5 sacks/game team total, ~25 tackles/game team total
     sack_score = np.clip(def_sack_mean / max(2.5, 0.01), 0.7, 1.4)
     tackle_score = np.clip(def_tackle_mean / max(25.0, 0.01), 0.7, 1.4)
     def_quality = float(np.clip((sack_score + tackle_score) / 2, 0.82, 1.18))
 
-    # Opponent scores from a fixed NFL average baseline (~23 pts/game), adjusted by:
-    # - opponent offensive strength (opp_strengths: >1 = tough offense)
-    # - our defensive quality (def_quality: >1 = our D is good → opp scores less)
-    # - game-to-game variance (scale=10 for realistic spread)
     NFL_AVG_PTS = 23.0
     opp_base = (NFL_AVG_PTS * opp_strengths) / def_quality
     opp_points = np.random.normal(
@@ -782,7 +777,6 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300, 
     win_quality = np.clip((avg_wins - 7) / 6, 0.3, 1.5)
     superbowl_probability = round(playoff_probability * (1 / 14) * win_quality, 1)
 
-    # Team-level aggregated season stats from the simulation
     avg_team_points = float(np.mean(team_points.sum(axis=1)))
     avg_opp_points = float(np.mean(opp_points.sum(axis=1)))
 
@@ -809,7 +803,6 @@ def fetch_coach_factor(coach_name, qb_name):
     if not coach_name:
         return 1.0, {}
 
-    home_games = supabase.table("schedules").select("home_score,away_score,season").execute()
     coach_home = supabase.table("coaches").select("season,team").eq("head_coach", coach_name).execute()
 
     coach_teams = {row["season"]: row["team"] for row in (coach_home.data or [])}

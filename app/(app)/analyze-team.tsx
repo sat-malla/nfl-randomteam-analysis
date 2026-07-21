@@ -225,14 +225,14 @@ function getPlayerStatValue(p: PlayerProjection, stat: string): number {
   return p.stats[stat]?.projected_total ?? 0;
 }
 
-function findLeader(projections: PlayerProjection[], cat: LeaderCategory): { name: string; value: number } | null {
-  let best: { name: string; value: number } | null = null;
+function findLeader(projections: PlayerProjection[], cat: LeaderCategory): { name: string; value: number; position: string } | null {
+  let best: { name: string; value: number; position: string } | null = null;
   for (const p of projections) {
     if (cat.excludePos && cat.excludePos.has(p.position)) continue;
     if (cat.includePos && !cat.includePos.has(p.position)) continue;
     const val = getPlayerStatValue(p, cat.stat);
     if (val > 0 && (best === null || val > best.value)) {
-      best = { name: p.name, value: val };
+      best = { name: p.name, value: val, position: p.position };
     }
   }
   return best;
@@ -255,39 +255,48 @@ function TeamLeadersGrid({ analysis, c, isDark }: TeamLeadersGridProps) {
     ? analysis.player_projections
     : Object.entries(analysis.player_projections as Record<string, PlayerProjection>).map(([name, p]) => ({ ...p, name }));
 
+  const POS_COLORS = isDark ? POS_COLORS_DARK : POS_COLORS_LIGHT;
+  const { bg, text } = isDark ? TILE_DARK : TILE_LIGHT;
+
   return (
     <View style={[{ width: "100%", borderRadius: 14, borderWidth: 1, padding: 16, marginBottom: 20, gap: 12 }, { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow }]}>
       <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: 4, color: c.text }}>Team Leaders</Text>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
         {LEADER_CATEGORIES.map((cat) => {
           const leader = findLeader(projections, cat);
+          const posBadge = leader ? POS_COLORS[leader.position] : null;
           return (
             <View
               key={cat.label}
               style={{
                 width: "47%",
                 flexGrow: 1,
-                backgroundColor: isDark ? "#0d1f2d" : "#f0f7ff",
+                backgroundColor: bg,
                 borderRadius: 10,
-                borderWidth: 1,
-                borderColor: c.border,
-                padding: 10,
+                padding: 12,
               }}
             >
-              <Text style={{ fontSize: 10, fontWeight: "700", color: c.subtext, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 4 }}>
+              <Text style={{ fontSize: 11, fontWeight: "800", color: text, marginBottom: 6, opacity: 0.8 }}>
                 {cat.label}
               </Text>
               {leader ? (
                 <>
-                  <Text style={{ fontSize: 15, fontWeight: "800", color: c.text }} numberOfLines={1}>
-                    {shortName(leader.name)}
-                  </Text>
-                  <Text style={{ fontSize: 13, fontWeight: "600", color: isDark ? "#60a5fa" : "#1d4ed8", marginTop: 2 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 3 }}>
+                    {posBadge && (
+                      <View style={{ backgroundColor: posBadge.bg, borderRadius: 4, paddingHorizontal: 5, paddingVertical: 2, borderWidth: 1, borderColor: text }}>
+                        <Text style={{ fontSize: 10, fontWeight: "700", color: posBadge.text }}>{leader.position}</Text>
+                      </View>
+                    )}
+                    <Text style={{ fontSize: 16, fontWeight: "800", color: text, flexShrink: 1 }} numberOfLines={1}>
+                      {shortName(leader.name)}
+                    </Text>
+                  </View>
+                  <Text style={{ fontSize: 13, fontWeight: "700", color: text, opacity: 0.85 }}>
                     {leader.value} {cat.unit}
                   </Text>
                 </>
               ) : (
-                <Text style={{ fontSize: 13, color: c.subtext }}>—</Text>
+                <Text style={{ fontSize: 13, color: text, opacity: 0.6 }}>—</Text>
               )}
             </View>
           );
@@ -296,6 +305,9 @@ function TeamLeadersGrid({ analysis, c, isDark }: TeamLeadersGridProps) {
     </View>
   );
 }
+
+const TILE_LIGHT = { bg: "#1d4ed8", text: "#ffffff" };
+const TILE_DARK = { bg: "#60a5fa", text: "#000000" };
 
 function TeamStatsGrid({ analysis, c, isDark }: TeamStatsGridProps) {
   const projections = Array.isArray(analysis.player_projections)
@@ -307,12 +319,14 @@ function TeamStatsGrid({ analysis, c, isDark }: TeamStatsGridProps) {
   const cells = [
     { label: "Points For", value: analysis.points_for != null ? String(analysis.points_for) : "—", sub: "season total" },
     { label: "Points Against", value: analysis.points_against != null ? String(analysis.points_against) : "—", sub: "season total" },
-    { label: "Points/Game", value: analysis.points_per_game != null ? String(analysis.points_per_game) : "—", sub: "avg per game" },
+    { label: "Points / Game", value: analysis.points_per_game != null ? String(analysis.points_per_game) : "—", sub: "avg per game" },
     { label: "Scrimmage Yds", value: String(scrimmageYards), sub: "season total" },
     { label: "Offensive TDs", value: String(offTDs), sub: "season total" },
     { label: "Team Sacks", value: String(sacks), sub: "season total" },
     { label: "Interceptions", value: String(defINTs), sub: "season total" },
   ];
+
+  const { bg, text } = isDark ? TILE_DARK : TILE_LIGHT;
 
   return (
     <View style={[{ width: "100%", borderRadius: 14, borderWidth: 1, padding: 16, marginBottom: 20, gap: 12 }, { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow }]}>
@@ -324,17 +338,15 @@ function TeamStatsGrid({ analysis, c, isDark }: TeamStatsGridProps) {
             style={{
               width: "30%",
               flexGrow: 1,
-              backgroundColor: isDark ? "#0d1f2d" : "#f0f7ff",
+              backgroundColor: bg,
               borderRadius: 10,
-              borderWidth: 1,
-              borderColor: c.border,
-              padding: 10,
+              padding: 12,
               alignItems: "center",
             }}
           >
-            <Text style={{ fontSize: 22, fontWeight: "800", color: c.text }}>{cell.value}</Text>
-            <Text style={{ fontSize: 12, fontWeight: "600", color: c.text, marginTop: 2, textAlign: "center" }}>{cell.label}</Text>
-            <Text style={{ fontSize: 10, color: c.subtext, marginTop: 1 }}>{cell.sub}</Text>
+            <Text style={{ fontSize: 26, fontWeight: "900", color: text, lineHeight: 30 }}>{cell.value}</Text>
+            <Text style={{ fontSize: 11, fontWeight: "700", color: text, marginTop: 4, textAlign: "center", opacity: 0.9 }}>{cell.label}</Text>
+            <Text style={{ fontSize: 10, color: text, marginTop: 1, opacity: 0.65 }}>{cell.sub}</Text>
           </View>
         ))}
       </View>
@@ -597,7 +609,7 @@ const AnalyzeTeam = () => {
                 style={[
                   styles.probCard,
                   {
-                    backgroundColor: isDark ? "#60a5fa" : "#1d4ed8",
+                    backgroundColor: isDark ? "#4ade80" : "#16a34a",
                     borderWidth: 0,
                   },
                 ]}
@@ -623,7 +635,7 @@ const AnalyzeTeam = () => {
                 style={[
                   styles.probCard,
                   {
-                    backgroundColor: isDark ? "#a78bfa" : "#7c3aed",
+                    backgroundColor: isDark ? "#f87171" : "#dc2626",
                     borderWidth: 0,
                   },
                 ]}
@@ -918,7 +930,7 @@ const AnalyzeTeam = () => {
               ]},
             ].map((group) => (
               <View key={group.label} style={{ marginBottom: 10 }}>
-                <Text style={{ fontSize: 12, fontWeight: "700", color: c.subtext, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.8 }}>
+                <Text style={{ fontSize: 13, fontWeight: "800", color: c.subtext, marginBottom: 6 }}>
                   {group.label}
                 </Text>
                 <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
