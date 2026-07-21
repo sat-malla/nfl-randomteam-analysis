@@ -105,13 +105,8 @@ const STAT_LABELS: Record<string, string> = {
 const POS_COLORS_LIGHT: Record<string, { bg: string; text: string }> = {
   QB: { bg: "#dc2626", text: "#ffffff" },
   RB: { bg: "#1f55ed", text: "#ffffff" },
-  FB: { bg: "#1d4ed8", text: "#ffffff" },
   WR: { bg: "#059669", text: "#ffffff" },
   TE: { bg: "#d97706", text: "#ffffff" },
-  OT: { bg: "#7c3aed", text: "#ffffff" },
-  G: { bg: "#7c3aed", text: "#ffffff" },
-  C: { bg: "#7c3aed", text: "#ffffff" },
-  OL: { bg: "#7c3aed", text: "#ffffff" },
   DE: { bg: "#ea580c", text: "#ffffff" },
   DT: { bg: "#ea580c", text: "#ffffff" },
   NT: { bg: "#ea580c", text: "#ffffff" },
@@ -132,20 +127,14 @@ const POS_COLORS_LIGHT: Record<string, { bg: string; text: string }> = {
   Dime: { bg: "#0891b2", text: "#ffffff" },
   K: { bg: "#1ec95d", text: "#ffffff" },
   P: { bg: "#21ccb2", text: "#ffffff" },
-  LS: { bg: "#57534e", text: "#ffffff" },
   RS: { bg: "#4d2325", text: "#ffffff" },
 };
 
 const POS_COLORS_DARK: Record<string, { bg: string; text: string }> = {
   QB: { bg: "#f87171", text: "#000000" },
   RB: { bg: "#6b8ef5", text: "#000000" },
-  FB: { bg: "#60a5fa", text: "#000000" },
   WR: { bg: "#34d399", text: "#000000" },
   TE: { bg: "#fbbf24", text: "#000000" },
-  OT: { bg: "#a78bfa", text: "#000000" },
-  G: { bg: "#a78bfa", text: "#000000" },
-  C: { bg: "#a78bfa", text: "#000000" },
-  OL: { bg: "#a78bfa", text: "#000000" },
   DE: { bg: "#fb923c", text: "#000000" },
   DT: { bg: "#fb923c", text: "#000000" },
   NT: { bg: "#fb923c", text: "#000000" },
@@ -166,7 +155,6 @@ const POS_COLORS_DARK: Record<string, { bg: string; text: string }> = {
   Dime: { bg: "#22d3ee", text: "#000000" },
   K: { bg: "#4ade80", text: "#000000" },
   P: { bg: "#2dd4bf", text: "#000000" },
-  LS: { bg: "#a8a29e", text: "#000000" },
   RS: { bg: "#f87171", text: "#000000" },
 };
 
@@ -925,11 +913,8 @@ const AnalyzeTeam = () => {
             <Text style={[styles.cardTitle, { color: c.text }]}>Position Legend</Text>
             {[
               { label: "Offense", entries: [
-                ["QB", "Quarterback"], ["RB", "Running Back"], ["FB", "Fullback"],
+                ["QB", "Quarterback"], ["RB", "Running Back"],
                 ["WR", "Wide Receiver"], ["TE", "Tight End"],
-              ]},
-              { label: "Offensive Line", entries: [
-                ["OT", "Offensive Tackle"], ["G", "Guard"], ["C", "Center"],
               ]},
               { label: "Defensive Line", entries: [
                 ["DE", "Defensive End"], ["DT", "Defensive Tackle"], ["NT", "Nose Tackle"],
@@ -945,7 +930,7 @@ const AnalyzeTeam = () => {
               ]},
               { label: "Special Teams", entries: [
                 ["K", "Kicker"], ["P", "Punter"],
-                ["LS", "Long Snapper"], ["RS", "Return Specialist"],
+                ["RS", "Return Specialist"],
               ]},
             ].map((group) => (
               <View key={group.label} style={{ marginBottom: 10 }}>

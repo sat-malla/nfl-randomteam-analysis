@@ -281,7 +281,7 @@ def build_player_distributions(player_stats, player_name, player_pos, depth_slot
         if player_data.empty or sc not in player_data.columns:
             pos_mean, pos_std = get_position_dist(player_stats, player_pos, sc)
             season_mean = max(0.0, float(np.random.normal(pos_mean, pos_std)))
-            if sc in SEASON_TOTAL_STATS:
+            if sc in SEASON_TOTAL_STATS or sc in SYNTHETIC_STATS:
                 mean = season_mean
                 std = max(pos_std, 0.01)
             else:
@@ -293,7 +293,7 @@ def build_player_distributions(player_stats, player_name, player_pos, depth_slot
             if values.empty or (sc not in _RATE_STATS and (values == 0).all()):
                 pos_mean, pos_std = get_position_dist(player_stats, player_pos, sc)
                 season_mean = max(0.0, float(np.random.normal(pos_mean, pos_std)))
-                if sc in SEASON_TOTAL_STATS:
+                if sc in SEASON_TOTAL_STATS or sc in SYNTHETIC_STATS:
                     mean = season_mean
                     std = max(pos_std, 0.01)
                 else:
@@ -303,7 +303,7 @@ def build_player_distributions(player_stats, player_name, player_pos, depth_slot
                 mean = float(values.mean())
                 pos_mean, pos_std = get_position_dist(player_stats, player_pos, sc)
                 std = float(values.std()) if len(values) > 1 else pos_std
-                if sc not in SEASON_TOTAL_STATS:
+                if sc not in SEASON_TOTAL_STATS and sc not in SYNTHETIC_STATS:
                     mean, std = mean / N_GAMES, std / N_GAMES
 
         if depth_slot > 1 and sc in DEPTH_VOLUME_STATS:
