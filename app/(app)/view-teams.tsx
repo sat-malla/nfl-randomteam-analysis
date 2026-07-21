@@ -142,8 +142,9 @@ const DEFENSE_ROW_Y_FRACS = [0.88, 0.68, 0.46, 0.24];
 
 const OFFENSE_ROW_ORDER = [
   ["OT", "G", "C", "OL"],
-  ["QB", "RB", "FB", "TE"],
-  ["WR"],
+  ["WR", "TE"],
+  ["RB", "FB"],
+  ["QB"],
   ["K", "P", "LS", "RS"],
 ];
 
@@ -229,6 +230,23 @@ const DE_POSITIONS = new Set(["DE", "OLB"]);
 const DT_POSITIONS = new Set(["DT", "NT", "DL"]);
 const CB_POSITIONS = new Set(["CB"]);
 const NICKEL_DIME_POSITIONS = new Set(["Nickel", "Dime", "DB", "SAF"]);
+const OT_POSITIONS = new Set(["OT"]);
+const G_POSITIONS = new Set(["G"]);
+const C_POSITIONS = new Set(["C", "OL"]);
+
+// OT, G, C, G, OT
+function sortOLine(players: Player[]): Player[] {
+  const ots = players.filter((p) => OT_POSITIONS.has(p.position));
+  const gs = players.filter((p) => G_POSITIONS.has(p.position));
+  const cs = players.filter((p) => C_POSITIONS.has(p.position));
+  const other = players.filter((p) => !OT_POSITIONS.has(p.position) && !G_POSITIONS.has(p.position) && !C_POSITIONS.has(p.position));
+  // Left OT, left G, center(s), right G, right OT
+  const leftOT = ots[0] ? [ots[0]] : [];
+  const rightOT = ots[1] ? [ots[1]] : [];
+  const leftG = gs[0] ? [gs[0]] : [];
+  const rightG = gs[1] ? [gs[1]] : [];
+  return [...leftOT, ...leftG, ...cs, ...other, ...rightG, ...rightOT];
+}
 
 function sortDLine(players: Player[]): Player[] {
   const des = players.filter((p) => DE_POSITIONS.has(p.position));
@@ -353,6 +371,8 @@ function FieldView({
 
         {offenseRows.map((row, rowIdx) => {
           const y = halfH + 14 + rowIdx * offRowH;
+          const hasOL = row.some((p) => OT_POSITIONS.has(p.position) || G_POSITIONS.has(p.position) || C_POSITIONS.has(p.position));
+          const sortedOffRow = hasOL ? sortOLine(row) : row;
           return (
             <View
               key={`off-row-${rowIdx}`}
@@ -368,7 +388,7 @@ function FieldView({
                 gap: 4,
               }}
             >
-              {row.map((player) => (
+              {sortedOffRow.map((player) => (
                 <PlayerCard key={player.name} player={player} posColors={posColors} />
               ))}
             </View>
@@ -637,10 +657,10 @@ const styles = StyleSheet.create({
   playerCard: {
     backgroundColor: "rgba(0,0,0,0.72)",
     borderRadius: 7,
-    paddingHorizontal: 5,
+    paddingHorizontal: 3,
     paddingVertical: 4,
     alignItems: "center",
-    width: 72,
+    width: 67,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.15)",
   },
