@@ -1,4 +1,4 @@
-import { assignLbLabels } from "@/utils/lb_labels";
+import { assignLbLabels } from "@/utils/defense-rendering";
 import { Box } from "@/components/ui/box";
 import {
   FormControl,
@@ -506,7 +506,6 @@ const GenerateTeam = () => {
           }
         }
       }
-      // Pick a random coach from the Go backend (which queries Supabase coaches table)
       try {
         const coachRes = await fetch(`${API_URL}/api/coaches/random`);
         const coachResult = await coachRes.json();
@@ -520,7 +519,7 @@ const GenerateTeam = () => {
       }
 
       setGenerateTeam(true);
-      setPlayers(assignLbLabels(players));
+      setPlayers(assignLbLabels(players, formData.defenseType));
       setSavedTeam(false);
       setLoading(false);
     } catch (error) {
@@ -692,7 +691,7 @@ const GenerateTeam = () => {
         )}
       </View>
       { generateTeam && (
-        <Text style={[themeTextStyle, {marginTop: 20, textAlign: "center" }]}>Team Generated!</Text>
+        <Text style={[themeTextStyle, {marginTop: 8, marginBottom: 18, textAlign: "center" }]}>Team Generated!</Text>
       )}
       {generateTeam && (
         <Box style={themeTableStyle}>
@@ -714,7 +713,7 @@ const GenerateTeam = () => {
                 <TableRow key={index}>
                   <TableData>{player.position}</TableData>
                   <TableData>{player.name}</TableData>
-                  <TableData>{abbToTeamNames[player.nfl_team as keyof typeof abbToTeamNames] || player.nfl_team}</TableData>
+                  <TableData style={{ flexWrap: "wrap", flex: 1 }}>{abbToTeamNames[player.nfl_team as keyof typeof abbToTeamNames] || player.nfl_team}</TableData>
                 </TableRow>
               ))}
             </TableBody>
@@ -828,21 +827,21 @@ const styles = StyleSheet.create({
   },
   lightSaveButton: {
     backgroundColor: "#008a33",
-    padding: 10,
+    padding: 14,
     borderRadius: 10,
     alignItems: "center",
     marginTop: 10,
   },
   darkSaveButton: {
     backgroundColor: "#34f77c",
-    padding: 10,
+    padding: 14,
     borderRadius: 10,
     alignItems: "center",
     marginTop: 10,
   },
   disabledSaveButton: {
     backgroundColor: "#d4d4d4",
-    padding: 10,
+    padding: 14,
     borderRadius: 10,
     alignItems: "center",
     marginTop: 10,
@@ -859,15 +858,18 @@ const styles = StyleSheet.create({
   },
   lightSaveButtonText: {
     color: "#ffffff",
-    fontWeight: "bold",
+    fontWeight: "700",
+    fontSize: 16,
   },
   darkSaveButtonText: {
     color: "#000000",
-    fontWeight: "bold",
+    fontWeight: "700",
+    fontSize: 16,
   },
   disabledSaveButtonText: {
     color: "#ffffff",
-    fontWeight: "bold",
+    fontWeight: "700",
+    fontSize: 16,
   },
 });
 

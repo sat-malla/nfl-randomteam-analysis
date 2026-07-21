@@ -1,4 +1,4 @@
-import { assignLbLabels } from "@/utils/lb_labels";
+import { assignLbLabels } from "@/utils/defense-rendering";
 import {
   Text,
   ScrollView,
@@ -131,8 +131,8 @@ const OFFENSE_POSITIONS = new Set(["QB", "RB", "FB", "WR", "TE", "OT", "G", "C",
 const DEFENSE_POSITIONS = new Set(["DE", "DT", "NT", "DL", "LB", "OLB", "ILB", "MLB", "SLB", "WLB", "CB", "S", "FS", "SS", "DB", "SAF", "Nickel", "Dime"]);
 
 const DEFENSE_ROW_ORDER = [
-  ["DE", "DT", "NT", "DL", "OLB"],
-  ["LB", "ILB", "MLB", "SLB", "WLB"],
+  ["DE", "DT", "NT", "DL"],
+  ["LB", "ILB", "MLB", "SLB", "WLB", "OLB"],
   ["CB", "Nickel", "Dime", "DB", "SAF"],
   ["FS", "SS", "S"],
 ];
@@ -222,8 +222,10 @@ function FootballField({ width, height }: { width: number; height: number }) {
   );
 }
 
-const DE_POSITIONS = new Set(["DE", "OLB"]);
+const DE_POSITIONS = new Set(["DE"]);
 const DT_POSITIONS = new Set(["DT", "NT", "DL"]);
+const OLB_POSITIONS = new Set(["OLB"]);
+const INNER_LB_POSITIONS = new Set(["LB", "ILB", "MLB", "SLB", "WLB"]);
 const CB_POSITIONS = new Set(["CB"]);
 const NICKEL_DIME_POSITIONS = new Set(["Nickel", "Dime", "DB", "SAF"]);
 const OT_POSITIONS = new Set(["OT"]);
@@ -250,6 +252,16 @@ function sortDLine(players: Player[]): Player[] {
     return [des[0], ...dts, ...other, ...des.slice(1)];
   }
   return [...des, ...dts, ...other];
+}
+
+// OLB on edges, inner LBs (ILB/MLB/SLB/WLB) in the middle
+function sortLBRow(players: Player[]): Player[] {
+  const olbs = players.filter((p) => OLB_POSITIONS.has(p.position));
+  const inner = players.filter((p) => INNER_LB_POSITIONS.has(p.position));
+  const other = players.filter((p) => !OLB_POSITIONS.has(p.position) && !INNER_LB_POSITIONS.has(p.position));
+  const leftOLB = olbs[0] ? [olbs[0]] : [];
+  const rightOLB = olbs[1] ? [olbs[1]] : [];
+  return [...leftOLB, ...inner, ...other, ...rightOLB];
 }
 
 function sortSecondary(players: Player[]): Player[] {
@@ -395,7 +407,8 @@ function FieldView({
 
           const hasDLine = row.some((p) => DE_POSITIONS.has(p.position) || DT_POSITIONS.has(p.position));
           const hasSecondary = row.some((p) => CB_POSITIONS.has(p.position) || NICKEL_DIME_POSITIONS.has(p.position));
-          const sortedRow = hasDLine ? sortDLine(row) : hasSecondary ? sortSecondary(row) : row;
+          const hasLBs = row.some((p) => OLB_POSITIONS.has(p.position) || INNER_LB_POSITIONS.has(p.position));
+          const sortedRow = hasDLine ? sortDLine(row) : hasSecondary ? sortSecondary(row) : hasLBs ? sortLBRow(row) : row;
 
           return (
             <View
@@ -516,7 +529,7 @@ export default function ViewTeams() {
       const res = await fetch(`${API_URL}/api/team/${summary.id}`);
       const result = await res.json();
       if (result.status === "Success" && result.data) {
-        setSelectedTeam({ ...result.data, players: assignLbLabels(result.data.players) });
+        setSelectedTeam({ ...result.data, players: assignLbLabels(result.data.players, result.data.defense_type) });
       }
     } catch (_) {}
     setLoading(false);

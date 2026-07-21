@@ -1,4 +1,4 @@
-import { assignLbLabels } from "@/utils/lb_labels";
+import { assignLbLabels } from "@/utils/defense-rendering";
 import {
   Text,
   ScrollView,
@@ -73,6 +73,7 @@ type AnalysisResult = {
 type Team = {
   id: string;
   team_name: string;
+  defense_type: string;
 };
 
 const STAT_LABELS: Record<string, string> = {
@@ -366,6 +367,7 @@ const AnalyzeTeam = () => {
 
   const [teams, setTeams] = useState<Team[]>([]);
   const [selectedTeamId, setSelectedTeamId] = useState<string>("");
+  const [selectedTeamDefenseType, setSelectedTeamDefenseType] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [hasSaved, setHasSaved] = useState(false);
@@ -393,9 +395,10 @@ const AnalyzeTeam = () => {
         .then((result) => {
           if (result.status === "Success" && result.data) {
             const mapped = result.data.map(
-              (team: { id: string; team_name: string }) => ({
+              (team: { id: string; team_name: string; defense_type: string }) => ({
                 id: team.id,
                 team_name: team.team_name,
+                defense_type: team.defense_type,
               }),
             );
             setTeams(mapped);
@@ -410,6 +413,7 @@ const AnalyzeTeam = () => {
     const team = teams.find((t) => t.team_name === teamName);
     if (!team) return;
     setSelectedTeamId(team.id);
+    setSelectedTeamDefenseType(team.defense_type ?? "");
     setAnalysis(null);
     setHasSaved(false);
     setError(null);
@@ -420,7 +424,7 @@ const AnalyzeTeam = () => {
       if (res.ok && result.status === "Success") {
         const data = result.data as AnalysisResult;
         const projs = Array.isArray(data.player_projections) ? data.player_projections : Object.entries(data.player_projections as Record<string, PlayerProjection>).map(([name, p]) => ({ ...p, name }));
-        setAnalysis({ ...data, player_projections: assignLbLabels(projs) });
+        setAnalysis({ ...data, player_projections: assignLbLabels(projs, team.defense_type) });
         setHasSaved(true);
       }
     } catch (_) {
@@ -448,7 +452,7 @@ const AnalyzeTeam = () => {
       } else {
         const data = result as AnalysisResult;
         const projs = Array.isArray(data.player_projections) ? data.player_projections : Object.entries(data.player_projections as Record<string, PlayerProjection>).map(([name, p]) => ({ ...p, name }));
-        setAnalysis({ ...data, player_projections: assignLbLabels(projs) });
+        setAnalysis({ ...data, player_projections: assignLbLabels(projs, selectedTeamDefenseType) });
         setHasSaved(true);
       }
     } catch (e) {
