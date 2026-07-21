@@ -7,8 +7,9 @@ import { Text } from "@/components/ui/text";
 import { Stack, useRouter } from "expo-router";
 import { useState, useEffect } from "react";
 import { useFonts, Montserrat_400Regular, Montserrat_700Bold } from "@expo-google-fonts/montserrat";
-import { Appearance, StyleSheet, View, useColorScheme } from "react-native";
+import { Appearance, StyleSheet, TouchableOpacity, View, useColorScheme } from "react-native";
 import * as SplashScreen from "expo-splash-screen";
+import { Ionicons } from "@expo/vector-icons";
 import {
   Drawer,
   DrawerBackdrop,
@@ -149,8 +150,30 @@ export default function RootLayout() {
                 value={isDark}
               />
             </View>
+
+            <View style={[styles.divider, { backgroundColor: isDark ? "#edf5ff" : "#02080f", marginTop: 28 }]} />
+            <TouchableOpacity style={styles.supportRow} onPress={() => {}}>
+              <Text style={styles.supportLink}>Support</Text>
+              <Ionicons name="chevron-forward" size={16} color="#0099ff" />
+            </TouchableOpacity>
+            
+            <Text style={[styles.legalLabel, { color: isDark ? "#edf5ff" : "#02080f" }]}>LEGAL</Text>
+
+            <TouchableOpacity style={styles.legalRow} onPress={() => {}}>
+              <Text style={styles.legalLink}>Terms & Conditions</Text>
+              <Ionicons name="chevron-forward" size={16} color="#0099ff" />
+            </TouchableOpacity>
+            <View style={[styles.divider, { backgroundColor: isDark ? "#edf5ff" : "#02080f" }]} />
+            <TouchableOpacity style={styles.legalRow} onPress={() => {}}>
+              <Text style={styles.legalLink}>Privacy Policy</Text>
+              <Ionicons name="chevron-forward" size={16} color="#0099ff" />
+            </TouchableOpacity>
           </DrawerBody>
-          <DrawerFooter />
+          <DrawerFooter>
+            <Text style={[styles.copyright, { color: isDark ? "#edf5ff" : "#02080f" }]}>
+              © {new Date().getFullYear()} NFL RTGA. All rights reserved.
+            </Text>
+          </DrawerFooter>
         </DrawerContent>
       </Drawer>
     </GluestackUIProvider>
@@ -165,6 +188,48 @@ const styles = StyleSheet.create({
   darkText: {
     color: "#edf5ff",
     fontFamily: "Montserrat_400Regular",
+  },
+  divider: {
+    height: 1,
+    opacity: 0.2,
+  },
+  legalLabel: {
+    fontFamily: "Montserrat_700Bold",
+    fontSize: 12,
+    opacity: 0.5,
+    marginTop: 16,
+    marginBottom: 4,
+    letterSpacing: 1,
+  },
+  supportRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 16,
+  },
+  supportLink: {
+    fontFamily: "Montserrat_400Regular",
+    fontSize: 16,
+    color: "#0099ff",
+  },
+  legalRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 16,
+  },
+  legalLink: {
+    fontFamily: "Montserrat_400Regular",
+    fontSize: 14,
+    color: "#0099ff",
+  },
+  copyright: {
+    fontFamily: "Montserrat_400Regular",
+    fontSize: 12,
+    opacity: 0.45,
+    textAlign: "center",
+    paddingTop: 12,
+    paddingBottom: 8,
   },
 });
 
