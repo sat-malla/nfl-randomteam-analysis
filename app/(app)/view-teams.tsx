@@ -145,8 +145,10 @@ const OFFENSE_ROW_ORDER = [
   ["WR", "TE"],
   ["RB", "FB"],
   ["QB"],
-  ["K", "P", "LS", "RS"],
 ];
+
+const ST_POSITIONS = new Set(["K", "P", "RS", "LS"]);
+const ST_ORDER = ["K", "P", "RS", "LS"];
 
 function groupPlayersByRows(
   players: Player[],
@@ -303,6 +305,64 @@ function PlayerCard({
   );
 }
 
+function SpecialTeamsField({
+  team,
+  posColors,
+  c,
+}: {
+  team: Team;
+  posColors: Record<string, { bg: string; text: string }>;
+  c: Record<string, string>;
+}) {
+  const { width: screenWidth } = Dimensions.get("window");
+  const fieldWidth = screenWidth - 32;
+  const miniHeight = 110;
+
+  const stPlayers = ST_ORDER
+    .map((pos) => team.players.find((p) => p.position === pos))
+    .filter((p): p is Player => !!p);
+
+  return (
+    <View style={{ width: fieldWidth, marginTop: 12 }}>
+      <View style={{ height: 1, backgroundColor: c.border, marginBottom: 12 }} />
+      <Text style={{ textAlign: "center", color: c.subtext, fontWeight: "800", fontSize: 13, marginBottom: 6 }}>
+        Special Teams
+      </Text>
+      <View style={[styles.fieldWrapper, { width: fieldWidth, height: miniHeight }]}>
+        <Svg width={fieldWidth} height={miniHeight} style={StyleSheet.absoluteFillObject} pointerEvents="none">
+          <Rect x={0} y={0} width={fieldWidth} height={miniHeight} fill="#1a6b2a" />
+          <Rect x={0} y={0} width={fieldWidth} height={miniHeight / 2} fill="#1e7a30" />
+          <Line x1={0} y1={miniHeight / 2} x2={fieldWidth} y2={miniHeight / 2}
+            stroke="#ffffff" strokeWidth={2.5} opacity={0.9} />
+          <SvgText x={fieldWidth * 0.08} y={miniHeight / 2 - 4} textAnchor="middle"
+            fill="#ffffff" fontSize={13} fontWeight="bold" opacity={0.85}>50</SvgText>
+          <SvgText x={fieldWidth * 0.92} y={miniHeight / 2 - 4} textAnchor="middle"
+            fill="#ffffff" fontSize={13} fontWeight="bold" opacity={0.85}>50</SvgText>
+          <Rect x={1} y={1} width={fieldWidth - 2} height={miniHeight - 2} fill="none" stroke="#ffffff" strokeWidth={2} opacity={0.75} />
+        </Svg>
+        {/* ST cards centered vertically */}
+        <View style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: fieldWidth,
+          height: miniHeight,
+          flexDirection: "row",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 6,
+          paddingHorizontal: 8,
+        }}>
+          {stPlayers.map((player) => (
+            <PlayerCard key={player.name} player={player} posColors={posColors} />
+          ))}
+        </View>
+      </View>
+      <View style={{ height: 1, backgroundColor: c.border, marginTop: 12 }} />
+    </View>
+  );
+}
+
 function FieldView({
   team,
   posColors,
@@ -320,7 +380,7 @@ function FieldView({
     DEFENSE_POSITIONS.has(p.position)
   );
   const offensePlayers = team.players.filter((p) =>
-    OFFENSE_POSITIONS.has(p.position)
+    OFFENSE_POSITIONS.has(p.position) && !ST_POSITIONS.has(p.position)
   );
 
   const defenseRows = groupPlayersByRows(defensePlayers, DEFENSE_ROW_ORDER);
@@ -331,8 +391,8 @@ function FieldView({
 
   return (
     <View style={{ width: fieldWidth, marginBottom: 4 }}>
-      <Text style={{ textAlign: "center", color: c.subtext, fontWeight: "800", fontSize: 13, letterSpacing: 3, marginBottom: 6 }}>
-        DEFENSE
+      <Text style={{ textAlign: "center", color: c.subtext, fontWeight: "800", fontSize: 13, marginBottom: 6 }}>
+        Defense
       </Text>
 
       <View style={[styles.fieldWrapper, { width: fieldWidth, height: fieldHeight }]}>
@@ -396,8 +456,8 @@ function FieldView({
         })}
       </View>
 
-      <Text style={{ textAlign: "center", color: c.subtext, fontWeight: "800", fontSize: 13, letterSpacing: 3, marginTop: 6 }}>
-        OFFENSE
+      <Text style={{ textAlign: "center", color: c.subtext, fontWeight: "800", fontSize: 13, marginTop: 6 }}>
+        Offense
       </Text>
     </View>
   );
@@ -565,6 +625,7 @@ export default function ViewTeams() {
           </View>
 
           <FieldView team={selectedTeam} posColors={posColors} c={c} />
+          <SpecialTeamsField team={selectedTeam} posColors={posColors} c={c} />
 
           <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border, marginTop: 16 }]}>
             <Text style={[styles.sectionTitle, { color: c.text }]}>Full Roster</Text>
@@ -652,6 +713,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: "hidden",
     position: "relative",
+    marginTop: 4,
     marginBottom: 4,
   },
   playerCard: {
