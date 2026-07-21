@@ -1,3 +1,4 @@
+import { assignLbLabels } from "@/utils/lb_labels";
 import {
   Text,
   ScrollView,
@@ -118,6 +119,8 @@ const POS_COLORS_LIGHT: Record<string, { bg: string; text: string }> = {
   ILB: { bg: "#db2777", text: "#ffffff" },
   OLB: { bg: "#db2777", text: "#ffffff" },
   MLB: { bg: "#db2777", text: "#ffffff" },
+  SLB: { bg: "#db2777", text: "#ffffff" },
+  WLB: { bg: "#db2777", text: "#ffffff" },
   CB: { bg: "#0891b2", text: "#ffffff" },
   S: { bg: "#004c75", text: "#ffffff" },
   FS: { bg: "#004c75", text: "#ffffff" },
@@ -150,6 +153,8 @@ const POS_COLORS_DARK: Record<string, { bg: string; text: string }> = {
   ILB: { bg: "#f472b6", text: "#000000" },
   OLB: { bg: "#f472b6", text: "#000000" },
   MLB: { bg: "#f472b6", text: "#000000" },
+  SLB: { bg: "#f472b6", text: "#000000" },
+  WLB: { bg: "#f472b6", text: "#000000" },
   CB: { bg: "#22d3ee", text: "#000000" },
   S: { bg: "#38bdf8", text: "#000000" },
   FS: { bg: "#38bdf8", text: "#000000" },
@@ -165,7 +170,7 @@ const POS_COLORS_DARK: Record<string, { bg: string; text: string }> = {
 };
 
 const OFF_POSITIONS = new Set(["QB", "RB", "FB", "WR", "TE"]);
-const DEF_POSITIONS = new Set(["DE", "DT", "NT", "DL", "LB", "OLB", "ILB", "MLB", "CB", "FS", "SS", "S", "SAF", "DB", "Nickel", "Dime"]);
+const DEF_POSITIONS = new Set(["DE", "DT", "NT", "DL", "LB", "OLB", "ILB", "MLB", "SLB", "WLB", "CB", "FS", "SS", "S", "SAF", "DB", "Nickel", "Dime"]);
 
 function aggregateTeamStats(projections: PlayerProjection[]) {
   let scrimmageYards = 0;
@@ -413,7 +418,9 @@ const AnalyzeTeam = () => {
       const res = await fetch(`${API_URL}/api/analysis/${team.id}`);
       const result = await res.json();
       if (res.ok && result.status === "Success") {
-        setAnalysis(result.data);
+        const data = result.data as AnalysisResult;
+        const projs = Array.isArray(data.player_projections) ? data.player_projections : Object.entries(data.player_projections as Record<string, PlayerProjection>).map(([name, p]) => ({ ...p, name }));
+        setAnalysis({ ...data, player_projections: assignLbLabels(projs) });
         setHasSaved(true);
       }
     } catch (_) {
@@ -439,7 +446,9 @@ const AnalyzeTeam = () => {
       if (!response.ok) {
         setError(result.detail ?? "Analysis failed");
       } else {
-        setAnalysis(result);
+        const data = result as AnalysisResult;
+        const projs = Array.isArray(data.player_projections) ? data.player_projections : Object.entries(data.player_projections as Record<string, PlayerProjection>).map(([name, p]) => ({ ...p, name }));
+        setAnalysis({ ...data, player_projections: assignLbLabels(projs) });
         setHasSaved(true);
       }
     } catch (e) {
@@ -917,8 +926,9 @@ const AnalyzeTeam = () => {
                 ["DE", "Defensive End"], ["DT", "Defensive Tackle"], ["NT", "Nose Tackle"],
               ]},
               { label: "Linebackers", entries: [
-                ["LB", "Linebacker"], ["OLB", "Outside Linebacker"],
-                ["ILB", "Inside Linebacker"], ["MLB", "Middle Linebacker"],
+                ["SLB", "Strong-side LB"], ["MLB", "Middle Linebacker"],
+                ["WLB", "Weak-side LB"], ["OLB", "Outside Linebacker"],
+                ["ILB", "Inside Linebacker"],
               ]},
               { label: "Defensive Backs", entries: [
                 ["CB", "Cornerback"], ["FS", "Free Safety"],

@@ -1,3 +1,4 @@
+import { assignLbLabels } from "@/utils/lb_labels";
 import { Box } from "@/components/ui/box";
 import {
   FormControl,
@@ -519,7 +520,7 @@ const GenerateTeam = () => {
       }
 
       setGenerateTeam(true);
-      setPlayers(players);
+      setPlayers(assignLbLabels(players));
       setSavedTeam(false);
       setLoading(false);
     } catch (error) {

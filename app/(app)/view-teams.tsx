@@ -1,3 +1,4 @@
+import { assignLbLabels } from "@/utils/lb_labels";
 import {
   Text,
   ScrollView,
@@ -76,6 +77,8 @@ const POS_COLORS_LIGHT: Record<string, { bg: string; text: string }> = {
   ILB: { bg: "#db2777", text: "#ffffff" },
   OLB: { bg: "#db2777", text: "#ffffff" },
   MLB: { bg: "#db2777", text: "#ffffff" },
+  SLB: { bg: "#db2777", text: "#ffffff" },
+  WLB: { bg: "#db2777", text: "#ffffff" },
   CB: { bg: "#0891b2", text: "#ffffff" },
   S: { bg: "#004c75", text: "#ffffff" },
   FS: { bg: "#004c75", text: "#ffffff" },
@@ -108,6 +111,8 @@ const POS_COLORS_DARK: Record<string, { bg: string; text: string }> = {
   ILB: { bg: "#f472b6", text: "#000000" },
   OLB: { bg: "#f472b6", text: "#000000" },
   MLB: { bg: "#f472b6", text: "#000000" },
+  SLB: { bg: "#f472b6", text: "#000000" },
+  WLB: { bg: "#f472b6", text: "#000000" },
   CB: { bg: "#22d3ee", text: "#000000" },
   S: { bg: "#38bdf8", text: "#000000" },
   FS: { bg: "#38bdf8", text: "#000000" },
@@ -123,13 +128,17 @@ const POS_COLORS_DARK: Record<string, { bg: string; text: string }> = {
 };
 
 const OFFENSE_POSITIONS = new Set(["QB", "RB", "FB", "WR", "TE", "OT", "G", "C", "OL", "K", "P", "LS", "RS"]);
-const DEFENSE_POSITIONS = new Set(["DE", "DT", "NT", "DL", "LB", "OLB", "ILB", "MLB", "CB", "S", "FS", "SS", "DB", "SAF", "Nickel", "Dime"]);
+const DEFENSE_POSITIONS = new Set(["DE", "DT", "NT", "DL", "LB", "OLB", "ILB", "MLB", "SLB", "WLB", "CB", "S", "FS", "SS", "DB", "SAF", "Nickel", "Dime"]);
 
 const DEFENSE_ROW_ORDER = [
   ["DE", "DT", "NT", "DL", "OLB"],
-  ["LB", "ILB", "MLB"],
-  ["CB", "Nickel", "Dime", "S", "FS", "SS", "DB", "SAF"],
+  ["LB", "ILB", "MLB", "SLB", "WLB"],
+  ["CB", "Nickel", "Dime", "DB", "SAF"],
+  ["FS", "SS", "S"],
 ];
+
+
+const DEFENSE_ROW_Y_FRACS = [0.88, 0.68, 0.46, 0.24];
 
 const OFFENSE_ROW_ORDER = [
   ["OT", "G", "C", "OL"],
@@ -190,10 +199,9 @@ function FootballField({ width, height }: { width: number; height: number }) {
         );
       })}
 
-      {/* Outer boundary */}
       <Rect x={1} y={1} width={width - 2} height={height - 2} fill="none" stroke="#ffffff" strokeWidth={2} opacity={0.75} />
 
-      {/* Hash marks */}
+      
       {yardLabels.map((_, i) => {
         const y = (i + 1) * segH;
         return [hashInset, width - hashInset].map((x, j) => (
@@ -202,7 +210,7 @@ function FootballField({ width, height }: { width: number; height: number }) {
         ));
       })}
 
-      {/* Yard number labels — left and right sides */}
+     
       {yardLabels.map((label, i) => {
         const y = (i + 1) * segH - 4;
         const is50 = label === "50";
@@ -215,6 +223,31 @@ function FootballField({ width, height }: { width: number; height: number }) {
       })}
     </Svg>
   );
+}
+
+const DE_POSITIONS = new Set(["DE", "OLB"]);
+const DT_POSITIONS = new Set(["DT", "NT", "DL"]);
+const CB_POSITIONS = new Set(["CB"]);
+const NICKEL_DIME_POSITIONS = new Set(["Nickel", "Dime", "DB", "SAF"]);
+
+function sortDLine(players: Player[]): Player[] {
+  const des = players.filter((p) => DE_POSITIONS.has(p.position));
+  const dts = players.filter((p) => DT_POSITIONS.has(p.position));
+  const other = players.filter((p) => !DE_POSITIONS.has(p.position) && !DT_POSITIONS.has(p.position));
+  if (des.length >= 2) {
+    return [des[0], ...dts, ...other, ...des.slice(1)];
+  }
+  return [...des, ...dts, ...other];
+}
+
+function sortSecondary(players: Player[]): Player[] {
+  const cbs = players.filter((p) => CB_POSITIONS.has(p.position));
+  const slots = players.filter((p) => NICKEL_DIME_POSITIONS.has(p.position));
+  const other = players.filter((p) => !CB_POSITIONS.has(p.position) && !NICKEL_DIME_POSITIONS.has(p.position));
+  if (cbs.length >= 2) {
+    return [cbs[0], ...slots, ...other, ...cbs.slice(1)];
+  }
+  return [...cbs, ...slots, ...other];
 }
 
 function PlayerCard({
@@ -275,9 +308,8 @@ function FieldView({
   const defenseRows = groupPlayersByRows(defensePlayers, DEFENSE_ROW_ORDER);
   const offenseRows = groupPlayersByRows(offensePlayers, OFFENSE_ROW_ORDER);
   const halfH = fieldHeight / 2;
-  const PADDING = 14;
-  const defRowH = defenseRows.length > 0 ? (halfH - PADDING * 2) / defenseRows.length : 0;
-  const offRowH = offenseRows.length > 0 ? (halfH - PADDING * 2) / offenseRows.length : 0;
+  const CARD_H = 70; // approx player card height for centering
+  const offRowH = offenseRows.length > 0 ? (halfH - 14 * 2) / offenseRows.length : 0;
 
   return (
     <View style={{ width: fieldWidth, marginBottom: 4 }}>
@@ -289,7 +321,13 @@ function FieldView({
         <FootballField width={fieldWidth} height={fieldHeight} />
 
         {defenseRows.map((row, rowIdx) => {
-          const y = PADDING + rowIdx * defRowH;
+          const frac = DEFENSE_ROW_Y_FRACS[rowIdx] ?? (0.1 + rowIdx * 0.2);
+          const y = frac * halfH - CARD_H / 2;
+
+          const hasDLine = row.some((p) => DE_POSITIONS.has(p.position) || DT_POSITIONS.has(p.position));
+          const hasSecondary = row.some((p) => CB_POSITIONS.has(p.position) || NICKEL_DIME_POSITIONS.has(p.position));
+          const sortedRow = hasDLine ? sortDLine(row) : hasSecondary ? sortSecondary(row) : row;
+
           return (
             <View
               key={`def-row-${rowIdx}`}
@@ -298,14 +336,15 @@ function FieldView({
                 top: y,
                 left: 0,
                 width: fieldWidth,
-                height: defRowH,
                 flexDirection: "row",
                 justifyContent: "center",
                 alignItems: "center",
+                flexWrap: "wrap",
                 gap: 4,
+                paddingHorizontal: 4,
               }}
             >
-              {row.map((player) => (
+              {sortedRow.map((player) => (
                 <PlayerCard key={player.name} player={player} posColors={posColors} />
               ))}
             </View>
@@ -313,7 +352,7 @@ function FieldView({
         })}
 
         {offenseRows.map((row, rowIdx) => {
-          const y = halfH + PADDING + rowIdx * offRowH;
+          const y = halfH + 14 + rowIdx * offRowH;
           return (
             <View
               key={`off-row-${rowIdx}`}
@@ -406,7 +445,7 @@ export default function ViewTeams() {
       const res = await fetch(`${API_URL}/api/team/${summary.id}`);
       const result = await res.json();
       if (result.status === "Success" && result.data) {
-        setSelectedTeam(result.data);
+        setSelectedTeam({ ...result.data, players: assignLbLabels(result.data.players) });
       }
     } catch (_) {}
     setLoading(false);
