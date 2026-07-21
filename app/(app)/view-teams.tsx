@@ -1,16 +1,17 @@
 import {
   Text,
   ScrollView,
+  TouchableOpacity,
   View,
   Platform,
   useColorScheme,
   StyleSheet,
   Dimensions,
+  ActivityIndicator,
 } from "react-native";
 import Svg, {
   Rect,
   Line,
-  Ellipse,
   Text as SvgText,
 } from "react-native-svg";
 import {
@@ -159,105 +160,59 @@ function groupPlayersByRows(
 }
 
 function FootballField({ width, height }: { width: number; height: number }) {
-  const stripeCount = 10;
-  const stripeH = height / stripeCount;
+  // Pure playing field — no endzones, just 10 yards segments (defense goal line to offense goal line)
+  const totalSegments = 10;
+  const segH = height / totalSegments;
+  const stripeColors = ["#1a6b2a", "#1e7a30"];
+
+  // 9 yard lines at segment boundaries (10, 20, 30, 40, 50, 40, 30, 20, 10)
+  const yardLabels = ["10", "20", "30", "40", "50", "40", "30", "20", "10"];
+  const hashInset = width * 0.28;
+  const hashLen = 7;
+
   return (
-    <Svg
-      width={width}
-      height={height}
-      style={StyleSheet.absoluteFillObject}
-      pointerEvents="none"
-    >
-      <Rect x={0} y={0} width={width} height={height} fill="#1a6b2a" opacity={0.92} />
-      {Array.from({ length: stripeCount }).map((_, i) =>
-        i % 2 === 0 ? (
-          <Rect
-            key={i}
-            x={0}
-            y={i * stripeH}
-            width={width}
-            height={stripeH}
-            fill="#1e7a30"
-            opacity={0.6}
-          />
-        ) : null
-      )}
+    <Svg width={width} height={height} style={StyleSheet.absoluteFillObject} pointerEvents="none">
+      {/* Base */}
+      <Rect x={0} y={0} width={width} height={height} fill="#1a6b2a" />
 
-      {Array.from({ length: stripeCount + 1 }).map((_, i) => (
-        <Line
-          key={`h${i}`}
-          x1={0}
-          y1={i * stripeH}
-          x2={width}
-          y2={i * stripeH}
-          stroke="#ffffff"
-          strokeWidth={i === 0 || i === stripeCount ? 2.5 : 0.8}
-          opacity={0.35}
-        />
+      {/* Alternating stripes */}
+      {Array.from({ length: totalSegments }).map((_, i) => (
+        <Rect key={`s${i}`} x={0} y={i * segH} width={width} height={segH} fill={stripeColors[i % 2]} />
       ))}
 
-      {Array.from({ length: stripeCount }).map((_, i) => (
-        [width * 0.38, width * 0.62].map((x, j) => (
-          <Line
-            key={`v${i}-${j}`}
-            x1={x}
-            y1={i * stripeH}
-            x2={x}
-            y2={(i + 1) * stripeH}
-            stroke="#ffffff"
-            strokeWidth={0.5}
-            opacity={0.2}
-          />
-        ))
-      ))}
+      {/* Yard lines */}
+      {yardLabels.map((label, i) => {
+        const y = (i + 1) * segH;
+        const is50 = label === "50";
+        return (
+          <Line key={`yl${i}`} x1={0} y1={y} x2={width} y2={y}
+            stroke="#ffffff" strokeWidth={is50 ? 2.5 : 1.2} opacity={is50 ? 0.9 : 0.55} />
+        );
+      })}
 
-      <Line
-        x1={0}
-        y1={height / 2}
-        x2={width}
-        y2={height / 2}
-        stroke="#ffffff"
-        strokeWidth={2}
-        opacity={0.5}
-        strokeDasharray="8,6"
-      />
+      {/* Outer boundary */}
+      <Rect x={1} y={1} width={width - 2} height={height - 2} fill="none" stroke="#ffffff" strokeWidth={2} opacity={0.75} />
 
-      <Ellipse
-        cx={width / 2}
-        cy={height / 2}
-        rx={width * 0.07}
-        ry={height * 0.035}
-        stroke="#ffffff"
-        strokeWidth={1}
-        fill="none"
-        opacity={0.25}
-      />
+      {/* Hash marks */}
+      {yardLabels.map((_, i) => {
+        const y = (i + 1) * segH;
+        return [hashInset, width - hashInset].map((x, j) => (
+          <Line key={`h${i}-${j}`} x1={x} y1={y - hashLen / 2} x2={x} y2={y + hashLen / 2}
+            stroke="#ffffff" strokeWidth={1.5} opacity={0.65} />
+        ));
+      })}
 
-      <SvgText
-        x={width / 2}
-        y={height * 0.07}
-        textAnchor="middle"
-        fill="#ffffff"
-        fontSize={13}
-        fontWeight="bold"
-        opacity={0.22}
-        letterSpacing={4}
-      >
-        DEFENSE
-      </SvgText>
-
-      <SvgText
-        x={width / 2}
-        y={height * 0.95}
-        textAnchor="middle"
-        fill="#ffffff"
-        fontSize={13}
-        fontWeight="bold"
-        opacity={0.22}
-        letterSpacing={4}
-      >
-        OFFENSE
-      </SvgText>
+      {/* Yard number labels — left and right sides */}
+      {yardLabels.map((label, i) => {
+        const y = (i + 1) * segH - 4;
+        const is50 = label === "50";
+        return [width * 0.08, width * 0.92].map((x, j) => (
+          <SvgText key={`lbl${i}-${j}`} x={x} y={y} textAnchor="middle"
+            fill="#ffffff" fontSize={is50 ? 13 : 11} fontWeight="bold" opacity={is50 ? 0.85 : 0.55}>
+            {label}
+          </SvgText>
+        ));
+      })}
     </Svg>
   );
 }
@@ -300,13 +255,15 @@ function PlayerCard({
 function FieldView({
   team,
   posColors,
+  c,
 }: {
   team: Team;
   posColors: Record<string, { bg: string; text: string }>;
+  c: Record<string, string>;
 }) {
   const { width: screenWidth } = Dimensions.get("window");
   const fieldWidth = screenWidth - 32;
-  const fieldHeight = fieldWidth * 1.45;
+  const fieldHeight = fieldWidth * 1.9;
 
   const defensePlayers = team.players.filter((p) =>
     DEFENSE_POSITIONS.has(p.position)
@@ -318,62 +275,71 @@ function FieldView({
   const defenseRows = groupPlayersByRows(defensePlayers, DEFENSE_ROW_ORDER);
   const offenseRows = groupPlayersByRows(offensePlayers, OFFENSE_ROW_ORDER);
   const halfH = fieldHeight / 2;
-  const PADDING = 10;
+  const PADDING = 14;
   const defRowH = defenseRows.length > 0 ? (halfH - PADDING * 2) / defenseRows.length : 0;
   const offRowH = offenseRows.length > 0 ? (halfH - PADDING * 2) / offenseRows.length : 0;
 
   return (
-    <View style={[styles.fieldWrapper, { width: fieldWidth, height: fieldHeight }]}>
-      <FootballField width={fieldWidth} height={fieldHeight} />
+    <View style={{ width: fieldWidth, marginBottom: 4 }}>
+      <Text style={{ textAlign: "center", color: c.subtext, fontWeight: "800", fontSize: 13, letterSpacing: 3, marginBottom: 6 }}>
+        DEFENSE
+      </Text>
 
-      {defenseRows.map((row, rowIdx) => {
-        const y = PADDING + rowIdx * defRowH;
-        return (
-          <View
-            key={`def-row-${rowIdx}`}
-            style={{
-              position: "absolute",
-              top: y,
-              left: 0,
-              width: fieldWidth,
-              height: defRowH,
-              flexDirection: "row",
-              justifyContent: "center",
-              alignItems: "center",
-              gap: 4,
-            }}
-          >
-            {row.map((player) => (
-              <PlayerCard key={player.name} player={player} posColors={posColors} />
-            ))}
-          </View>
-        );
-      })}
+      <View style={[styles.fieldWrapper, { width: fieldWidth, height: fieldHeight }]}>
+        <FootballField width={fieldWidth} height={fieldHeight} />
 
-      {offenseRows.map((row, rowIdx) => {
-        const y = halfH + PADDING + rowIdx * offRowH;
+        {defenseRows.map((row, rowIdx) => {
+          const y = PADDING + rowIdx * defRowH;
+          return (
+            <View
+              key={`def-row-${rowIdx}`}
+              style={{
+                position: "absolute",
+                top: y,
+                left: 0,
+                width: fieldWidth,
+                height: defRowH,
+                flexDirection: "row",
+                justifyContent: "center",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
+              {row.map((player) => (
+                <PlayerCard key={player.name} player={player} posColors={posColors} />
+              ))}
+            </View>
+          );
+        })}
 
-        return (
-          <View
-            key={`off-row-${rowIdx}`}
-            style={{
-              position: "absolute",
-              top: y,
-              left: 0,
-              width: fieldWidth,
-              height: offRowH,
-              flexDirection: "row",
-              justifyContent: "center",
-              alignItems: "center",
-              gap: 4,
-            }}
-          >
-            {row.map((player) => (
-              <PlayerCard key={player.name} player={player} posColors={posColors} />
-            ))}
-          </View>
-        );
-      })}
+        {offenseRows.map((row, rowIdx) => {
+          const y = halfH + PADDING + rowIdx * offRowH;
+          return (
+            <View
+              key={`off-row-${rowIdx}`}
+              style={{
+                position: "absolute",
+                top: y,
+                left: 0,
+                width: fieldWidth,
+                height: offRowH,
+                flexDirection: "row",
+                justifyContent: "center",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
+              {row.map((player) => (
+                <PlayerCard key={player.name} player={player} posColors={posColors} />
+              ))}
+            </View>
+          );
+        })}
+      </View>
+
+      <Text style={{ textAlign: "center", color: c.subtext, fontWeight: "800", fontSize: 13, letterSpacing: 3, marginTop: 6 }}>
+        OFFENSE
+      </Text>
     </View>
   );
 }
@@ -384,6 +350,7 @@ export default function ViewTeams() {
   const posColors = isDark ? POS_COLORS_DARK : POS_COLORS_LIGHT;
 
   const [teamSummaries, setTeamSummaries] = useState<TeamSummary[]>([]);
+  const [selectedTeamName, setSelectedTeamName] = useState<string>("");
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -425,8 +392,13 @@ export default function ViewTeams() {
     fetchTeams();
   }, []);
 
-  const handleSelectTeam = async (teamName: string) => {
-    const summary = teamSummaries.find((t) => t.team_name === teamName);
+  const handleSelectTeam = (teamName: string) => {
+    setSelectedTeamName(teamName);
+    setSelectedTeam(null);
+  };
+
+  const handleViewTeam = async () => {
+    const summary = teamSummaries.find((t) => t.team_name === selectedTeamName);
     if (!summary) return;
     setLoading(true);
     setSelectedTeam(null);
@@ -459,7 +431,7 @@ export default function ViewTeams() {
                 Choose Team
               </FormControlLabelText>
             </FormControlLabel>
-            <Select onValueChange={handleSelectTeam}>
+            <Select onValueChange={handleSelectTeam} selectedValue={selectedTeamName}>
               <SelectTrigger
                 variant="outline"
                 size="lg"
@@ -485,13 +457,24 @@ export default function ViewTeams() {
             </Select>
           </VStack>
         </FormControl>
-      </View>
 
-      {loading && (
-        <Text style={[styles.subtitle, { color: c.subtext, marginTop: 20 }]}>
-          Loading roster...
-        </Text>
-      )}
+        <TouchableOpacity
+          style={[
+            styles.viewButton,
+            { backgroundColor: selectedTeamName && !loading ? (isDark ? "#edf5ff" : "#02080f") : "#9ca3af" },
+          ]}
+          disabled={!selectedTeamName || loading}
+          onPress={handleViewTeam}
+        >
+          {loading ? (
+            <ActivityIndicator color={isDark ? "#02080f" : "#edf5ff"} />
+          ) : (
+            <Text style={[styles.viewButtonText, { color: isDark ? "#02080f" : "#edf5ff" }]}>
+              View Team
+            </Text>
+          )}
+        </TouchableOpacity>
+      </View>
 
       {selectedTeam && !loading && (
         <>
@@ -522,7 +505,7 @@ export default function ViewTeams() {
             </View>
           </View>
 
-          <FieldView team={selectedTeam} posColors={posColors} />
+          <FieldView team={selectedTeam} posColors={posColors} c={c} />
 
           <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border, marginTop: 16 }]}>
             <Text style={[styles.sectionTitle, { color: c.text }]}>Full Roster</Text>
@@ -670,5 +653,15 @@ const styles = StyleSheet.create({
   },
   rosterTeam: {
     fontSize: 12,
+  },
+  viewButton: {
+    padding: 14,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 4,
+  },
+  viewButtonText: {
+    fontWeight: "700",
+    fontSize: 16,
   },
 });

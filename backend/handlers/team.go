@@ -39,12 +39,12 @@ func (h *teamHandler) GetMany(c *fiber.Ctx) error {
 }
 
 func (h *teamHandler) GetOne(c *fiber.Ctx) error {
-	teamId, _ := strconv.Atoi(c.Params("teamId"))
+	teamId := c.Params("teamId")
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(5*time.Second))
 	defer cancel()
 
-	team, err := h.repository.GetOne(ctx, uint(teamId))
+	team, err := h.repository.GetOne(ctx, teamId)
 
 	if err != nil {
 		return c.Status(fiber.StatusBadGateway).JSON(&fiber.Map{

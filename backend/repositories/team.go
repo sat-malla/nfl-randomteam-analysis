@@ -28,8 +28,13 @@ func (r *TeamRepository) GetMany(ctx context.Context) ([]*models.Team, error) {
 	return teams, nil
 }
 
-func (r *TeamRepository) GetOne(ctx context.Context, teamId uint) (*models.Team, error) {
-	teamResult := r.collection.FindOne(ctx, bson.M{"_id": teamId})
+func (r *TeamRepository) GetOne(ctx context.Context, teamId string) (*models.Team, error) {
+	oid, err := primitive.ObjectIDFromHex(teamId)
+	if err != nil {
+		return nil, err
+	}
+
+	teamResult := r.collection.FindOne(ctx, bson.M{"_id": oid})
 
 	if teamResult.Err() != nil {
 		return nil, teamResult.Err()
