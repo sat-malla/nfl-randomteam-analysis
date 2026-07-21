@@ -116,6 +116,12 @@ export default function RootLayout() {
             title: "View Teams",
           }}
         />
+        <Stack.Screen
+          name="modes"
+          options={{
+            title: "Modes",
+          }}
+        />
       </Stack>
       <Drawer
         isOpen={showDrawer}

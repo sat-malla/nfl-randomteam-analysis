@@ -1,5 +1,4 @@
 import { LinearGradient } from "expo-linear-gradient";
-import { Href, useRouter } from "expo-router";
 import {
   ScrollView,
   StyleSheet,
@@ -9,67 +8,39 @@ import {
   View,
 } from "react-native";
 
-export default function Index() {
+const SKEW = "-8deg";
+
+const ModeButtons = [
+  { id: 1, title: "Simulate Game" },
+  { id: 2, title: "Optimal Team" },
+];
+
+export default function Modes() {
   const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
 
-  const themeContainerStyle =
-    colorScheme === "light" ? styles.lightContainer : styles.darkContainer;
-  const themeTextStyle =
-    colorScheme === "light" ? styles.lightText : styles.darkText;
-
-  const router = useRouter();
-
-  const GridButtons = [
-    { id: 1, title: "Generate New Team", link: "/generate-team" },
-    { id: 2, title: "View Generated Teams", link: "/view-teams" },
-    { id: 3, title: "Analyze Team", link: "/analyze-team" },
-    { id: 4, title: "Modes", link: "/modes" },
-    { id: 5, title: "How it Works", link: "/" },
-  ];
+  const themeContainerStyle = isDark ? styles.darkContainer : styles.lightContainer;
+  const themeTextStyle = isDark ? styles.darkText : styles.lightText;
 
   return (
     <ScrollView
       style={[styles.scrollView, themeContainerStyle]}
-      contentContainerStyle={[styles.container]}
+      contentContainerStyle={styles.container}
       showsVerticalScrollIndicator={false}
     >
-      <Text
-        style={[
-          {
-            fontSize: 25,
-            fontFamily: "Montserrat_700Bold",
-            marginTop: 40,
-            textAlign: "center",
-          },
-          themeTextStyle,
-        ]}
-      >
-        Welcome to the NFL Random Team Generator & Analysis
-      </Text>
-      <Text
-        style={[
-          {
-            fontSize: 20,
-            fontFamily: "Montserrat_400Regular",
-            marginTop: 15,
-            textAlign: "center",
-          },
-          themeTextStyle,
-        ]}
-      >
-        Click the Options Below to Explore!
+      <Text style={[styles.title, themeTextStyle]}>Modes</Text>
+      <Text style={[styles.subtitle, themeTextStyle]}>
+        Select a game mode below to get started!
       </Text>
 
       <View style={styles.buttonList}>
-        {GridButtons.map((item) => (
+        {ModeButtons.map((item) => (
           <TouchableOpacity
             key={item.id}
-            onPress={() => router.navigate(item.link as Href)}
             activeOpacity={0.8}
             style={styles.buttonWrapper}
           >
             <View style={styles.borderLayer} />
-
             <LinearGradient
               colors={["#b0d3ff", "#deedff"]}
               style={styles.button}
@@ -85,8 +56,6 @@ export default function Index() {
     </ScrollView>
   );
 }
-
-const SKEW = "-8deg";
 
 const styles = StyleSheet.create({
   scrollView: {
@@ -108,6 +77,18 @@ const styles = StyleSheet.create({
   },
   darkText: {
     color: "#edf5ff",
+  },
+  title: {
+    fontSize: 28,
+    fontFamily: "Montserrat_700Bold",
+    marginTop: 40,
+    textAlign: "center",
+  },
+  subtitle: {
+    fontSize: 16,
+    fontFamily: "Montserrat_400Regular",
+    marginTop: 12,
+    textAlign: "center",
   },
   buttonList: {
     width: "100%",
@@ -150,15 +131,5 @@ const styles = StyleSheet.create({
     transform: [{ skewX: "8deg" }],
     fontSize: 18,
     color: "#02080f",
-  },
-  text: {
-    fontSize: 29,
-    fontFamily: "Montserrat_700Bold",
-    marginTop: 40,
-  },
-  gridRow: {
-    flex: 1,
-    justifyContent: "space-between",
-    marginBottom: 30,
   },
 });

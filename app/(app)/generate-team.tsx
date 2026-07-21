@@ -580,9 +580,9 @@ const GenerateTeam = () => {
       <View style={[styles.formContainer, themeFormStyle]}>
         <FormControl size="lg">
           <VStack space="md">
-            <Heading size="lg" style={{ fontFamily: "Montserrat_700Bold" }}>Team Preferences</Heading>
+            <Heading size="lg">Team Preferences</Heading>
             <FormControlLabel style={{ marginTop: 15 }}>
-              <FormControlLabelText style={{ fontFamily: "Montserrat_700Bold" }}>Team Name</FormControlLabelText>
+              <FormControlLabelText style={{ fontFamily: "Montserrat_400Regular" }}>Team Name</FormControlLabelText>
             </FormControlLabel>
             <Input size="lg">
               <InputField
@@ -596,7 +596,7 @@ const GenerateTeam = () => {
               />
             </Input>
             <FormControlLabel style={{ marginTop: 15 }}>
-              <FormControlLabelText style={{ fontFamily: "Montserrat_700Bold" }}>Type of Offense</FormControlLabelText>
+              <FormControlLabelText style={{ fontFamily: "Montserrat_400Regular" }}>Type of Offense</FormControlLabelText>
             </FormControlLabel>
             <Select
               onValueChange={(value) =>
@@ -632,7 +632,7 @@ const GenerateTeam = () => {
               </SelectPortal>
             </Select>
             <FormControlLabel style={{ marginTop: 15 }}>
-              <FormControlLabelText style={{ fontFamily: "Montserrat_700Bold" }}>Type of Defense</FormControlLabelText>
+              <FormControlLabelText style={{ fontFamily: "Montserrat_400Regular" }}>Type of Defense</FormControlLabelText>
             </FormControlLabel>
             <Select
               onValueChange={(value) =>
@@ -757,7 +757,6 @@ const styles = StyleSheet.create({
     width: "100%",
     borderRadius: 14,
     borderWidth: 1,
-    fontFamily: "Montserrat_400Regular",
   },
   lightForm: {
     backgroundColor: "#ffffff",
