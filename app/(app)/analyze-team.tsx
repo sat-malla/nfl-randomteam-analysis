@@ -6,6 +6,11 @@ import {
   View,
   Platform,
   ActivityIndicator,
+  Animated,
+  Modal,
+  KeyboardAvoidingView,
+  TextInput,
+  FlatList,
 } from "react-native";
 import { useColorScheme } from "react-native";
 import { StyleSheet } from "react-native";
@@ -28,7 +33,7 @@ import {
 } from "@/components/ui/form-control";
 import { ChevronDownIcon } from "@/components/ui/icon";
 import { VStack } from "@/components/ui/vstack";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import * as Application from "expo-application";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -353,6 +358,162 @@ function TeamStatsGrid({ analysis, c, isDark }: TeamStatsGridProps) {
   );
 }
 
+type ChatMessage = {
+  id: string;
+  role: "ai" | "user";
+  text: string;
+};
+
+type AIChatPanelProps = {
+  visible: boolean;
+  onClose: () => void;
+  teamId: string;
+  analysis: AnalysisResult;
+  c: Record<string, string>;
+  isDark: boolean;
+};
+
+function AIChatPanel({ visible, onClose, teamId, analysis, c, isDark }: AIChatPanelProps) {
+  const INITIAL_MSG: ChatMessage = {
+    id: "init",
+    role: "ai",
+    text: "Press Summarize to get an AI breakdown of your team's analysis.",
+  };
+
+  const [messages, setMessages] = useState<ChatMessage[]>([INITIAL_MSG]);
+  const [input, setInput] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const flatRef = useRef<FlatList>(null);
+
+  useEffect(() => {
+    if (visible) {
+      setMessages([INITIAL_MSG]);
+      setInput("");
+    }
+  }, [visible, teamId]);
+
+  const sendToAI = async (userText: string) => {
+    const userMsg: ChatMessage = { id: `u-${Date.now()}`, role: "user", text: userText };
+    setMessages((prev) => [...prev, userMsg]);
+    setInput("");
+    setAiLoading(true);
+
+    try {
+      const res = await fetch(`${API_URL}/api/analysis/summarize/${teamId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: userText, analysis }),
+      });
+      const data = await res.json();
+      const reply = data.summary ?? data.message ?? "No response from AI.";
+      setMessages((prev) => [...prev, { id: `a-${Date.now()}`, role: "ai", text: reply }]);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        { id: `a-err-${Date.now()}`, role: "ai", text: "Couldn't reach the AI backend. Make sure it's running." },
+      ]);
+    } finally {
+      setAiLoading(false);
+      setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
+    }
+  };
+
+  const panelBg = isDark ? "#0d1f2d" : "#ffffff";
+  const inputBg = isDark ? "#132130" : "#f1f5f9";
+  const aiBubble = isDark ? "#1e3a52" : "#dbeafe";
+  const aiBubbleText = isDark ? "#edf5ff" : "#02080f";
+  const userBubble = isDark ? "#1d4ed8" : "#1d4ed8";
+
+  return (
+    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
+      <View style={aiStyles.overlay} pointerEvents="box-none">
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={aiStyles.kvWrapper}
+          pointerEvents="box-none"
+        >
+          <View style={[aiStyles.panel, { backgroundColor: panelBg, borderColor: c.border, shadowColor: isDark ? "#000" : "#003" }]}>
+            {/* Header */}
+            <View style={[aiStyles.panelHeader, { borderBottomColor: c.border }]}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <View style={aiStyles.aiDot} />
+                <Text style={{ fontSize: 15, fontWeight: "700", color: c.text }}>AI Analysis</Text>
+              </View>
+              <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Text style={{ fontSize: 20, color: c.subtext, lineHeight: 24 }}>×</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Messages */}
+            <FlatList
+              ref={flatRef}
+              data={messages}
+              keyExtractor={(m) => m.id}
+              style={{ flex: 1 }}
+              contentContainerStyle={{ padding: 12, gap: 8 }}
+              onContentSizeChange={() => flatRef.current?.scrollToEnd({ animated: false })}
+              renderItem={({ item }) => (
+                <View
+                  style={[
+                    aiStyles.bubble,
+                    item.role === "ai"
+                      ? { alignSelf: "flex-start", backgroundColor: aiBubble }
+                      : { alignSelf: "flex-end", backgroundColor: userBubble },
+                  ]}
+                >
+                  <Text style={{ fontSize: 13, color: item.role === "ai" ? aiBubbleText : "#ffffff", lineHeight: 18 }}>
+                    {item.text}
+                  </Text>
+                </View>
+              )}
+              ListFooterComponent={
+                aiLoading ? (
+                  <View style={[aiStyles.bubble, { alignSelf: "flex-start", backgroundColor: aiBubble }]}>
+                    <ActivityIndicator size="small" color={c.subtext} />
+                  </View>
+                ) : null
+              }
+            />
+
+            {/* Summarize quick action */}
+            {messages.length === 1 && !aiLoading && (
+              <View style={{ paddingHorizontal: 12, paddingBottom: 8 }}>
+                <TouchableOpacity
+                  style={[aiStyles.summarizeBtn, { backgroundColor: isDark ? "#1d4ed8" : "#1d4ed8" }]}
+                  onPress={() => sendToAI("Summarize this team's analysis")}
+                >
+                  <Text style={{ color: "#ffffff", fontWeight: "700", fontSize: 14 }}>✦ Summarize</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Input row */}
+            <View style={[aiStyles.inputRow, { borderTopColor: c.border, backgroundColor: panelBg }]}>
+              <TextInput
+                style={[aiStyles.textInput, { backgroundColor: inputBg, color: c.text }]}
+                placeholder="Ask about your team..."
+                placeholderTextColor={c.subtext}
+                value={input}
+                onChangeText={setInput}
+                returnKeyType="send"
+                onSubmitEditing={() => { if (input.trim()) sendToAI(input.trim()); }}
+                editable={!aiLoading}
+              />
+              <TouchableOpacity
+                style={[aiStyles.sendBtn, { backgroundColor: input.trim() && !aiLoading ? "#1d4ed8" : "#9ca3af" }]}
+                onPress={() => { if (input.trim() && !aiLoading) sendToAI(input.trim()); }}
+                disabled={!input.trim() || aiLoading}
+              >
+                <Text style={{ color: "#ffffff", fontWeight: "700", fontSize: 16 }}>↑</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </View>
+    </Modal>
+  );
+}
+
 const AnalyzeTeam = () => {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -365,6 +526,8 @@ const AnalyzeTeam = () => {
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [hasSaved, setHasSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [aiPanelOpen, setAiPanelOpen] = useState(false);
+  const fabOpacity = useRef(new Animated.Value(0)).current;
 
   const getDeviceUuid = async () => {
     let deviceUuid = "test-device-uuid";
@@ -376,6 +539,18 @@ const AnalyzeTeam = () => {
     }
     return deviceUuid;
   };
+
+  useEffect(() => {
+    if (hasSaved && analysis) {
+      Animated.timing(fabOpacity, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      fabOpacity.setValue(0);
+    }
+  }, [hasSaved, analysis]);
 
   useEffect(() => {
     const fetchTeams = async () => {
@@ -479,8 +654,9 @@ const AnalyzeTeam = () => {
         : c.red;
 
   return (
+    <View style={{ flex: 1, backgroundColor: c.bg }}>
     <ScrollView
-      style={{ flex: 1, backgroundColor: c.bg }}
+      style={{ flex: 1 }}
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={true}
       keyboardShouldPersistTaps="handled"
@@ -953,6 +1129,30 @@ const AnalyzeTeam = () => {
         </>
       )}
     </ScrollView>
+
+    {/* Floating AI button — fades in once analysis is ready */}
+    <Animated.View style={[aiStyles.fab, { opacity: fabOpacity }]} pointerEvents={hasSaved && analysis ? "auto" : "none"}>
+      <TouchableOpacity
+        style={[aiStyles.fabBtn, { backgroundColor: isDark ? "#1d4ed8" : "#1d4ed8", shadowColor: isDark ? "#000" : "#003" }]}
+        onPress={() => setAiPanelOpen(true)}
+        activeOpacity={0.85}
+      >
+        <Text style={{ fontSize: 20 }}>✦</Text>
+        <Text style={{ color: "#ffffff", fontWeight: "700", fontSize: 12, marginTop: 1 }}>AI</Text>
+      </TouchableOpacity>
+    </Animated.View>
+
+    {analysis && (
+      <AIChatPanel
+        visible={aiPanelOpen}
+        onClose={() => setAiPanelOpen(false)}
+        teamId={selectedTeamId}
+        analysis={analysis}
+        c={c}
+        isDark={isDark}
+      />
+    )}
+    </View>
   );
 };
 
@@ -1142,6 +1342,98 @@ const styles = StyleSheet.create({
   statRange: {
     fontSize: 12,
     marginLeft: 8,
+  },
+});
+
+const aiStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+    alignItems: "flex-end",
+  },
+  kvWrapper: {
+    width: "100%",
+    alignItems: "flex-end",
+    justifyContent: "flex-end",
+  },
+  panel: {
+    width: "92%",
+    maxWidth: 380,
+    height: 420,
+    borderRadius: 18,
+    borderWidth: 1,
+    marginBottom: 100,
+    marginRight: 16,
+    overflow: "hidden",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  panelHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  aiDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#22c55e",
+  },
+  bubble: {
+    maxWidth: "82%",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 14,
+    marginBottom: 4,
+  },
+  summarizeBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    gap: 8,
+  },
+  textInput: {
+    flex: 1,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    fontSize: 13,
+  },
+  sendBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  fab: {
+    position: "absolute",
+    bottom: 28,
+    right: 20,
+  },
+  fabBtn: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
 });
 
