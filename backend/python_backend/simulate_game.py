@@ -150,12 +150,15 @@ def get_pos_dist_mean(position: str, stat: str) -> float:
     return mean
 
 
+DEF_POSITIONS = {"DE", "DT", "NT", "LB", "OLB", "ILB", "MLB", "CB", "FS", "SS", "S", "SAF"}
+
 def build_player_dist(player_df: pd.DataFrame, name: str, position: str, depth_slot: int = 1) -> dict:
     """Build per-game truncated-normal distributions for one player."""
     stat_cols = POS_STAT_MAPPING.get(position, [])
     dists = {}
     caps = _POS_STAT_CAPS_PER_GAME.get(position, {})
-    scale = DEPTH_SLOT_SCALE.get(depth_slot, 0.3)
+    # Defensive players all play every snap — depth slot scaling doesn't apply.
+    scale = 1.0 if position in DEF_POSITIONS else DEPTH_SLOT_SCALE.get(depth_slot, 0.3)
 
     player_data = player_df[player_df["player_display_name"] == name].copy() if not player_df.empty else pd.DataFrame()
 
@@ -369,10 +372,17 @@ def _quarter_label(q: int) -> str:
     return ["Q1", "Q2", "Q3", "Q4"][q - 1]
 
 
-def generate_play_by_play(user_game: dict, opp_game: dict, user_team: dict, opp_name: str) -> tuple[list[dict], int, int]:
+def generate_play_by_play(user_game: dict, opp_game: dict, user_team: dict, opp_name: str) -> tuple[list[dict], int, int, dict]:
     plays = []
     user_score = 0
     opp_score = 0
+
+    td_log: dict[str, dict[str, int]] = {}
+
+    def _td_add(name: str, stat: str):
+        if name not in td_log:
+            td_log[name] = {"passing_tds": 0, "rushing_tds": 0, "receiving_tds": 0}
+        td_log[name][stat] += 1
 
     qb = next((p["name"] for p in user_team["players"] if p["position"] == "QB"), "QB")
     kicker = next((p["name"] for p in user_team["players"] if p["position"] == "K"), "K")
@@ -454,11 +464,16 @@ def generate_play_by_play(user_game: dict, opp_game: dict, user_team: dict, opp_
             if etype == "passing_td":
                 yds = random.randint(5, 38)
                 user_score += 7
-                text = _pick("passing_td", qb=qb, receiver=rand_receiver(), yards=yds)
+                receiver = rand_receiver()
+                _td_add(qb, "passing_tds")
+                _td_add(receiver, "receiving_tds")
+                text = _pick("passing_td", qb=qb, receiver=receiver, yards=yds)
             elif etype == "rushing_td":
                 yds = random.randint(1, 14)
                 user_score += 7
-                text = _pick("rushing_td", rusher=rand_rusher(), yards=yds)
+                rusher = rand_rusher()
+                _td_add(rusher, "rushing_tds")
+                text = _pick("rushing_td", rusher=rusher, yards=yds)
             elif etype == "fg_good":
                 yds = random.randint(22, 54)
                 user_score += 3
@@ -497,7 +512,7 @@ def generate_play_by_play(user_game: dict, opp_game: dict, user_team: dict, opp_
                 continue
             add(q, opp_name, text, etype)
 
-    return plays, user_score, opp_score
+    return plays, user_score, opp_score, td_log
 
 def _passer_rating(yards: float, tds: float, ints: float, attempts: float) -> float:
     """NFL passer rating formula (0-158.3 scale)."""
@@ -696,8 +711,19 @@ def run_game_simulation(team_id: str, nfl_opponent: str, season: int, is_home: b
 
     user_name = team.get("team_name", "Your Team")
 
-    plays, user_score, opp_score = generate_play_by_play(user_game, opp_game, team, nfl_opponent)
+    plays, user_score, opp_score, td_log = generate_play_by_play(user_game, opp_game, team, nfl_opponent)
     winner = user_name if user_score > opp_score else (nfl_opponent if opp_score > user_score else "TIE")
+
+    for pname, pstats in user_game.items():
+        for td_key in ("passing_tds", "rushing_tds", "receiving_tds"):
+            if td_key in pstats:
+                pstats[td_key] = 0
+    for pname, scored in td_log.items():
+        if pname not in user_game:
+            user_game[pname] = {}
+        for td_key, count in scored.items():
+            if count > 0:
+                user_game[pname][td_key] = count
 
     box = build_box_score(user_game, team["players"])
 
