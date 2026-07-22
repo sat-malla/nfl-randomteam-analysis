@@ -332,18 +332,30 @@ _PLAYS = {
         "Can't convert the third down... punt time.",
         "Forced into a punt after a tough series.",
     ],
-    "opp_td": [
-        "{opponent} quarterback finds the end zone... touchdown {opponent}!",
-        "{opponent} running back breaks free for the score!",
-        "{opponent} strikes back with a touchdown drive.",
+    "opp_passing_td": [
+        "{opp_qb} drops back, fires to {opp_receiver}... TOUCHDOWN! {yards}-yard score for {opponent}!",
+        "{opp_qb} threads the needle to {opp_receiver} in the end zone! {yards}-yard TD!",
+        "Beautiful throw from {opp_qb}, {opp_receiver} hauls it in for a {yards}-yard TD!",
+        "{opp_qb} rolls out and finds {opp_receiver} for a {yards}-yard touchdown!",
+    ],
+    "opp_rushing_td": [
+        "{opp_rusher} breaks through the line... TOUCHDOWN! {yards}-yard run for {opponent}!",
+        "{opp_rusher} powers through contact and punches it in from {yards} yards!",
+        "Up the gut for {opp_rusher}... {yards}-yard TD run!",
+        "{opp_rusher} breaks a tackle and walks into the end zone from {yards} out!",
     ],
     "opp_fg": [
-        "{opponent} converts a field goal attempt... 3 points.",
-        "Field goal is good for {opponent}.",
+        "{opp_kicker} lines it up from {yards} yards... it's GOOD! 3 points for {opponent}.",
+        "Field goal is good for {opponent}. {opp_kicker} splits the uprights from {yards}.",
+    ],
+    "opp_fg_miss": [
+        "{opp_kicker} misses from {yards} yards. No good for {opponent}.",
+        "Wide right! {opp_kicker}'s attempt from {yards} yards falls short.",
     ],
     "opp_punt": [
-        "{opponent} punts it away after a three-and-out.",
-        "{opponent} offense stalls... punting.",
+        "{opp_punter} punts it away after a three-and-out.",
+        "{opponent} offense stalls... {opp_punter} comes on to punt.",
+        "Three-and-out for {opponent}. {opp_punter} booms it downfield.",
     ],
     "turnover_on_downs": [
         "Fourth-and-short attempt fails... turnover on downs.",
@@ -372,7 +384,7 @@ def _quarter_label(q: int) -> str:
     return ["Q1", "Q2", "Q3", "Q4"][q - 1]
 
 
-def generate_play_by_play(user_game: dict, opp_game: dict, user_team: dict, opp_name: str) -> tuple[list[dict], int, int, dict]:
+def generate_play_by_play(user_game: dict, opp_game: dict, user_team: dict, opp_name: str, opp_roster: list) -> tuple[list[dict], int, int, dict]:
     plays = []
     user_score = 0
     opp_score = 0
@@ -396,7 +408,17 @@ def generate_play_by_play(user_game: dict, opp_game: dict, user_team: dict, opp_
     def rand_rusher(): return random.choice(rushers) if rushers else "RB"
     def rand_defender(): return random.choice(defenders) if defenders else "DEF"
 
-    SCORE_ETYPES = {"passing_td", "rushing_td", "fg_good", "opp_td", "opp_fg"}
+    # Opponent named players from actual fetched roster
+    opp_qb = next((p["name"] for p in opp_roster if p["position"] == "QB"), opp_name + " QB")
+    opp_kicker = next((p["name"] for p in opp_roster if p["position"] == "K"), opp_name + " K")
+    opp_punter = next((p["name"] for p in opp_roster if p["position"] == "P"), opp_name + " P")
+    opp_receivers = [p["name"] for p in opp_roster if p["position"] in ("WR", "TE")]
+    opp_rushers = [p["name"] for p in opp_roster if p["position"] in ("RB", "FB")]
+
+    def rand_opp_receiver(): return random.choice(opp_receivers) if opp_receivers else opp_name + " WR"
+    def rand_opp_rusher(): return random.choice(opp_rushers) if opp_rushers else opp_name + " RB"
+
+    SCORE_ETYPES = {"passing_td", "rushing_td", "fg_good", "opp_passing_td", "opp_rushing_td", "opp_fg"}
 
     def add(q: int, team: str, text: str, etype: str):
         plays.append({
@@ -443,7 +465,8 @@ def generate_play_by_play(user_game: dict, opp_game: dict, user_team: dict, opp_
     spread("sack", user_sacks, "user")
     spread("interception", user_ints, "user")
 
-    spread("opp_td", opp_pass_tds + opp_rush_tds, "opp")
+    spread("opp_passing_td", opp_pass_tds, "opp")
+    spread("opp_rushing_td", opp_rush_tds, "opp")
     opp_fg_miss = max(0, opp_fg_att - opp_fg_made)
     spread("opp_fg", opp_fg_made, "opp")
     spread("opp_fg_miss", opp_fg_miss, "opp")
@@ -500,14 +523,23 @@ def generate_play_by_play(user_game: dict, opp_game: dict, user_team: dict, opp_
                 continue
             add(q, user_name, text, etype)
         else:
-            if etype == "opp_td":
+            if etype == "opp_passing_td":
                 opp_score += 7
-                text = _pick("opp_td", opponent=opp_name)
+                yds = random.randint(5, 38)
+                text = _pick("opp_passing_td", opponent=opp_name, opp_qb=opp_qb, opp_receiver=rand_opp_receiver(), yards=yds)
+            elif etype == "opp_rushing_td":
+                opp_score += 7
+                yds = random.randint(1, 14)
+                text = _pick("opp_rushing_td", opponent=opp_name, opp_rusher=rand_opp_rusher(), yards=yds)
             elif etype == "opp_fg":
                 opp_score += 3
-                text = _pick("opp_fg", opponent=opp_name)
-            elif etype in ("opp_fg_miss", "opp_punt"):
-                text = _pick("opp_punt", opponent=opp_name)
+                yds = random.randint(22, 54)
+                text = _pick("opp_fg", opponent=opp_name, opp_kicker=opp_kicker, yards=yds)
+            elif etype == "opp_fg_miss":
+                yds = random.randint(45, 58)
+                text = _pick("opp_fg_miss", opponent=opp_name, opp_kicker=opp_kicker, yards=yds)
+            elif etype == "opp_punt":
+                text = _pick("opp_punt", opponent=opp_name, opp_punter=opp_punter)
             else:
                 continue
             add(q, opp_name, text, etype)
@@ -711,7 +743,7 @@ def run_game_simulation(team_id: str, nfl_opponent: str, season: int, is_home: b
 
     user_name = team.get("team_name", "Your Team")
 
-    plays, user_score, opp_score, td_log = generate_play_by_play(user_game, opp_game, team, nfl_opponent)
+    plays, user_score, opp_score, td_log = generate_play_by_play(user_game, opp_game, team, nfl_opponent, opp_roster)
     winner = user_name if user_score > opp_score else (nfl_opponent if opp_score > user_score else "TIE")
 
     for pname, pstats in user_game.items():

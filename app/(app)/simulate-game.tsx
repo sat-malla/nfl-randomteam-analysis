@@ -417,7 +417,7 @@ export default function SimulateGame() {
               </View>
               <View style={styles.scoreTeam}>
                 <Text style={[styles.scoreTeamName, { color: c.text }]} numberOfLines={2}>
-                  {result.opponent}
+                  {result.season} {result.opponent}
                 </Text>
                 <Text style={[styles.scoreNum, { color: winnerColor }]}>
                   {result.final_score.opponent}
@@ -425,9 +425,6 @@ export default function SimulateGame() {
               </View>
             </View>
             <Text style={[styles.winnerBadge, { color: winnerColor }]}>{winnerLabel}</Text>
-            <Text style={[styles.seasonLabel, { color: c.subtext }]}>
-            {result.season} NFL Season {result.opponent}
-            </Text>
           </View>
 
           {result.box_score.length > 0 && (
@@ -713,6 +710,7 @@ const styles = StyleSheet.create({
   playContent: {
     paddingLeft: 10,
     gap: 2,
+    flex: 1,
   },
   playTeamLabel: {
     fontFamily: "Montserrat_700Bold",
