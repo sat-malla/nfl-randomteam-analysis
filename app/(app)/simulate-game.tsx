@@ -43,12 +43,13 @@ type PlayEntry = {
   team: string;
   play: string;
   score: string;
+  is_score?: boolean;
 };
 
 type BoxEntry = {
   name: string;
   position: string;
-  stats: Record<string, number>;
+  stats: Record<string, number | string>;
 };
 
 type SimResult = {
@@ -68,6 +69,62 @@ const QUARTER_COLORS: Record<string, string> = {
   Q4: "#ef4444",
 };
 
+const POS_COLORS_LIGHT: Record<string, { bg: string; text: string }> = {
+  QB: { bg: "#dc2626", text: "#ffffff" },
+  RB: { bg: "#1f55ed", text: "#ffffff" },
+  FB: { bg: "#1d4ed8", text: "#ffffff" },
+  WR: { bg: "#059669", text: "#ffffff" },
+  TE: { bg: "#d97706", text: "#ffffff" },
+  OT: { bg: "#7c3aed", text: "#ffffff" },
+  G: { bg: "#7c3aed", text: "#ffffff" },
+  C: { bg: "#7c3aed", text: "#ffffff" },
+  OL: { bg: "#7c3aed", text: "#ffffff" },
+  DE: { bg: "#ea580c", text: "#ffffff" },
+  DT: { bg: "#ea580c", text: "#ffffff" },
+  NT: { bg: "#ea580c", text: "#ffffff" },
+  DL: { bg: "#ea580c", text: "#ffffff" },
+  LB: { bg: "#db2777", text: "#ffffff" },
+  ILB: { bg: "#db2777", text: "#ffffff" },
+  OLB: { bg: "#db2777", text: "#ffffff" },
+  MLB: { bg: "#db2777", text: "#ffffff" },
+  CB: { bg: "#0891b2", text: "#ffffff" },
+  S: { bg: "#004c75", text: "#ffffff" },
+  FS: { bg: "#004c75", text: "#ffffff" },
+  SS: { bg: "#004c75", text: "#ffffff" },
+  SAF: { bg: "#004c75", text: "#ffffff" },
+  K: { bg: "#1ec95d", text: "#ffffff" },
+  P: { bg: "#21ccb2", text: "#ffffff" },
+  RS: { bg: "#4d2325", text: "#ffffff" },
+};
+
+const POS_COLORS_DARK: Record<string, { bg: string; text: string }> = {
+  QB: { bg: "#f87171", text: "#000000" },
+  RB: { bg: "#6b8ef5", text: "#000000" },
+  FB: { bg: "#60a5fa", text: "#000000" },
+  WR: { bg: "#34d399", text: "#000000" },
+  TE: { bg: "#fbbf24", text: "#000000" },
+  OT: { bg: "#a78bfa", text: "#000000" },
+  G: { bg: "#a78bfa", text: "#000000" },
+  C: { bg: "#a78bfa", text: "#000000" },
+  OL: { bg: "#a78bfa", text: "#000000" },
+  DE: { bg: "#fb923c", text: "#000000" },
+  DT: { bg: "#fb923c", text: "#000000" },
+  NT: { bg: "#fb923c", text: "#000000" },
+  DL: { bg: "#fb923c", text: "#000000" },
+  LB: { bg: "#f472b6", text: "#000000" },
+  ILB: { bg: "#f472b6", text: "#000000" },
+  OLB: { bg: "#f472b6", text: "#000000" },
+  MLB: { bg: "#f472b6", text: "#000000" },
+  CB: { bg: "#22d3ee", text: "#000000" },
+  S: { bg: "#38bdf8", text: "#000000" },
+  FS: { bg: "#38bdf8", text: "#000000" },
+  SS: { bg: "#38bdf8", text: "#000000" },
+  SAF: { bg: "#38bdf8", text: "#000000" },
+  K: { bg: "#4ade80", text: "#000000" },
+  P: { bg: "#2dd4bf", text: "#000000" },
+  RS: { bg: "#a16207", text: "#000000" },
+};
+
 export default function SimulateGame() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -84,6 +141,8 @@ export default function SimulateGame() {
   const [myTeamOpen, setMyTeamOpen] = useState(false);
   const [nflPickerOpen, setNflPickerOpen] = useState(false);
   const [seasonOpen, setSeasonOpen] = useState(false);
+
+  const posColors = isDark ? POS_COLORS_DARK : POS_COLORS_LIGHT;
 
   const c = {
     bg: isDark ? "#132130" : "#edf5ff",
@@ -331,17 +390,21 @@ export default function SimulateGame() {
             </View>
             <Text style={[styles.winnerBadge, { color: winnerColor }]}>{winnerLabel}</Text>
             <Text style={[styles.seasonLabel, { color: c.subtext }]}>
-              {result.opponent} · {result.season} Season
+            {result.season} NFL Season {result.opponent}
             </Text>
           </View>
 
           {result.box_score.length > 0 && (
             <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow }]}>
               <Text style={[styles.sectionTitle, { color: c.text }]}>Your Team Box Score</Text>
-              {result.box_score.map((player, i) => (
+              {result.box_score.map((player, i) => {
+                const posColor = posColors[player.position] ?? { bg: "#334155", text: "#ffffff" };
+                return (
                 <View key={i} style={[styles.boxRow, { borderBottomColor: c.border }]}>
                   <View style={styles.boxLeft}>
-                    <Text style={[styles.boxPos, { color: c.subtext }]}>{player.position}</Text>
+                    <View style={[styles.posBadge, { backgroundColor: posColor.bg }]}>
+                      <Text style={[styles.posText, { color: posColor.text }]}>{player.position}</Text>
+                    </View>
                     <Text style={[styles.boxName, { color: c.text }]}>{player.name}</Text>
                   </View>
                   <View style={styles.boxStats}>
@@ -353,13 +416,14 @@ export default function SimulateGame() {
                     ))}
                   </View>
                 </View>
-              ))}
+                );
+              })}
             </View>
           )}
 
           {result.play_by_play.length > 0 && (
             <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow }]}>
-              <Text style={[styles.sectionTitle, { color: c.text }]}>Play-by-Play</Text>
+              <Text style={[styles.sectionTitle, { color: c.text }]}>Highlights</Text>
               {result.play_by_play.map((entry, i) => {
                 const isUser = entry.team === result.user_team;
                 const qColor = QUARTER_COLORS[entry.quarter] ?? c.subtext;
@@ -370,6 +434,11 @@ export default function SimulateGame() {
                         <Text style={styles.quarterText}>{entry.quarter}</Text>
                       </View>
                       <Text style={[styles.playScore, { color: c.subtext }]}>{entry.score}</Text>
+                      {entry.is_score && (
+                        <View style={styles.scoreBadge}>
+                          <Text style={styles.scoreBadgeText}>SCORE!</Text>
+                        </View>
+                      )}
                     </View>
                     <View style={[
                       styles.playContent,
@@ -533,11 +602,16 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 4,
   },
-  boxPos: {
+  posBadge: {
+    borderRadius: 5,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  posText: {
     fontFamily: "Montserrat_700Bold",
     fontSize: 11,
-    opacity: 0.7,
-    width: 32,
   },
   boxName: {
     fontFamily: "Montserrat_700Bold",
@@ -567,6 +641,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+    flexWrap: "wrap",
+  },
+  scoreBadge: {
+    backgroundColor: "#004ba1",
+    borderRadius: 5,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  scoreBadgeText: {
+    fontFamily: "Montserrat_700Bold",
+    fontSize: 11,
+    color: "#ffffff",
+    letterSpacing: 0.5,
   },
   quarterBadge: {
     borderRadius: 4,

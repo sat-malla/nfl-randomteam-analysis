@@ -283,20 +283,20 @@ def compute_score(game: dict) -> int:
 
 _PLAYS = {
     "passing_td": [
-        "{qb} drops back, fires a bullet to {receiver} — TOUCHDOWN! {yards}-yard score!",
+        "{qb} drops back, fires a bullet to {receiver}... TOUCHDOWN! {yards}-yard score!",
         "{qb} hits {receiver} in stride in the end zone! {yards}-yard TD pass!",
-        "Beautiful back-shoulder throw from {qb} to {receiver} for a {yards}-yard touchdown!",
-        "{qb} rolls right, finds {receiver} wide open — {yards}-yard touchdown strike!",
+        "Beautiful back-shoulder throw from {qb} to {receiver} for a {yards}-yard TOUCHDOWN!",
+        "{qb} rolls right, finds {receiver} wide open... {yards}-yard TOUCHDOWN strike!",
     ],
     "rushing_td": [
-        "{rusher} takes the handoff, breaks through the line — TOUCHDOWN! {yards}-yard run!",
+        "{rusher} takes the handoff, breaks through the line... TOUCHDOWN! {yards}-yard run!",
         "{rusher} fights through the pile and punches it in from {yards} yards!",
-        "Up the gut — {rusher} finds the hole and scores from {yards} yards!",
+        "Up the gut... {rusher} finds the hole and scores from {yards} yards!",
         "{rusher} breaks a tackle and walks into the end zone from {yards} out!",
     ],
     "fg_good": [
-        "{kicker} lines it up from {yards} yards… it's GOOD! 3 points.",
-        "Field goal by {kicker} from {yards} yards — right down the middle!",
+        "{kicker} lines it up from {yards} yards... it's GOOD! 3 points.",
+        "Field goal by {kicker} from {yards} yards... right down the middle!",
         "{kicker} splits the uprights from {yards}. 3 more on the board.",
     ],
     "fg_miss": [
@@ -304,65 +304,72 @@ _PLAYS = {
         "Blocked attempt! The kick is deflected and falls short.",
     ],
     "big_pass": [
-        "{qb} heaves it deep — {receiver} hauls it in for {yards} yards!",
+        "{qb} heaves it deep... {receiver} hauls it in for {yards} yards!",
         "Bullet from {qb} finds {receiver} in stride for a {yards}-yard gain.",
-        "{receiver} creates separation, {qb} delivers — {yards} yards downfield.",
-        "Over the middle — {receiver} catches it and rumbles for {yards} yards.",
+        "{receiver} creates separation, {qb} delivers... {yards} yards downfield.",
+        "Over the middle... {receiver} catches it and rumbles for {yards} yards.",
     ],
     "big_run": [
         "{rusher} takes the handoff, hits the hole, and races for {yards} yards!",
-        "Nice cutback by {rusher} — {yards}-yard gain on the ground.",
+        "Nice cutback by {rusher}... {yards}-yard gain on the ground.",
         "{rusher} powers through contact for {yards} hard yards.",
     ],
     "sack": [
         "{defender} beats the blocker and sacks the quarterback for a big loss!",
-        "Pressure up the middle — {defender} gets home for the sack!",
-        "{defender} strips the ball — fumble recovered by the offense.",
+        "Pressure up the middle... {defender} gets home for the sack!",
+        "{defender} strips the ball... FUMBLE recovered by the offense.",
     ],
     "interception": [
-        "{defender} reads the route perfectly — INTERCEPTION! Huge swing in momentum.",
-        "Tipped at the line — {defender} comes down with the pick!",
-        "{defender} undercuts the route for the interception!",
+        "{defender} reads the route perfectly... INTERCEPTION! Huge swing in momentum.",
+        "Tipped at the line... {defender} comes down with the PICK!",
+        "{defender} undercuts the route for the INTERCEPTION!",
     ],
     "punt": [
         "Offense goes three-and-out. Punting unit takes the field.",
-        "Can't convert the third down — punt time.",
+        "Can't convert the third down... punt time.",
         "Forced into a punt after a tough series.",
     ],
     "opp_td": [
-        "{opponent} quarterback finds the end zone — touchdown {opponent}!",
+        "{opponent} quarterback finds the end zone... touchdown {opponent}!",
         "{opponent} running back breaks free for the score!",
         "{opponent} strikes back with a touchdown drive.",
     ],
     "opp_fg": [
-        "{opponent} converts a field goal attempt. 3 points.",
+        "{opponent} converts a field goal attempt... 3 points.",
         "Field goal is good for {opponent}.",
     ],
     "opp_punt": [
         "{opponent} punts it away after a three-and-out.",
-        "{opponent} offense stalls — punting.",
+        "{opponent} offense stalls... punting.",
     ],
     "turnover_on_downs": [
-        "Fourth-and-short attempt fails — turnover on downs.",
+        "Fourth-and-short attempt fails... turnover on downs.",
         "Goes for it on 4th down but can't convert.",
     ],
     "kickoff_return": [
         "{returner} takes the kickoff out to the {yards}-yard line!",
-        "Big return by {returner} — brings it out {yards} yards!",
+        "Big return by {returner}... brings it out {yards} yards!",
     ],
 }
 
 
+_PLAY_WEIGHTS: dict[str, list[int]] = {
+    "sack": [10, 10, 2],
+    "interception": [10, 3, 10],
+}
+
 def _pick(key: str, **kw) -> str:
-    return random.choice(_PLAYS[key]).format(**kw)
+    templates = _PLAYS[key]
+    weights = _PLAY_WEIGHTS.get(key)
+    chosen = random.choices(templates, weights=weights, k=1)[0] if weights else random.choice(templates)
+    return chosen.format(**kw)
 
 
 def _quarter_label(q: int) -> str:
     return ["Q1", "Q2", "Q3", "Q4"][q - 1]
 
 
-def generate_play_by_play(user_game: dict, opp_game: dict,
-                           user_team: dict, opp_name: str) -> list[dict]:
+def generate_play_by_play(user_game: dict, opp_game: dict, user_team: dict, opp_name: str) -> tuple[list[dict], int, int]:
     plays = []
     user_score = 0
     opp_score = 0
@@ -379,12 +386,15 @@ def generate_play_by_play(user_game: dict, opp_game: dict,
     def rand_rusher(): return random.choice(rushers) if rushers else "RB"
     def rand_defender(): return random.choice(defenders) if defenders else "DEF"
 
-    def add(q: int, team: str, text: str):
+    SCORE_ETYPES = {"passing_td", "rushing_td", "fg_good", "opp_td", "opp_fg"}
+
+    def add(q: int, team: str, text: str, etype: str):
         plays.append({
             "quarter": _quarter_label(q),
             "team": team,
             "play": text,
             "score": f"{user_score}-{opp_score}",
+            "is_score": etype in SCORE_ETYPES,
         })
 
     user_pass_yds = sum(v.get("passing_yards", 0) for v in user_game.values())
@@ -473,7 +483,7 @@ def generate_play_by_play(user_game: dict, opp_game: dict,
                 text = _pick("kickoff_return", returner=returner, yards=yds)
             else:
                 continue
-            add(q, user_name, text)
+            add(q, user_name, text, etype)
         else:
             if etype == "opp_td":
                 opp_score += 7
@@ -485,15 +495,45 @@ def generate_play_by_play(user_game: dict, opp_game: dict,
                 text = _pick("opp_punt", opponent=opp_name)
             else:
                 continue
-            add(q, opp_name, text)
+            add(q, opp_name, text, etype)
 
-    return plays
+    return plays, user_score, opp_score
+
+def _passer_rating(yards: float, tds: float, ints: float, attempts: float) -> float:
+    """NFL passer rating formula (0-158.3 scale)."""
+    if attempts < 1:
+        return 0.0
+    comp_pct = 0.63
+    a = max(0.0, min((comp_pct - 0.3) * 5, 2.375))
+    b = max(0.0, min((yards / attempts - 3) * 0.25, 2.375))
+    c = max(0.0, min((tds / attempts) * 20, 2.375))
+    d = max(0.0, min(2.375 - (ints / attempts) * 25, 2.375))
+    return round(((a + b + c + d) / 6) * 100, 1)
+
 
 def build_box_score(user_game: dict, team_players: list) -> list[dict]:
     POS_ORDER = ["QB", "RB", "FB", "WR", "TE", "K", "RS",
                  "DE", "DT", "NT", "LB", "OLB", "ILB", "MLB", "CB", "FS", "SS", "S", "SAF"]
+
+    INT_STATS = {
+        "carries", "rushing_yards", "rushing_tds",
+        "receptions", "targets", "receiving_yards", "receiving_tds",
+        "passing_yards", "passing_tds", "passing_interceptions",
+        "def_tackles_solo", "def_sacks", "def_interceptions", "def_pass_defended",
+        "fg_made", "fg_att",
+        "kickoff_returns", "kickoff_return_yards", "punt_returns", "punt_return_yards",
+    }
+
+    MIN_THRESHOLDS = {
+        "carries": 1, "rushing_yards": 2, "rushing_tds": 1,
+        "receptions": 1, "targets": 1, "receiving_yards": 3, "receiving_tds": 1,
+        "passing_yards": 10, "passing_tds": 1, "passing_interceptions": 1,
+        "def_tackles_solo": 1, "def_sacks": 1, "def_interceptions": 1, "def_pass_defended": 1,
+        "fg_made": 1, "fg_att": 1,
+        "kickoff_returns": 1, "kickoff_return_yards": 5, "punt_returns": 1, "punt_return_yards": 3,
+    }
+
     STAT_DISPLAY = {
-        "passing_yards": "Pass Yds", "passing_tds": "Pass TD", "passing_interceptions": "INT",
         "carries": "Car", "rushing_yards": "Rush Yds", "rushing_tds": "Rush TD",
         "receptions": "Rec", "targets": "Tgt", "receiving_yards": "Rec Yds", "receiving_tds": "Rec TD",
         "def_sacks": "Sacks", "def_tackles_solo": "Tackles", "def_interceptions": "INT",
@@ -501,6 +541,7 @@ def build_box_score(user_game: dict, team_players: list) -> list[dict]:
         "kickoff_return_yards": "KR Yds", "kickoff_returns": "KR",
         "punt_return_yards": "PR Yds", "punt_returns": "PR",
     }
+
     box = []
     sorted_players = sorted(
         team_players,
@@ -512,15 +553,33 @@ def build_box_score(user_game: dict, team_players: list) -> list[dict]:
         raw = user_game.get(name, {})
         if not raw:
             continue
-        stat_lines = {}
-        for k, v in raw.items():
-            if v > 0.05:
+
+        stat_lines: dict[str, float | int] = {}
+
+        if pos == "QB":
+            pass_yds = round(raw.get("passing_yards", 0))
+            pass_tds = round(raw.get("passing_tds", 0))
+            ints     = round(raw.get("passing_interceptions", 0))
+            attempts = round(pass_yds / 7.5) if pass_yds > 0 else 0
+            completions = round(attempts * 0.63)
+            comp_pct = round((completions / attempts * 100), 1) if attempts > 0 else 0.0
+            rating = _passer_rating(pass_yds, pass_tds, ints, attempts)
+            if attempts > 0:
+                stat_lines["Cmp"] = completions
+                stat_lines["Att"] = attempts
+                stat_lines["Cmp%"] = comp_pct
+                stat_lines["Pass Yds"] = pass_yds
+                stat_lines["Pass TD"] = pass_tds
+                stat_lines["INT"] = ints
+                stat_lines["PRAT"] = rating
+        else:
+            for k, v in raw.items():
+                threshold = MIN_THRESHOLDS.get(k, 0.5)
+                if v < threshold:
+                    continue
                 label = STAT_DISPLAY.get(k, k)
-                if k in ("passing_yards", "rushing_yards", "receiving_yards",
-                         "kickoff_return_yards", "punt_return_yards"):
-                    stat_lines[label] = round(v)
-                else:
-                    stat_lines[label] = round(v, 1)
+                stat_lines[label] = round(v) if k in INT_STATS else round(v, 1)
+
         if stat_lines:
             box.append({"name": name, "position": pos, "stats": stat_lines})
     return box
@@ -564,17 +623,25 @@ def run_game_simulation(team_id: str, nfl_opponent: str, season: int, is_home: b
 
     location_mult = 1.05 if is_home else 0.97
     opp_location_mult = 0.97 if is_home else 1.05
+    combined_user_mult = opp_def_factor * location_mult
+    combined_opp_mult = opp_location_mult
 
-    raw_user_score = compute_score(user_game)
-    raw_opp_score = compute_score(opp_game)
+    def scale_game(game: dict, mult: float) -> dict:
+        SCALE_STATS = {"passing_yards", "rushing_yards", "passing_tds", "rushing_tds",
+                       "receiving_tds", "fg_made", "fg_att"}
+        return {
+            name: {k: v * mult if k in SCALE_STATS else v for k, v in stats.items()}
+            for name, stats in game.items()
+        }
 
-    user_score = int(np.clip(round(raw_user_score * opp_def_factor * location_mult), 0, 62))
-    opp_score = int(np.clip(round(raw_opp_score * opp_location_mult), 0, 62))
+    user_game = scale_game(user_game, combined_user_mult)
+    opp_game = scale_game(opp_game, combined_opp_mult)
 
     user_name = team.get("team_name", "Your Team")
+
+    plays, user_score, opp_score = generate_play_by_play(user_game, opp_game, team, nfl_opponent)
     winner = user_name if user_score > opp_score else (nfl_opponent if opp_score > user_score else "TIE")
 
-    plays = generate_play_by_play(user_game, opp_game, team, nfl_opponent)
     box = build_box_score(user_game, team["players"])
 
     return {
