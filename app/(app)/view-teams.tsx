@@ -16,24 +16,12 @@ import Svg, {
   Text as SvgText,
 } from "react-native-svg";
 import {
-  Select,
-  SelectBackdrop,
-  SelectContent,
-  SelectDragIndicator,
-  SelectDragIndicatorWrapper,
-  SelectIcon,
-  SelectInput,
-  SelectItem,
-  SelectPortal,
-  SelectTrigger,
-} from "@/components/ui/select";
-import {
   FormControl,
   FormControlLabel,
   FormControlLabelText,
 } from "@/components/ui/form-control";
-import { ChevronDownIcon } from "@/components/ui/icon";
 import { VStack } from "@/components/ui/vstack";
+import PickerModal, { PickerTrigger } from "@/components/PickerModal";
 import { useState, useEffect } from "react";
 import * as Application from "expo-application";
 
@@ -476,6 +464,7 @@ export default function ViewTeams() {
   const [selectedTeamName, setSelectedTeamName] = useState<string>("");
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
   const [loading, setLoading] = useState(false);
+  const [teamPickerOpen, setTeamPickerOpen] = useState(false);
 
   const c = {
     bg: isDark ? "#132130" : "#edf5ff",
@@ -536,6 +525,7 @@ export default function ViewTeams() {
   };
 
   return (
+    <>
     <ScrollView
       style={{ flex: 1, backgroundColor: c.bg }}
       contentContainerStyle={styles.scrollContent}
@@ -554,30 +544,14 @@ export default function ViewTeams() {
                 Choose Team
               </FormControlLabelText>
             </FormControlLabel>
-            <Select onValueChange={handleSelectTeam} selectedValue={selectedTeamName}>
-              <SelectTrigger
-                variant="outline"
-                size="lg"
-                style={{ flexDirection: "row", justifyContent: "space-between" }}
-              >
-                <SelectInput
-                  placeholder="Select a team"
-                  style={{ flex: 1, color: c.text, fontFamily: "Montserrat_400Regular" }}
-                />
-                <SelectIcon as={ChevronDownIcon} style={{ color: c.text, marginRight: 8 }} />
-              </SelectTrigger>
-              <SelectPortal>
-                <SelectBackdrop />
-                <SelectContent>
-                  <SelectDragIndicatorWrapper>
-                    <SelectDragIndicator />
-                  </SelectDragIndicatorWrapper>
-                  {teamSummaries.map((t) => (
-                    <SelectItem key={t.id} label={t.team_name} value={t.team_name} />
-                  ))}
-                </SelectContent>
-              </SelectPortal>
-            </Select>
+            <PickerTrigger
+              value={selectedTeamName}
+              placeholder="Select a team"
+              onPress={() => setTeamPickerOpen(true)}
+              borderColor={c.border}
+              textColor={c.text}
+              placeholderColor={c.subtext}
+            />
           </VStack>
         </FormControl>
 
@@ -655,6 +629,15 @@ export default function ViewTeams() {
         </>
       )}
     </ScrollView>
+    <PickerModal
+      visible={teamPickerOpen}
+      onClose={() => setTeamPickerOpen(false)}
+      title="Choose Team"
+      items={teamSummaries.map((t) => ({ label: t.team_name, value: t.team_name }))}
+      selectedValue={selectedTeamName}
+      onSelect={handleSelectTeam}
+    />
+    </>
   );
 }
 

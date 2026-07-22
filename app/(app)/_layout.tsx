@@ -123,6 +123,12 @@ export default function RootLayout() {
             title: "Modes",
           }}
         />
+        <Stack.Screen
+          name="simulate-game"
+          options={{
+            title: "Simulate Game",
+          }}
+        />
       </Stack>
       <Drawer
         isOpen={showDrawer}

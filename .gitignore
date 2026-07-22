@@ -48,3 +48,5 @@ app-example
 backend/python_backend/__pycache__/
 backend/python_backend/venv/
 backend/python_backend/.env
+
+.claude/

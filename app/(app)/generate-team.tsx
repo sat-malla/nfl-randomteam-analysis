@@ -6,20 +6,8 @@ import {
   FormControlLabelText,
 } from "@/components/ui/form-control";
 import { Heading } from "@/components/ui/heading";
-import { ChevronDownIcon } from "@/components/ui/icon";
 import { Input, InputField } from "@/components/ui/input";
-import {
-  Select,
-  SelectBackdrop,
-  SelectContent,
-  SelectDragIndicator,
-  SelectDragIndicatorWrapper,
-  SelectIcon,
-  SelectInput,
-  SelectItem,
-  SelectPortal,
-  SelectTrigger,
-} from "@/components/ui/select";
+import PickerModal, { PickerTrigger } from "@/components/PickerModal";
 import { Spinner } from '@/components/ui/spinner';
 import {
   Table,
@@ -59,6 +47,8 @@ const GenerateTeam = () => {
   const [generateTeam, setGenerateTeam] = useState(false);
   const [loading, setLoading] = useState(false);
   const [savedTeam, setSavedTeam] = useState(false);
+  const [offensePickerOpen, setOffensePickerOpen] = useState(false);
+  const [defensePickerOpen, setDefensePickerOpen] = useState(false);
   const colorScheme = useColorScheme();
 
   const isFormFilled = !formData.teamName || !formData.offenseType || !formData.defenseType;
@@ -598,75 +588,25 @@ const GenerateTeam = () => {
             <FormControlLabel style={{ marginTop: 15 }}>
               <FormControlLabelText style={{ fontFamily: "Montserrat_400Regular" }}>Type of Offense</FormControlLabelText>
             </FormControlLabel>
-            <Select
-              onValueChange={(value) =>
-                setFormData({ ...formData, offenseType: value })
-              }
-            >
-              <SelectTrigger
-                variant="outline"
-                size="lg"
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                }}
-              >
-                <SelectInput placeholder="Select option" style={{ flex: 1, fontFamily: "Montserrat_400Regular" }} />
-                <SelectIcon style={{ marginRight: 10 }} as={ChevronDownIcon} />
-              </SelectTrigger>
-              <SelectPortal>
-                <SelectBackdrop />
-                <SelectContent>
-                  <SelectDragIndicatorWrapper>
-                    <SelectDragIndicator />
-                  </SelectDragIndicatorWrapper>
-                  <SelectItem
-                    label="3 WR 1 TE"
-                    value="3 WR 1 TE"
-                  />
-                  <SelectItem
-                    label="2 WR 2 TE"
-                    value="2 WR 2 TE"
-                  />
-                </SelectContent>
-              </SelectPortal>
-            </Select>
+            <PickerTrigger
+              value={formData.offenseType}
+              placeholder="Select option"
+              onPress={() => setOffensePickerOpen(true)}
+              borderColor={colorScheme === "dark" ? "#1e3a52" : "#bfdbfe"}
+              textColor={colorScheme === "dark" ? "#edf5ff" : "#02080f"}
+              placeholderColor={colorScheme === "dark" ? "#a0b4c8" : "#4a5568"}
+            />
             <FormControlLabel style={{ marginTop: 15 }}>
               <FormControlLabelText style={{ fontFamily: "Montserrat_400Regular" }}>Type of Defense</FormControlLabelText>
             </FormControlLabel>
-            <Select
-              onValueChange={(value) =>
-                setFormData({ ...formData, defenseType: value })
-              }
-            >
-              <SelectTrigger
-                variant="outline"
-                size="lg"
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                }}
-              >
-                <SelectInput placeholder="Select option" style={{ flex: 1, fontFamily: "Montserrat_400Regular" }} />
-                <SelectIcon style={{ marginRight: 10 }} as={ChevronDownIcon} />
-              </SelectTrigger>
-              <SelectPortal>
-                <SelectBackdrop />
-                <SelectContent>
-                  <SelectDragIndicatorWrapper>
-                    <SelectDragIndicator />
-                  </SelectDragIndicatorWrapper>
-                  <SelectItem
-                    label="4-3 Base Defense"
-                    value="4-3 Base Defense"
-                  />
-                  <SelectItem
-                    label="3-4 Base Defense"
-                    value="3-4 Base Defense"
-                  />
-                </SelectContent>
-              </SelectPortal>
-            </Select>
+            <PickerTrigger
+              value={formData.defenseType}
+              placeholder="Select option"
+              onPress={() => setDefensePickerOpen(true)}
+              borderColor={colorScheme === "dark" ? "#1e3a52" : "#bfdbfe"}
+              textColor={colorScheme === "dark" ? "#edf5ff" : "#02080f"}
+              placeholderColor={colorScheme === "dark" ? "#a0b4c8" : "#4a5568"}
+            />
           </VStack>
         </FormControl>
         <TouchableOpacity
@@ -723,6 +663,28 @@ const GenerateTeam = () => {
       {loading && (
         <Spinner size="large" color="blue" style={{ marginTop: 20 }} />
       )}
+      <PickerModal
+        visible={offensePickerOpen}
+        onClose={() => setOffensePickerOpen(false)}
+        title="Type of Offense"
+        items={[
+          { label: "3 WR 1 TE", value: "3 WR 1 TE" },
+          { label: "2 WR 2 TE", value: "2 WR 2 TE" },
+        ]}
+        selectedValue={formData.offenseType}
+        onSelect={(value) => setFormData({ ...formData, offenseType: value })}
+      />
+      <PickerModal
+        visible={defensePickerOpen}
+        onClose={() => setDefensePickerOpen(false)}
+        title="Type of Defense"
+        items={[
+          { label: "4-3 Base Defense", value: "4-3 Base Defense" },
+          { label: "3-4 Base Defense", value: "3-4 Base Defense" },
+        ]}
+        selectedValue={formData.defenseType}
+        onSelect={(value) => setFormData({ ...formData, defenseType: value })}
+      />
     </ScrollView>
   );
 };

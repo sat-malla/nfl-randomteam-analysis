@@ -14,24 +14,12 @@ import {
 } from "react-native";
 import { useColorScheme } from "react-native";
 import { StyleSheet } from "react-native";
-import {
-  Select,
-  SelectBackdrop,
-  SelectContent,
-  SelectDragIndicator,
-  SelectDragIndicatorWrapper,
-  SelectIcon,
-  SelectInput,
-  SelectItem,
-  SelectPortal,
-  SelectTrigger,
-} from "@/components/ui/select";
+import PickerModal, { PickerTrigger } from "@/components/PickerModal";
 import {
   FormControl,
   FormControlLabel,
   FormControlLabelText,
 } from "@/components/ui/form-control";
-import { ChevronDownIcon } from "@/components/ui/icon";
 import Svg, { Path } from "react-native-svg";
 import { VStack } from "@/components/ui/vstack";
 import { useState, useEffect, useRef } from "react";
@@ -527,6 +515,7 @@ const AnalyzeTeam = () => {
   const [hasSaved, setHasSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [aiPanelOpen, setAiPanelOpen] = useState(false);
+  const [teamPickerOpen, setTeamPickerOpen] = useState(false);
   const fabOpacity = useRef(new Animated.Value(0)).current;
 
   const getDeviceUuid = async () => {
@@ -679,37 +668,7 @@ const AnalyzeTeam = () => {
                 Choose Team
               </FormControlLabelText>
             </FormControlLabel>
-            <Select onValueChange={handleSelectTeam}>
-              <SelectTrigger
-                variant="outline"
-                size="lg"
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                }}
-              >
-                <SelectInput
-                  placeholder="Select a team"
-                  style={{ flex: 1, color: c.text, fontFamily: "Montserrat_400Regular" }}
-                />
-                <SelectIcon style={{ marginRight: 10 }} as={ChevronDownIcon} />
-              </SelectTrigger>
-              <SelectPortal>
-                <SelectBackdrop />
-                <SelectContent>
-                  <SelectDragIndicatorWrapper>
-                    <SelectDragIndicator />
-                  </SelectDragIndicatorWrapper>
-                  {teams.map((team) => (
-                    <SelectItem
-                      key={team.id}
-                      label={team.team_name}
-                      value={team.team_name}
-                    />
-                  ))}
-                </SelectContent>
-              </SelectPortal>
-            </Select>
+            <PickerTrigger value={teams.find(t => t.id === selectedTeamId)?.team_name ?? ""} placeholder="Select a team" onPress={() => setTeamPickerOpen(true)} borderColor={c.border} textColor={c.text} placeholderColor={c.subtext} />
           </VStack>
         </FormControl>
 
@@ -1151,6 +1110,7 @@ const AnalyzeTeam = () => {
         isDark={isDark}
       />
     )}
+    <PickerModal visible={teamPickerOpen} onClose={() => setTeamPickerOpen(false)} title="Choose Team" items={teams.map(t => ({ label: t.team_name, value: t.team_name }))} selectedValue={teams.find(t => t.id === selectedTeamId)?.team_name ?? ""} onSelect={handleSelectTeam} />
     </View>
   );
 };

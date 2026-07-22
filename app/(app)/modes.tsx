@@ -7,17 +7,19 @@ import {
   useColorScheme,
   View,
 } from "react-native";
+import { useRouter } from "expo-router";
 
 const SKEW = "-8deg";
 
 const ModeButtons = [
-  { id: 1, title: "Simulate Game" },
-  { id: 2, title: "Optimal Team" },
+  { id: 1, title: "Simulate Game", link: "/simulate-game" },
+  { id: 2, title: "Optimal Team", link: null },
 ];
 
 export default function Modes() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
+  const router = useRouter();
 
   const themeContainerStyle = isDark ? styles.darkContainer : styles.lightContainer;
   const themeTextStyle = isDark ? styles.darkText : styles.lightText;
@@ -37,8 +39,9 @@ export default function Modes() {
         {ModeButtons.map((item) => (
           <TouchableOpacity
             key={item.id}
-            activeOpacity={0.8}
+            activeOpacity={item.link ? 0.8 : 0.5}
             style={styles.buttonWrapper}
+            onPress={() => item.link && router.push(item.link as any)}
           >
             <View style={styles.borderLayer} />
             <LinearGradient
