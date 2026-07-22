@@ -653,7 +653,7 @@ def build_box_score(user_game: dict, team_players: list) -> list[dict]:
                 stat_lines[label] = round(v) if k in INT_STATS else round(v, 1)
 
         if stat_lines:
-            box.append({"name": name, "position": pos, "stats": stat_lines})
+            box.append({"name": name, "position": pos, "nfl_team": p.get("nfl_team", ""), "stats": stat_lines})
     return box
 
 

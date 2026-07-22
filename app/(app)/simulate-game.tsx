@@ -49,6 +49,7 @@ type PlayEntry = {
 type BoxEntry = {
   name: string;
   position: string;
+  nfl_team?: string;
   stats: Record<string, number | string>;
 };
 
@@ -123,6 +124,41 @@ const POS_COLORS_DARK: Record<string, { bg: string; text: string }> = {
   K: { bg: "#4ade80", text: "#000000" },
   P: { bg: "#2dd4bf", text: "#000000" },
   RS: { bg: "#a16207", text: "#000000" },
+};
+
+const NFL_TEAM_COLORS: Record<string, { bg: string; text: string }> = {
+  ARI: { bg: "#97233F", text: "#ffffff" },
+  ATL: { bg: "#A71930", text: "#ffffff" },
+  BAL: { bg: "#241773", text: "#ffffff" },
+  BUF: { bg: "#00338D", text: "#ffffff" },
+  CAR: { bg: "#0085CA", text: "#ffffff" },
+  CHI: { bg: "#0B162A", text: "#ffffff" },
+  CIN: { bg: "#FB4F14", text: "#ffffff" },
+  CLE: { bg: "#FF3C00", text: "#ffffff" },
+  DAL: { bg: "#003594", text: "#ffffff" },
+  DEN: { bg: "#FB4F14", text: "#ffffff" },
+  DET: { bg: "#0076B6", text: "#ffffff" },
+  GB: { bg: "#203731", text: "#ffffff" },
+  HOU: { bg: "#03202F", text: "#ffffff" },
+  IND: { bg: "#002C5F", text: "#ffffff" },
+  JAX: { bg: "#006778", text: "#ffffff" },
+  KC: { bg: "#E31837", text: "#ffffff" },
+  LAC: { bg: "#0080C6", text: "#ffffff" },
+  LAR: { bg: "#003594", text: "#ffffff" },
+  LV: { bg: "#000000", text: "#ffffff" },
+  MIA: { bg: "#008E97", text: "#ffffff" },
+  MIN: { bg: "#4F2683", text: "#ffffff" },
+  NE: { bg: "#002244", text: "#ffffff" },
+  NO: { bg: "#D3BC8D", text: "#000000" },
+  NYG: { bg: "#0B2265", text: "#ffffff" },
+  NYJ: { bg: "#125740", text: "#ffffff" },
+  PHI: { bg: "#004C54", text: "#ffffff" },
+  PIT: { bg: "#FFB612", text: "#000000" },
+  SF: { bg: "#AA0000", text: "#ffffff" },
+  SEA: { bg: "#002244", text: "#ffffff" },
+  TB: { bg: "#D50A0A", text: "#ffffff" },
+  TEN: { bg: "#0C2340", text: "#ffffff" },
+  WAS: { bg: "#5A1414", text: "#ffffff" },
 };
 
 export default function SimulateGame() {
@@ -406,6 +442,11 @@ export default function SimulateGame() {
                       <Text style={[styles.posText, { color: posColor.text }]}>{player.position}</Text>
                     </View>
                     <Text style={[styles.boxName, { color: c.text }]}>{player.name}</Text>
+                    {player.nfl_team ? (() => { const tc = NFL_TEAM_COLORS[player.nfl_team] ?? { bg: "#334155", text: "#ffffff" }; return (
+                      <View style={{ backgroundColor: tc.bg, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 6 }}>
+                        <Text style={{ color: tc.text, fontSize: 11, fontFamily: "Montserrat_700Bold" }}>{player.nfl_team}</Text>
+                      </View>
+                    ); })() : null}
                   </View>
                   <View style={styles.boxStats}>
                     {Object.entries(player.stats).map(([label, val]) => (

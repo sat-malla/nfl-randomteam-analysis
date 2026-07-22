@@ -37,6 +37,40 @@ import {
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000";
 
+const NFL_TEAM_COLORS: Record<string, { bg: string; text: string }> = {
+  ARI: { bg: "#97233F", text: "#ffffff" },
+  ATL: { bg: "#A71930", text: "#ffffff" },
+  BAL: { bg: "#241773", text: "#ffffff" },
+  BUF: { bg: "#00338D", text: "#ffffff" },
+  CAR: { bg: "#0085CA", text: "#ffffff" },
+  CHI: { bg: "#0B162A", text: "#ffffff" },
+  CIN: { bg: "#FB4F14", text: "#ffffff" },
+  CLE: { bg: "#FF3C00", text: "#ffffff" },
+  DAL: { bg: "#003594", text: "#ffffff" },
+  DEN: { bg: "#FB4F14", text: "#ffffff" },
+  DET: { bg: "#0076B6", text: "#ffffff" },
+  GB: { bg: "#203731", text: "#ffffff" },
+  HOU: { bg: "#03202F", text: "#ffffff" },
+  IND: { bg: "#002C5F", text: "#ffffff" },
+  JAX: { bg: "#006778", text: "#ffffff" },
+  KC: { bg: "#E31837", text: "#ffffff" },
+  LAC: { bg: "#0080C6", text: "#ffffff" },
+  LAR: { bg: "#003594", text: "#ffffff" },
+  LV: { bg: "#000000", text: "#ffffff" },
+  MIA: { bg: "#008E97", text: "#ffffff" },
+  MIN: { bg: "#4F2683", text: "#ffffff" },
+  NE: { bg: "#002244", text: "#ffffff" },
+  NO: { bg: "#D3BC8D", text: "#000000" },
+  NYG: { bg: "#0B2265", text: "#ffffff" },
+  NYJ: { bg: "#125740", text: "#ffffff" },
+  PHI: { bg: "#004C54", text: "#ffffff" },
+  PIT: { bg: "#FFB612", text: "#000000" },
+  SF: { bg: "#AA0000", text: "#ffffff" },
+  SEA: { bg: "#002244", text: "#ffffff" },
+  TB: { bg: "#D50A0A", text: "#ffffff" },
+  TEN: { bg: "#0C2340", text: "#ffffff" },
+  WAS: { bg: "#5A1414", text: "#ffffff" },
+};
 
 const GenerateTeam = () => {
   const [formData, setFormData] = useState({
@@ -645,17 +679,27 @@ const GenerateTeam = () => {
               <TableRow>
                 <TableHead>Position</TableHead>
                 <TableHead>Player Name</TableHead>
-                <TableHead>NFL Team</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {players.map((player, index) => (
-                <TableRow key={index}>
-                  <TableData>{player.position}</TableData>
-                  <TableData>{player.name}</TableData>
-                  <TableData style={{ flexWrap: "wrap", flex: 1 }}>{abbToTeamNames[player.nfl_team as keyof typeof abbToTeamNames] || player.nfl_team}</TableData>
-                </TableRow>
-              ))}
+              {players.map((player, index) => {
+                const teamColor = NFL_TEAM_COLORS[player.nfl_team] ?? { bg: "#334155", text: "#ffffff" };
+                return (
+                  <TableRow key={index}>
+                    <TableData>{player.position}</TableData>
+                    <TableData>
+                      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", flex: 1 }}>
+                        <Text style={{ flex: 1 }}>{player.name}</Text>
+                        {player.nfl_team ? (
+                          <View style={{ backgroundColor: teamColor.bg, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 8 }}>
+                            <Text style={{ color: teamColor.text, fontSize: 11, fontFamily: "Montserrat_700Bold" }}>{player.nfl_team}</Text>
+                          </View>
+                        ) : null}
+                      </View>
+                    </TableData>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </Box>
