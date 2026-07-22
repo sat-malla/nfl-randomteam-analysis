@@ -427,12 +427,20 @@ export default function SimulateGame() {
             <Text style={[styles.winnerBadge, { color: winnerColor }]}>{winnerLabel}</Text>
           </View>
 
-          {result.box_score.length > 0 && (
-            <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow }]}>
-              <Text style={[styles.sectionTitle, { color: c.text }]}>Your Team Box Score</Text>
-              {result.box_score.map((player, i) => {
-                const posColor = posColors[player.position] ?? { bg: "#334155", text: "#ffffff" };
-                return (
+          {result.box_score.length > 0 && (() => {
+            const OFF_ORDER = ["QB", "RB", "FB", "WR", "TE"];
+            const DEF_ORDER = ["DE", "DT", "NT", "DL", "LB", "OLB", "ILB", "MLB", "CB", "DB", "FS", "SS", "S", "SAF"];
+            const ST_ORDER = ["K", "P", "RS"];
+            const offense = result.box_score.filter(p => OFF_ORDER.includes(p.position))
+              .sort((a, b) => OFF_ORDER.indexOf(a.position) - OFF_ORDER.indexOf(b.position));
+            const defense = result.box_score.filter(p => DEF_ORDER.includes(p.position))
+              .sort((a, b) => DEF_ORDER.indexOf(a.position) - DEF_ORDER.indexOf(b.position));
+            const specialTeams = result.box_score.filter(p => ST_ORDER.includes(p.position))
+              .sort((a, b) => ST_ORDER.indexOf(a.position) - ST_ORDER.indexOf(b.position));
+
+            const renderPlayer = (player: BoxEntry, i: number) => {
+              const posColor = posColors[player.position] ?? { bg: "#334155", text: "#ffffff" };
+              return (
                 <View key={i} style={[styles.boxRow, { borderBottomColor: c.border }]}>
                   <View style={styles.boxLeft}>
                     <View style={[styles.posBadge, { backgroundColor: posColor.bg }]}>
@@ -454,10 +462,25 @@ export default function SimulateGame() {
                     ))}
                   </View>
                 </View>
-                );
-              })}
-            </View>
-          )}
+              );
+            };
+
+            const renderGroup = (title: string, players: BoxEntry[]) => players.length === 0 ? null : (
+              <View key={title}>
+                <Text style={[styles.boxGroupLabel, { color: c.subtext }]}>{title}</Text>
+                {players.map(renderPlayer)}
+              </View>
+            );
+
+            return (
+              <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow }]}>
+                <Text style={[styles.sectionTitle, { color: c.text }]}>Your Team Box Score</Text>
+                {renderGroup("Offense", offense)}
+                {renderGroup("Defense", defense)}
+                {renderGroup("Special Teams", specialTeams)}
+              </View>
+            );
+          })()}
 
           {result.play_by_play.length > 0 && (
             <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow }]}>
@@ -628,6 +651,14 @@ const styles = StyleSheet.create({
     fontFamily: "Montserrat_400Regular",
     fontSize: 12,
     textAlign: "center",
+  },
+  boxGroupLabel: {
+    fontFamily: "Montserrat_700Bold",
+    fontSize: 12,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    paddingVertical: 8,
+    paddingTop: 14,
   },
   boxRow: {
     paddingVertical: 10,
