@@ -200,7 +200,26 @@ def get_position_dist(all_stats_df: pd.DataFrame, position: str, stat: str) -> t
             return None
         group_cols = [c for c in ["player_display_name", "season"] if c in pos_df.columns]
         if group_cols:
-            pos_df = pos_df.groupby(group_cols)[stat].sum().reset_index()
+            # Include count cols needed for downstream filters (RS returner filter, K starter filter)
+            extra_cols = [c for c in ["kickoff_returns", "punt_returns", "fg_att"] if c in pos_df.columns and c != stat]
+            agg_cols = list(dict.fromkeys([stat] + extra_cols))
+            pos_df = pos_df.groupby(group_cols)[agg_cols].sum().reset_index()
+        # For RS, only include genuine return specialists (not incidental returners)
+        if position == "RS":
+            kr_col = "kickoff_returns" if "kickoff_returns" in pos_df.columns else None
+            pr_col = "punt_returns" if "punt_returns" in pos_df.columns else None
+            if kr_col and pr_col:
+                kr = pd.to_numeric(pos_df[kr_col], errors="coerce").fillna(0)
+                pr = pd.to_numeric(pos_df[pr_col], errors="coerce").fillna(0)
+                pos_df = pos_df[(kr >= 10) | (pr >= 10)]
+            elif kr_col:
+                pos_df = pos_df[pd.to_numeric(pos_df[kr_col], errors="coerce").fillna(0) >= 10]
+            elif pr_col:
+                pos_df = pos_df[pd.to_numeric(pos_df[pr_col], errors="coerce").fillna(0) >= 10]
+        # For K, only include full-season starters (≥15 FG attempts) to exclude backups/partial seasons
+        if position == "K" and "fg_att" in pos_df.columns:
+            fg_att_vals = pd.to_numeric(pos_df["fg_att"], errors="coerce").fillna(0)
+            pos_df = pos_df[fg_att_vals >= 15]
         values = pd.to_numeric(pos_df[stat], errors="coerce").dropna()
         if stat not in _RATE_STATS:
             values = values[values > 0]
@@ -212,13 +231,27 @@ def get_position_dist(all_stats_df: pd.DataFrame, position: str, stat: str) -> t
     if result is None:
         pos_df = fetch_position_stats(position)
         result = _compute(pos_df)
+    # SS has no data in the DB — fall back to S position as a proxy
+    if result is None and position == "SS":
+        s_df = fetch_position_stats("S")
+        # _compute filters by position=="SS" but S rows have position=="S", so compute directly
+        if not s_df.empty and stat in s_df.columns:
+            group_cols = [c for c in ["player_display_name", "season"] if c in s_df.columns]
+            grouped = s_df.groupby(group_cols)[stat].sum().reset_index() if group_cols else s_df
+            values = pd.to_numeric(grouped[stat], errors="coerce").dropna()
+            values = values[values > 0]
+            if len(values) >= 5:
+                result = (float(values.mean()), min(float(values.std()), float(values.mean()) * 0.5))
     if result is None:
         # Use cap as a reasonable per-game mean if available, else skip with near-zero
         cap = _POS_STAT_CAPS.get(position, {}).get(stat)
         if cap is not None:
             return (cap, cap * 0.4)
         return (0.0, 0.01)
-    return result
+    # Clamp std to at most 50% of mean to prevent wild outlier seasons
+    mean_v, std_v = result
+    std_v = min(std_v, max(mean_v * 0.5, 0.01))
+    return (mean_v, std_v)
 
 
 DEPTH_VOLUME_STATS = {
@@ -262,6 +295,7 @@ _POS_STAT_CAPS = {
     "SS":  {"def_tackles_solo": 4.7, "def_interceptions": 0.24, "def_pass_defended": 0.59},
     "S":   {"def_tackles_solo": 4.7, "def_interceptions": 0.35, "def_pass_defended": 0.71},
     "SAF": {"def_tackles_solo": 4.7, "def_interceptions": 0.35, "def_pass_defended": 0.71},
+    "RS":  {"kickoff_return_yards": 550, "kickoff_returns": 30, "punt_return_yards": 400, "punt_returns": 35},
 }
 
 
@@ -274,6 +308,13 @@ def build_player_distributions(player_stats, player_name, player_pos, depth_slot
         player_data = pd.DataFrame()
     else:
         player_data = player_stats[player_stats["player_display_name"] == player_name].copy()
+
+    # RS and P tables have weekly rows — aggregate to season totals per player before computing stats
+    if player_pos in ("RS", "P") and not player_data.empty and "season" in player_data.columns:
+        agg_cols = [c for c in stat_cols if c in player_data.columns]
+        if agg_cols:
+            player_data = player_data.groupby("season")[agg_cols].sum().reset_index()
+
     distributions = {}
     vol_scale = DEPTH_SLOT_SCALE.get(depth_slot, DEPTH_SLOT_SCALE[2])
 
@@ -575,7 +616,7 @@ def apply_tabsyn_priors(distributions: dict, tabsyn_row: dict) -> dict:
             "def_pass_defended": 0.5, "fg_made": 2, "fg_att": 3,
         }
         season_val = min(float(tabsyn_row[wide_col]), _SEASON_CAPS.get(stat, 99999))
-        tabsyn_mean = season_val / N_GAMES
+        tabsyn_mean = season_val if stat in SEASON_TOTAL_STATS or stat in SYNTHETIC_STATS else season_val / N_GAMES
         old_dist = player_dists[stat]
         old_std = old_dist.args[3] if hasattr(old_dist, "args") and len(old_dist.args) >= 4 else old_dist.kwds.get("scale", 1.0)
         old_std = float(np.clip(old_std, 0.01, _STD_CAPS.get(stat, 999)))

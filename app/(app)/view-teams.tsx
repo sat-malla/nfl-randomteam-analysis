@@ -550,7 +550,7 @@ export default function ViewTeams() {
         <FormControl size="lg">
           <VStack space="md">
             <FormControlLabel>
-              <FormControlLabelText style={{ color: c.text }}>
+              <FormControlLabelText style={{ color: c.text, fontFamily: "Montserrat_700Bold" }}>
                 Choose Team
               </FormControlLabelText>
             </FormControlLabel>
@@ -562,7 +562,7 @@ export default function ViewTeams() {
               >
                 <SelectInput
                   placeholder="Select a team"
-                  style={{ flex: 1, color: c.text }}
+                  style={{ flex: 1, color: c.text, fontFamily: "Montserrat_400Regular" }}
                 />
                 <SelectIcon as={ChevronDownIcon} style={{ color: c.text, marginRight: 8 }} />
               </SelectTrigger>

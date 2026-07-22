@@ -32,6 +32,7 @@ import {
   FormControlLabelText,
 } from "@/components/ui/form-control";
 import { ChevronDownIcon } from "@/components/ui/icon";
+import Svg, { Path } from "react-native-svg";
 import { VStack } from "@/components/ui/vstack";
 import { useState, useEffect, useRef } from "react";
 import * as Application from "expo-application";
@@ -377,7 +378,7 @@ function AIChatPanel({ visible, onClose, teamId, analysis, c, isDark }: AIChatPa
   const INITIAL_MSG: ChatMessage = {
     id: "init",
     role: "ai",
-    text: "Press Summarize to get an AI breakdown of your team's analysis.",
+    text: "Press Summarize to get an AI breakdown of your team's analysis, and ask questions about your team and its analysis.",
   };
 
   const [messages, setMessages] = useState<ChatMessage[]>([INITIAL_MSG]);
@@ -433,7 +434,6 @@ function AIChatPanel({ visible, onClose, teamId, analysis, c, isDark }: AIChatPa
           pointerEvents="box-none"
         >
           <View style={[aiStyles.panel, { backgroundColor: panelBg, borderColor: c.border, shadowColor: isDark ? "#000" : "#003" }]}>
-            {/* Header */}
             <View style={[aiStyles.panelHeader, { borderBottomColor: c.border }]}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                 <View style={aiStyles.aiDot} />
@@ -444,7 +444,6 @@ function AIChatPanel({ visible, onClose, teamId, analysis, c, isDark }: AIChatPa
               </TouchableOpacity>
             </View>
 
-            {/* Messages */}
             <FlatList
               ref={flatRef}
               data={messages}
@@ -475,7 +474,6 @@ function AIChatPanel({ visible, onClose, teamId, analysis, c, isDark }: AIChatPa
               }
             />
 
-            {/* Summarize quick action */}
             {messages.length === 1 && !aiLoading && (
               <View style={{ paddingHorizontal: 12, paddingBottom: 8 }}>
                 <TouchableOpacity
@@ -487,7 +485,6 @@ function AIChatPanel({ visible, onClose, teamId, analysis, c, isDark }: AIChatPa
               </View>
             )}
 
-            {/* Input row */}
             <View style={[aiStyles.inputRow, { borderTopColor: c.border, backgroundColor: panelBg }]}>
               <TextInput
                 style={[aiStyles.textInput, { backgroundColor: inputBg, color: c.text }]}
@@ -504,7 +501,10 @@ function AIChatPanel({ visible, onClose, teamId, analysis, c, isDark }: AIChatPa
                 onPress={() => { if (input.trim() && !aiLoading) sendToAI(input.trim()); }}
                 disabled={!input.trim() || aiLoading}
               >
-                <Text style={{ color: "#ffffff", fontFamily: "Montserrat_700Bold", fontSize: 16 }}>↑</Text>
+                <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+                  <Path d="M12 19V5" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <Path d="M5 12L12 5L19 12" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                </Svg>
               </TouchableOpacity>
             </View>
           </View>
@@ -1130,7 +1130,6 @@ const AnalyzeTeam = () => {
       )}
     </ScrollView>
 
-    {/* Floating AI button — fades in once analysis is ready */}
     <Animated.View style={[aiStyles.fab, { opacity: fabOpacity }]} pointerEvents={hasSaved && analysis ? "auto" : "none"}>
       <TouchableOpacity
         style={[aiStyles.fabBtn, { backgroundColor: isDark ? "#1d4ed8" : "#1d4ed8", shadowColor: isDark ? "#000" : "#003" }]}
@@ -1418,15 +1417,21 @@ const aiStyles = StyleSheet.create({
     flex: 1,
     borderRadius: 20,
     paddingHorizontal: 14,
-    paddingVertical: 8,
-    fontSize: 13,
+    paddingVertical: 11,
+    fontSize: 15,
+    fontFamily: "Montserrat_400Regular",
   },
   sendBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   fab: {
     position: "absolute",
