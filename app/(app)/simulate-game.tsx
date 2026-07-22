@@ -414,18 +414,18 @@ export default function SimulateGame() {
             <View style={styles.scoreboard}>
               <View style={styles.scoreTeam}>
                 <Text style={[styles.scoreTeamName, { color: c.text }]} numberOfLines={2}>
-                  {result.user_team}
+                  {isHome ? `${result.season} ${result.opponent}` : result.user_team}
                 </Text>
                 <Text style={[styles.scoreNum, { color: winnerColor }]}>
-                  {result.final_score.user}
+                  {isHome ? result.final_score.opponent : result.final_score.user}
                 </Text>
               </View>
               <View style={styles.scoreTeam}>
                 <Text style={[styles.scoreTeamName, { color: c.text }]} numberOfLines={2}>
-                  {result.season} {result.opponent}
+                  {isHome ? result.user_team : `${result.season} ${result.opponent}`}
                 </Text>
                 <Text style={[styles.scoreNum, { color: winnerColor }]}>
-                  {result.final_score.opponent}
+                  {isHome ? result.final_score.user : result.final_score.opponent}
                 </Text>
               </View>
             </View>
