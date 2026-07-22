@@ -1,0 +1,608 @@
+from fastapi import FastAPI, HTTPException
+from supabase import create_client
+from pydantic import BaseModel
+from pymongo import MongoClient
+from dotenv import load_dotenv
+from bson import ObjectId
+from scipy import stats
+from scipy.stats import norm
+
+import pandas as pd
+import numpy as np
+import random
+import os
+import certifi
+
+load_dotenv()
+
+supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
+mongo_client = MongoClient(os.getenv("MONGO_URI"), tlsCAFile=certifi.where())
+mongo_db = mongo_client["nfl-random-teams"]
+
+N_GAMES = 17
+
+POS_STAT_MAPPING = {
+    "QB": ["passing_yards", "passing_tds", "passing_interceptions", "carries", "rushing_yards", "rushing_tds"],
+    "RB": ["carries", "rushing_yards", "rushing_tds", "receptions", "targets", "receiving_yards", "receiving_tds"],
+    "FB": ["carries", "rushing_yards", "rushing_tds", "receptions", "targets", "receiving_yards", "receiving_tds"],
+    "WR": ["receptions", "receiving_yards", "receiving_tds", "targets", "carries", "rushing_yards", "rushing_tds"],
+    "TE": ["receptions", "receiving_yards", "receiving_tds", "targets"],
+    "DE": ["def_sacks", "def_tackles_solo", "def_pass_defended"],
+    "DT": ["def_sacks", "def_tackles_solo", "def_pass_defended"],
+    "NT": ["def_tackles_solo", "def_sacks", "def_pass_defended"],
+    "DL": ["def_sacks", "def_tackles_solo", "def_pass_defended"],
+    "LB": ["def_tackles_solo", "def_sacks", "def_interceptions", "def_pass_defended"],
+    "OLB": ["def_tackles_solo", "def_sacks", "def_interceptions", "def_pass_defended"],
+    "ILB": ["def_tackles_solo", "def_sacks", "def_interceptions", "def_pass_defended"],
+    "MLB": ["def_tackles_solo", "def_sacks", "def_interceptions", "def_pass_defended"],
+    "CB": ["def_interceptions", "def_pass_defended", "def_tackles_solo"],
+    "FS": ["def_interceptions", "def_pass_defended", "def_tackles_solo"],
+    "SS": ["def_interceptions", "def_pass_defended", "def_tackles_solo"],
+    "S": ["def_interceptions", "def_pass_defended", "def_tackles_solo"],
+    "SAF": ["def_interceptions", "def_pass_defended", "def_tackles_solo"],
+    "K": ["fg_made", "fg_att"],
+    "P": [],
+    "OT": [], "G": [], "C": [], "LS": [],
+    "RS": ["kickoff_return_yards", "kickoff_returns", "punt_return_yards", "punt_returns"],
+}
+
+SEASON_TOTAL_STATS = {"fg_made", "fg_att", "kickoff_returns", "kickoff_return_yards", "punt_returns", "punt_return_yards"}
+
+_POS_STAT_CAPS_PER_GAME = {
+    "QB": {"passing_yards": 450, "passing_tds": 6, "passing_interceptions": 4, "carries": 12, "rushing_yards": 80, "rushing_tds": 2},
+    "RB": {"carries": 30, "rushing_yards": 250, "rushing_tds": 4, "receptions": 10, "targets": 12, "receiving_yards": 120, "receiving_tds": 2},
+    "FB": {"carries": 15, "rushing_yards": 100, "rushing_tds": 2, "receptions": 6, "targets": 8, "receiving_yards": 60, "receiving_tds": 1},
+    "WR": {"receptions": 14, "receiving_yards": 250, "receiving_tds": 3, "targets": 16, "carries": 5, "rushing_yards": 60, "rushing_tds": 1},
+    "TE": {"receptions": 12, "receiving_yards": 180, "receiving_tds": 3, "targets": 14},
+    "DE": {"def_sacks": 3, "def_tackles_solo": 10, "def_pass_defended": 4},
+    "DT": {"def_sacks": 2, "def_tackles_solo": 8, "def_pass_defended": 3},
+    "LB": {"def_tackles_solo": 18, "def_sacks": 2, "def_interceptions": 1, "def_pass_defended": 3},
+    "OLB": {"def_tackles_solo": 15, "def_sacks": 3, "def_interceptions": 1, "def_pass_defended": 3},
+    "ILB": {"def_tackles_solo": 18, "def_sacks": 2, "def_interceptions": 1, "def_pass_defended": 3},
+    "MLB": {"def_tackles_solo": 18, "def_sacks": 2, "def_interceptions": 1, "def_pass_defended": 3},
+    "CB": {"def_interceptions": 2, "def_pass_defended": 5, "def_tackles_solo": 8},
+    "FS": {"def_interceptions": 2, "def_pass_defended": 4, "def_tackles_solo": 8},
+    "SS": {"def_interceptions": 2, "def_pass_defended": 4, "def_tackles_solo": 8},
+    "S": {"def_interceptions": 2, "def_pass_defended": 4, "def_tackles_solo": 8},
+    "SAF": {"def_interceptions": 2, "def_pass_defended": 4, "def_tackles_solo": 8},
+    "K": {"fg_made": 40, "fg_att": 50},
+    "RS": {"kickoff_return_yards": 550, "kickoff_returns": 30, "punt_return_yards": 400, "punt_returns": 35},
+}
+
+DEPTH_SLOT_SCALE = {1: 1.0, 2: 0.50, 3: 0.30}
+
+_POS_STATS_CACHE: dict = {}
+
+def get_generated_team(team_id: str) -> dict:
+    return mongo_db.teams.find_one({"_id": ObjectId(team_id)})
+
+def fetch_player_stats(player_names: list) -> pd.DataFrame:
+    r = supabase.table("player_stats").select("*").in_("player_display_name", player_names).gte("season", 2021).execute()
+    return pd.DataFrame(r.data) if r.data else pd.DataFrame()
+
+def fetch_position_stats_cached(position: str) -> pd.DataFrame:
+    if position in _POS_STATS_CACHE:
+        return _POS_STATS_CACHE[position]
+    r = supabase.table("player_stats").select("*").eq("position", position).gte("season", 2021).execute()
+    df = pd.DataFrame(r.data) if r.data else pd.DataFrame()
+    _POS_STATS_CACHE[position] = df
+    return df
+
+def fetch_nfl_roster(team_full_name: str, season: int) -> list[dict]:
+    """Return top starters from player_stats for an NFL team + season."""
+    r = supabase.table("player_stats").select("*").eq("team", team_full_name).eq("season", season).execute()
+    if not r.data:
+        return []
+    df = pd.DataFrame(r.data)
+    numeric_cols = [c for c in df.select_dtypes(include=[np.number]).columns if c != "season"]
+    group_cols = [c for c in ["player_display_name", "position", "team", "season"] if c in df.columns]
+    agg = df.groupby(group_cols)[numeric_cols].sum().reset_index()
+
+    POS_PRIMARY = {
+        "QB": "passing_yards", "RB": "rushing_yards", "FB": "rushing_yards",
+        "WR": "receiving_yards", "TE": "receiving_yards",
+        "DE": "def_sacks", "DT": "def_sacks", "NT": "def_tackles_solo",
+        "LB": "def_tackles_solo", "OLB": "def_tackles_solo", "ILB": "def_tackles_solo",
+        "MLB": "def_tackles_solo", "CB": "def_pass_defended",
+        "FS": "def_tackles_solo", "SS": "def_tackles_solo", "S": "def_tackles_solo", "SAF": "def_tackles_solo",
+        "K": "fg_made",
+    }
+    POS_MAX = {
+        "QB": 1, "RB": 2, "FB": 1, "WR": 3, "TE": 2,
+        "DE": 2, "DT": 2, "NT": 1,
+        "LB": 2, "OLB": 2, "ILB": 2, "MLB": 2,
+        "CB": 2, "FS": 1, "SS": 1, "S": 2, "SAF": 2,
+        "K": 1,
+    }
+    roster = []
+    for pos, primary in POS_PRIMARY.items():
+        sub = agg[agg["position"] == pos]
+        if sub.empty:
+            continue
+        if primary in sub.columns:
+            sub = sub.sort_values(primary, ascending=False)
+        for _, row in sub.head(POS_MAX.get(pos, 2)).iterrows():
+            roster.append({"name": row["player_display_name"], "position": pos, "nfl_team": team_full_name})
+    return roster
+
+
+def fetch_team_season_stats(team_full_name: str, season: int) -> pd.DataFrame:
+    r = supabase.table("team_stats").select("*").eq("team", team_full_name).eq("season", season).execute()
+    return pd.DataFrame(r.data) if r.data else pd.DataFrame()
+
+def get_pos_dist_mean(position: str, stat: str) -> float:
+    """Population mean for a position+stat, used as fallback."""
+    df = fetch_position_stats_cached(position)
+    if df.empty or stat not in df.columns:
+        return 0.0
+    group_cols = [c for c in ["player_display_name", "season"] if c in df.columns]
+    if group_cols:
+        grp = df.groupby(group_cols)[stat].sum().reset_index()
+        vals = pd.to_numeric(grp[stat], errors="coerce").dropna()
+    else:
+        vals = pd.to_numeric(df[stat], errors="coerce").dropna()
+    vals = vals[vals > 0]
+    if len(vals) < 5:
+        return 0.0
+    mean = float(vals.mean())
+    if stat not in SEASON_TOTAL_STATS:
+        mean = mean / N_GAMES
+    return mean
+
+
+def build_player_dist(player_df: pd.DataFrame, name: str, position: str, depth_slot: int = 1) -> dict:
+    """Build per-game truncated-normal distributions for one player."""
+    stat_cols = POS_STAT_MAPPING.get(position, [])
+    dists = {}
+    caps = _POS_STAT_CAPS_PER_GAME.get(position, {})
+    scale = DEPTH_SLOT_SCALE.get(depth_slot, 0.3)
+
+    player_data = player_df[player_df["player_display_name"] == name].copy() if not player_df.empty else pd.DataFrame()
+
+    if not player_data.empty and "season" in player_data.columns:
+        agg_cols = [c for c in stat_cols if c in player_data.columns]
+        if agg_cols:
+            player_data = player_data.groupby("season")[agg_cols].sum().reset_index()
+
+    for stat in stat_cols:
+        cap = caps.get(stat, 9999)
+        if not player_data.empty and stat in player_data.columns:
+            vals = pd.to_numeric(player_data[stat], errors="coerce").dropna()
+            vals = vals[vals > 0]
+            if len(vals) >= 2:
+                season_mean = float(vals.mean())
+                season_std = float(vals.std())
+                if stat not in SEASON_TOTAL_STATS:
+                    mean = season_mean / N_GAMES
+                    std = season_std / N_GAMES
+                else:
+                    mean = season_mean
+                    std = season_std
+                std = min(std, max(mean * 0.5, 0.01))
+                mean = min(mean * scale, cap)
+                std = max(std * scale, 0.01)
+                a = -mean / std if std > 0 else -10
+                dists[stat] = stats.truncnorm(a=a, b=5, loc=mean, scale=std)
+                continue
+
+        pop_mean = get_pos_dist_mean(position, stat)
+        if pop_mean <= 0:
+            continue
+        mean = min(pop_mean * scale, cap)
+        std = max(mean * 0.35, 0.01)
+        a = -mean / std
+        dists[stat] = stats.truncnorm(a=a, b=5, loc=mean, scale=std)
+
+    return dists
+
+
+def build_all_dists(team_obj: dict, player_df: pd.DataFrame) -> dict:
+    result = {}
+    pos_counter: dict = {}
+    for player in team_obj["players"]:
+        name = player["name"]
+        pos = player["position"]
+        pos_counter[pos] = pos_counter.get(pos, 0) + 1
+        slot = pos_counter[pos]
+        dists = build_player_dist(player_df, name, pos, depth_slot=slot)
+        result[name] = {"position": pos, "depth_slot": slot, "distributions": dists}
+    return result
+
+def build_flat_corr(distributions: dict, team_players: list) -> tuple:
+    flat_keys = []
+    for name, data in distributions.items():
+        for sc in data["distributions"]:
+            flat_keys.append((name, sc))
+    if not flat_keys:
+        return flat_keys, None
+
+    n = len(flat_keys)
+    names = list(distributions.keys())
+
+    pos_corr_map = {}
+    OFFENSE = {"QB", "RB", "WR", "TE", "FB"}
+    DEFENSE = {"DE", "DT", "LB", "OLB", "ILB", "MLB", "CB", "FS", "SS", "S", "SAF"}
+    for p in team_players:
+        for q in team_players:
+            pi, qi = p["name"], q["name"]
+            pp, qp = p["position"], q["position"]
+            if pp == "QB" and qp in ("WR", "TE"):
+                c = 0.6
+            elif pp in OFFENSE and qp in OFFENSE:
+                c = 0.3
+            elif pp in DEFENSE and qp in DEFENSE:
+                c = 0.3
+            elif pp in OFFENSE and qp in DEFENSE:
+                c = -0.1
+            else:
+                c = 0.05
+            pos_corr_map[(pi, qi)] = c
+
+    flat_corr = np.eye(n)
+    for i, (p1, _) in enumerate(flat_keys):
+        for j, (p2, _) in enumerate(flat_keys):
+            if i == j:
+                continue
+            flat_corr[i][j] = 0.7 if p1 == p2 else pos_corr_map.get((p1, p2), 0.05) * 0.8
+
+    flat_corr = np.clip(np.nan_to_num(flat_corr, nan=0.0), -1.0, 1.0)
+    np.fill_diagonal(flat_corr, 1.0)
+    eigvals, eigvecs = np.linalg.eigh(flat_corr)
+    eigvals = np.maximum(eigvals, 1e-6)
+    flat_corr = eigvecs @ np.diag(eigvals) @ eigvecs.T
+    if not np.all(np.isfinite(flat_corr)):
+        flat_corr = np.eye(n)
+
+    return flat_keys, flat_corr
+
+
+def sample_one_game(distributions: dict, flat_keys: list, flat_corr) -> dict:
+    """Sample one game's worth of per-game stats for every player."""
+    n = len(flat_keys)
+    mv = np.random.multivariate_normal(np.zeros(n), flat_corr, size=1)
+    u = norm.cdf(mv)[0]
+    result: dict = {}
+    for i, (name, sc) in enumerate(flat_keys):
+        dist = distributions[name]["distributions"][sc]
+        val = float(max(0.0, dist.ppf(float(np.clip(u[i], 1e-6, 1 - 1e-6)))))
+        if sc in SEASON_TOTAL_STATS:
+            val = val / N_GAMES
+        if name not in result:
+            result[name] = {}
+        result[name][sc] = val
+    return result
+
+
+def compute_score(game: dict) -> int:
+    pass_yds = sum(v.get("passing_yards", 0) for v in game.values())
+    rush_yds = sum(v.get("rushing_yards", 0) for v in game.values())
+    fg = sum(v.get("fg_made", 0) for v in game.values())
+    pts = (pass_yds + rush_yds) / 10 * 1.15 + fg * 3
+    return int(max(0, round(pts)))
+
+
+_PLAYS = {
+    "passing_td": [
+        "{qb} drops back, fires a bullet to {receiver} — TOUCHDOWN! {yards}-yard score!",
+        "{qb} hits {receiver} in stride in the end zone! {yards}-yard TD pass!",
+        "Beautiful back-shoulder throw from {qb} to {receiver} for a {yards}-yard touchdown!",
+        "{qb} rolls right, finds {receiver} wide open — {yards}-yard touchdown strike!",
+    ],
+    "rushing_td": [
+        "{rusher} takes the handoff, breaks through the line — TOUCHDOWN! {yards}-yard run!",
+        "{rusher} fights through the pile and punches it in from {yards} yards!",
+        "Up the gut — {rusher} finds the hole and scores from {yards} yards!",
+        "{rusher} breaks a tackle and walks into the end zone from {yards} out!",
+    ],
+    "fg_good": [
+        "{kicker} lines it up from {yards} yards… it's GOOD! 3 points.",
+        "Field goal by {kicker} from {yards} yards — right down the middle!",
+        "{kicker} splits the uprights from {yards}. 3 more on the board.",
+    ],
+    "fg_miss": [
+        "{kicker} pulls it wide left from {yards}. No good.",
+        "Blocked attempt! The kick is deflected and falls short.",
+    ],
+    "big_pass": [
+        "{qb} heaves it deep — {receiver} hauls it in for {yards} yards!",
+        "Bullet from {qb} finds {receiver} in stride for a {yards}-yard gain.",
+        "{receiver} creates separation, {qb} delivers — {yards} yards downfield.",
+        "Over the middle — {receiver} catches it and rumbles for {yards} yards.",
+    ],
+    "big_run": [
+        "{rusher} takes the handoff, hits the hole, and races for {yards} yards!",
+        "Nice cutback by {rusher} — {yards}-yard gain on the ground.",
+        "{rusher} powers through contact for {yards} hard yards.",
+    ],
+    "sack": [
+        "{defender} beats the blocker and sacks the quarterback for a big loss!",
+        "Pressure up the middle — {defender} gets home for the sack!",
+        "{defender} strips the ball — fumble recovered by the offense.",
+    ],
+    "interception": [
+        "{defender} reads the route perfectly — INTERCEPTION! Huge swing in momentum.",
+        "Tipped at the line — {defender} comes down with the pick!",
+        "{defender} undercuts the route for the interception!",
+    ],
+    "punt": [
+        "Offense goes three-and-out. Punting unit takes the field.",
+        "Can't convert the third down — punt time.",
+        "Forced into a punt after a tough series.",
+    ],
+    "opp_td": [
+        "{opponent} quarterback finds the end zone — touchdown {opponent}!",
+        "{opponent} running back breaks free for the score!",
+        "{opponent} strikes back with a touchdown drive.",
+    ],
+    "opp_fg": [
+        "{opponent} converts a field goal attempt. 3 points.",
+        "Field goal is good for {opponent}.",
+    ],
+    "opp_punt": [
+        "{opponent} punts it away after a three-and-out.",
+        "{opponent} offense stalls — punting.",
+    ],
+    "turnover_on_downs": [
+        "Fourth-and-short attempt fails — turnover on downs.",
+        "Goes for it on 4th down but can't convert.",
+    ],
+    "kickoff_return": [
+        "{returner} takes the kickoff out to the {yards}-yard line!",
+        "Big return by {returner} — brings it out {yards} yards!",
+    ],
+}
+
+
+def _pick(key: str, **kw) -> str:
+    return random.choice(_PLAYS[key]).format(**kw)
+
+
+def _quarter_label(q: int) -> str:
+    return ["Q1", "Q2", "Q3", "Q4"][q - 1]
+
+
+def generate_play_by_play(user_game: dict, opp_game: dict,
+                           user_team: dict, opp_name: str) -> list[dict]:
+    plays = []
+    user_score = 0
+    opp_score = 0
+
+    qb = next((p["name"] for p in user_team["players"] if p["position"] == "QB"), "QB")
+    kicker = next((p["name"] for p in user_team["players"] if p["position"] == "K"), "K")
+    returner = next((p["name"] for p in user_team["players"] if p["position"] == "RS"), None)
+    receivers = [p["name"] for p in user_team["players"] if p["position"] in ("WR", "TE")]
+    rushers = [p["name"] for p in user_team["players"] if p["position"] in ("RB", "FB")]
+    defenders = [p["name"] for p in user_team["players"]
+                 if p["position"] in ("DE", "DT", "LB", "OLB", "ILB", "MLB", "CB", "FS", "SS", "S", "SAF")]
+
+    def rand_receiver(): return random.choice(receivers) if receivers else "WR"
+    def rand_rusher(): return random.choice(rushers) if rushers else "RB"
+    def rand_defender(): return random.choice(defenders) if defenders else "DEF"
+
+    def add(q: int, team: str, text: str):
+        plays.append({
+            "quarter": _quarter_label(q),
+            "team": team,
+            "play": text,
+            "score": f"{user_score}-{opp_score}",
+        })
+
+    user_pass_yds = sum(v.get("passing_yards", 0) for v in user_game.values())
+    user_rush_yds = sum(v.get("rushing_yards", 0) for v in user_game.values())
+    user_pass_tds = round(sum(v.get("passing_tds", 0) for v in user_game.values()))
+    user_rush_tds = round(sum(v.get("rushing_tds", 0) for v in user_game.values()))
+    user_fg_made = round(sum(v.get("fg_made", 0) for v in user_game.values()))
+    user_fg_att = max(user_fg_made, round(sum(v.get("fg_att", 0) for v in user_game.values())))
+    user_sacks = round(sum(v.get("def_sacks", 0) for v in user_game.values()))
+    user_ints = round(sum(v.get("def_interceptions", 0) for v in user_game.values()))
+    user_kr_yds = round(sum(v.get("kickoff_return_yards", 0) for v in user_game.values()))
+
+    opp_pass_tds = round(sum(v.get("passing_tds", 0) for v in opp_game.values()))
+    opp_rush_tds = round(sum(v.get("rushing_tds", 0) for v in opp_game.values()))
+    opp_fg_made = round(sum(v.get("fg_made", 0) for v in opp_game.values()))
+    opp_fg_att = max(opp_fg_made, round(sum(v.get("fg_att", 0) for v in opp_game.values())))
+
+    events: list[tuple] = []
+
+    def spread(etype: str, count: int, side: str, weights=(2, 3, 3, 2), **kw):
+        for _ in range(count):
+            q = random.choices([1, 2, 3, 4], weights=weights)[0]
+            events.append((q, side, etype, kw))
+
+    spread("passing_td", user_pass_tds, "user")
+    spread("rushing_td", user_rush_tds, "user")
+    user_fg_miss = max(0, user_fg_att - user_fg_made)
+    spread("fg_good", user_fg_made, "user")
+    spread("fg_miss", user_fg_miss, "user")
+
+    big_pass_count = max(0, int((user_pass_yds - user_pass_tds * 12) / 18))
+    spread("big_pass", min(big_pass_count, 5), "user")
+    big_run_count = max(0, int((user_rush_yds - user_rush_tds * 5) / 14))
+    spread("big_run", min(big_run_count, 3), "user")
+
+    spread("sack", user_sacks, "user")
+    spread("interception", user_ints, "user")
+
+    spread("opp_td", opp_pass_tds + opp_rush_tds, "opp")
+    opp_fg_miss = max(0, opp_fg_att - opp_fg_made)
+    spread("opp_fg", opp_fg_made, "opp")
+    spread("opp_fg_miss", opp_fg_miss, "opp")
+
+    if returner and user_kr_yds > 20:
+        events.append((1, "user", "kickoff_return", {}))
+
+    events.append((1, "opp", "opp_punt", {}))
+    events.append((2, "user", "punt", {}))
+    events.append((3, "opp", "opp_punt", {}))
+
+    events.sort(key=lambda x: x[0])
+
+    user_name = user_team.get("team_name", "Your Team")
+
+    for q, side, etype, _ in events:
+        if side == "user":
+            if etype == "passing_td":
+                yds = random.randint(5, 38)
+                user_score += 7
+                text = _pick("passing_td", qb=qb, receiver=rand_receiver(), yards=yds)
+            elif etype == "rushing_td":
+                yds = random.randint(1, 14)
+                user_score += 7
+                text = _pick("rushing_td", rusher=rand_rusher(), yards=yds)
+            elif etype == "fg_good":
+                yds = random.randint(22, 54)
+                user_score += 3
+                text = _pick("fg_good", kicker=kicker, yards=yds)
+            elif etype == "fg_miss":
+                yds = random.randint(45, 58)
+                text = _pick("fg_miss", kicker=kicker, yards=yds)
+            elif etype == "big_pass":
+                yds = random.randint(14, 48)
+                text = _pick("big_pass", qb=qb, receiver=rand_receiver(), yards=yds)
+            elif etype == "big_run":
+                yds = random.randint(10, 32)
+                text = _pick("big_run", rusher=rand_rusher(), yards=yds)
+            elif etype == "sack":
+                text = _pick("sack", defender=rand_defender())
+            elif etype == "interception":
+                text = _pick("interception", defender=rand_defender())
+            elif etype == "punt":
+                text = _pick("punt")
+            elif etype == "kickoff_return":
+                yds = random.randint(18, 42)
+                text = _pick("kickoff_return", returner=returner, yards=yds)
+            else:
+                continue
+            add(q, user_name, text)
+        else:
+            if etype == "opp_td":
+                opp_score += 7
+                text = _pick("opp_td", opponent=opp_name)
+            elif etype == "opp_fg":
+                opp_score += 3
+                text = _pick("opp_fg", opponent=opp_name)
+            elif etype in ("opp_fg_miss", "opp_punt"):
+                text = _pick("opp_punt", opponent=opp_name)
+            else:
+                continue
+            add(q, opp_name, text)
+
+    return plays
+
+def build_box_score(user_game: dict, team_players: list) -> list[dict]:
+    POS_ORDER = ["QB", "RB", "FB", "WR", "TE", "K", "RS",
+                 "DE", "DT", "NT", "LB", "OLB", "ILB", "MLB", "CB", "FS", "SS", "S", "SAF"]
+    STAT_DISPLAY = {
+        "passing_yards": "Pass Yds", "passing_tds": "Pass TD", "passing_interceptions": "INT",
+        "carries": "Car", "rushing_yards": "Rush Yds", "rushing_tds": "Rush TD",
+        "receptions": "Rec", "targets": "Tgt", "receiving_yards": "Rec Yds", "receiving_tds": "Rec TD",
+        "def_sacks": "Sacks", "def_tackles_solo": "Tackles", "def_interceptions": "INT",
+        "def_pass_defended": "PD", "fg_made": "FG", "fg_att": "FGA",
+        "kickoff_return_yards": "KR Yds", "kickoff_returns": "KR",
+        "punt_return_yards": "PR Yds", "punt_returns": "PR",
+    }
+    box = []
+    sorted_players = sorted(
+        team_players,
+        key=lambda p: (POS_ORDER.index(p["position"]) if p["position"] in POS_ORDER else 99, p["name"])
+    )
+    for p in sorted_players:
+        name = p["name"]
+        pos = p["position"]
+        raw = user_game.get(name, {})
+        if not raw:
+            continue
+        stat_lines = {}
+        for k, v in raw.items():
+            if v > 0.05:
+                label = STAT_DISPLAY.get(k, k)
+                if k in ("passing_yards", "rushing_yards", "receiving_yards",
+                         "kickoff_return_yards", "punt_return_yards"):
+                    stat_lines[label] = round(v)
+                else:
+                    stat_lines[label] = round(v, 1)
+        if stat_lines:
+            box.append({"name": name, "position": pos, "stats": stat_lines})
+    return box
+
+
+def run_game_simulation(team_id: str, nfl_opponent: str, season: int, is_home: bool = True) -> dict:
+    _POS_STATS_CACHE.clear()
+
+    team = get_generated_team(team_id)
+    if not team:
+        raise ValueError(f"Team {team_id} not found")
+
+    user_player_names = [p["name"] for p in team["players"]]
+    user_player_df = fetch_player_stats(user_player_names)
+    user_dists = build_all_dists(team, user_player_df)
+    user_flat_keys, user_flat_corr = build_flat_corr(user_dists, team["players"])
+    if user_flat_corr is None:
+        raise ValueError("Could not build user team correlation matrix")
+
+    opp_roster = fetch_nfl_roster(nfl_opponent, season)
+    if not opp_roster:
+        raise ValueError(f"No roster data found for {nfl_opponent} in {season}")
+    opp_team_obj = {"players": opp_roster, "team_name": nfl_opponent}
+    opp_player_names = [p["name"] for p in opp_roster]
+    opp_player_df = fetch_player_stats(opp_player_names)
+    opp_dists = build_all_dists(opp_team_obj, opp_player_df)
+    opp_flat_keys, opp_flat_corr = build_flat_corr(opp_dists, opp_roster)
+
+    user_game = sample_one_game(user_dists, user_flat_keys, user_flat_corr)
+    opp_game: dict = {}
+    if opp_flat_corr is not None:
+        opp_game = sample_one_game(opp_dists, opp_flat_keys, opp_flat_corr)
+
+    opp_team_stats = fetch_team_season_stats(nfl_opponent, season)
+    opp_def_factor = 1.0
+    if not opp_team_stats.empty:
+        avg_pass = float(opp_team_stats["passing_yards"].mean()) if "passing_yards" in opp_team_stats else 230
+        avg_rush = float(opp_team_stats["rushing_yards"].mean()) if "rushing_yards" in opp_team_stats else 115
+        opp_off_rating = (avg_pass / 230 + avg_rush / 115) / 2
+        opp_def_factor = float(np.clip(1.0 / opp_off_rating, 0.78, 1.22))
+
+    location_mult = 1.05 if is_home else 0.97
+    opp_location_mult = 0.97 if is_home else 1.05
+
+    raw_user_score = compute_score(user_game)
+    raw_opp_score = compute_score(opp_game)
+
+    user_score = int(np.clip(round(raw_user_score * opp_def_factor * location_mult), 0, 62))
+    opp_score = int(np.clip(round(raw_opp_score * opp_location_mult), 0, 62))
+
+    user_name = team.get("team_name", "Your Team")
+    winner = user_name if user_score > opp_score else (nfl_opponent if opp_score > user_score else "TIE")
+
+    plays = generate_play_by_play(user_game, opp_game, team, nfl_opponent)
+    box = build_box_score(user_game, team["players"])
+
+    return {
+        "user_team": user_name,
+        "opponent": nfl_opponent,
+        "season": season,
+        "is_home": is_home,
+        "final_score": {"user": user_score, "opponent": opp_score},
+        "winner": winner,
+        "play_by_play": plays,
+        "box_score": box,
+    }
+
+
+app = FastAPI()
+
+class SimulateGameRequest(BaseModel):
+    team_id: str
+    nfl_opponent: str
+    season: int
+    is_home: bool = True
+
+@app.post("/simulate-game")
+async def simulate_game_endpoint(req: SimulateGameRequest):
+    try:
+        result = run_game_simulation(req.team_id, req.nfl_opponent, req.season, req.is_home)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
