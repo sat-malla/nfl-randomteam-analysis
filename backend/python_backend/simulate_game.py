@@ -559,7 +559,7 @@ def build_box_score(user_game: dict, team_players: list) -> list[dict]:
         if pos == "QB":
             pass_yds = round(raw.get("passing_yards", 0))
             pass_tds = round(raw.get("passing_tds", 0))
-            ints     = round(raw.get("passing_interceptions", 0))
+            ints = round(raw.get("passing_interceptions", 0))
             attempts = round(pass_yds / 7.5) if pass_yds > 0 else 0
             completions = round(attempts * 0.63)
             comp_pct = round((completions / attempts * 100), 1) if attempts > 0 else 0.0
@@ -572,6 +572,63 @@ def build_box_score(user_game: dict, team_players: list) -> list[dict]:
                 stat_lines["Pass TD"] = pass_tds
                 stat_lines["INT"] = ints
                 stat_lines["PRAT"] = rating
+        elif pos in ("RB", "FB"):
+            rb_order = ["carries", "rushing_yards", "rushing_tds", "receptions", "receiving_yards", "receiving_tds"]
+            for k in rb_order:
+                v = raw.get(k, 0)
+                threshold = MIN_THRESHOLDS.get(k, 0.5)
+                if v < threshold:
+                    continue
+                label = STAT_DISPLAY.get(k, k)
+                stat_lines[label] = round(v) if k in INT_STATS else round(v, 1)
+        elif pos == "WR":
+            wr_order = ["targets", "receptions", "receiving_yards", "receiving_tds", "carries", "rushing_yards", "rushing_tds"]
+            for k in wr_order:
+                v = raw.get(k, 0)
+                label = STAT_DISPLAY.get(k, k)
+                stat_lines[label] = round(v) if k in INT_STATS else round(v, 1)
+        elif pos == "TE":
+            te_order = ["targets", "receptions", "receiving_yards", "receiving_tds"]
+            for k in te_order:
+                v = raw.get(k, 0)
+                label = STAT_DISPLAY.get(k, k)
+                stat_lines[label] = round(v) if k in INT_STATS else round(v, 1)
+        elif pos in ("DE", "DT", "NT"):
+            dl_order = ["def_tackles_solo", "def_sacks", "def_pass_defended"]
+            for k in dl_order:
+                v = raw.get(k, 0)
+                label = STAT_DISPLAY.get(k, k)
+                stat_lines[label] = round(v) if k in INT_STATS else round(v, 1)
+        elif pos in ("LB", "OLB", "ILB", "MLB"):
+            lb_order = ["def_tackles_solo", "def_sacks", "def_interceptions", "def_pass_defended"]
+            for k in lb_order:
+                v = raw.get(k, 0)
+                label = STAT_DISPLAY.get(k, k)
+                stat_lines[label] = round(v) if k in INT_STATS else round(v, 1)
+        elif pos in ("CB", "FS", "SS", "S", "SAF"):
+            db_order = ["def_tackles_solo", "def_interceptions", "def_pass_defended"]
+            for k in db_order:
+                v = raw.get(k, 0)
+                label = STAT_DISPLAY.get(k, k)
+                stat_lines[label] = round(v) if k in INT_STATS else round(v, 1)
+        elif pos == "K":
+            k_order = ["fg_made", "fg_att"]
+            for k in k_order:
+                v = raw.get(k, 0)
+                label = STAT_DISPLAY.get(k, k)
+                stat_lines[label] = round(v) if k in INT_STATS else round(v, 1)
+        elif pos == "P":
+            p_order = ["punt_returns", "punt_return_yards"]
+            for k in p_order:
+                v = raw.get(k, 0)
+                label = STAT_DISPLAY.get(k, k)
+                stat_lines[label] = round(v) if k in INT_STATS else round(v, 1)
+        elif pos == "RS":
+            rs_order = ["kickoff_returns", "kickoff_return_yards", "punt_returns", "punt_return_yards"]
+            for k in rs_order:
+                v = raw.get(k, 0)
+                label = STAT_DISPLAY.get(k, k)
+                stat_lines[label] = round(v) if k in INT_STATS else round(v, 1)
         else:
             for k, v in raw.items():
                 threshold = MIN_THRESHOLDS.get(k, 0.5)
