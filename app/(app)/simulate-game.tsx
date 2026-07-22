@@ -295,11 +295,16 @@ export default function SimulateGame() {
               <PickerTrigger
                 value={selectedMyTeamName}
                 placeholder="Select your generated team"
-                onPress={() => setMyTeamOpen(true)}
+                onPress={() => myTeams.length > 0 ? setMyTeamOpen(true) : undefined}
                 borderColor={c.border}
-                textColor={c.text}
+                textColor={myTeams.length > 0 ? c.text : c.subtext}
                 placeholderColor={c.subtext}
               />
+              {myTeams.length === 0 && (
+                <Text style={{ color: "red", fontSize: 12, fontFamily: "Montserrat_400Regular", marginTop: 4 }}>
+                  Generate a team first to get started!
+                </Text>
+              )}
             </VStack>
 
             <View style={styles.vsDivider}>

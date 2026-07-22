@@ -582,11 +582,16 @@ export default function ViewTeams() {
             <PickerTrigger
               value={selectedTeamName}
               placeholder="Select a team"
-              onPress={() => setTeamPickerOpen(true)}
+              onPress={() => teamSummaries.length > 0 ? setTeamPickerOpen(true) : undefined}
               borderColor={c.border}
-              textColor={c.text}
+              textColor={teamSummaries.length > 0 ? c.text : c.subtext}
               placeholderColor={c.subtext}
             />
+            {teamSummaries.length === 0 && (
+              <Text style={{ color: "red", fontSize: 12, fontFamily: "Montserrat_400Regular", marginTop: 4 }}>
+                Generate a team first to get started!
+              </Text>
+            )}
           </VStack>
         </FormControl>
 
@@ -595,7 +600,7 @@ export default function ViewTeams() {
             styles.viewButton,
             { backgroundColor: selectedTeamName && !loading ? (isDark ? "#edf5ff" : "#02080f") : "#9ca3af" },
           ]}
-          disabled={!selectedTeamName || loading}
+          disabled={!selectedTeamName || loading || teamSummaries.length === 0}
           onPress={handleViewTeam}
         >
           {loading ? (

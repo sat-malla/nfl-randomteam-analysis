@@ -703,7 +703,12 @@ const AnalyzeTeam = () => {
                 Choose Team
               </FormControlLabelText>
             </FormControlLabel>
-            <PickerTrigger value={teams.find(t => t.id === selectedTeamId)?.team_name ?? ""} placeholder="Select a team" onPress={() => setTeamPickerOpen(true)} borderColor={c.border} textColor={c.text} placeholderColor={c.subtext} />
+            <PickerTrigger value={teams.find(t => t.id === selectedTeamId)?.team_name ?? ""} placeholder="Select a team" onPress={() => teams.length > 0 ? setTeamPickerOpen(true) : null} borderColor={c.border} textColor={teams.length > 0 ? c.text : c.subtext} placeholderColor={c.subtext} />
+            {teams.length === 0 && (
+              <Text style={{ color: "red", fontSize: 12, fontFamily: "Montserrat_400Regular", marginTop: 4 }}>
+                Generate a team first to get started!
+              </Text>
+            )}
           </VStack>
         </FormControl>
 
@@ -715,7 +720,7 @@ const AnalyzeTeam = () => {
                 selectedTeamId && !loading && !hasSaved ? c.button : "#9ca3af",
             },
           ]}
-          disabled={!selectedTeamId || loading || hasSaved}
+          disabled={!selectedTeamId || loading || hasSaved || teams.length === 0}
           onPress={handleAnalyze}
         >
           {loading ? (
