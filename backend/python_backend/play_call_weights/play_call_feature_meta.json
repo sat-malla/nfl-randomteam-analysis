@@ -1,0 +1,121 @@
+{
+  "feature_cols": [
+    "feat_down",
+    "feat_dist",
+    "feat_zone",
+    "feat_score",
+    "feat_qtr",
+    "feat_time",
+    "feat_half_end",
+    "feat_trailing",
+    "feat_shotgun",
+    "feat_goal_to_go"
+  ],
+  "feat_cardinality": {
+    "feat_down": 4,
+    "feat_dist": 4,
+    "feat_zone": 6,
+    "feat_score": 5,
+    "feat_qtr": 5,
+    "feat_time": 5,
+    "feat_half_end": 2,
+    "feat_trailing": 2,
+    "feat_shotgun": 2,
+    "feat_goal_to_go": 2
+  },
+  "classes": [
+    "field_goal",
+    "pass",
+    "punt",
+    "run"
+  ],
+  "bucket_definitions": {
+    "feat_down": {
+      "description": "NFL down (1-4) as 0-3",
+      "values": {
+        "0": "1st",
+        "1": "2nd",
+        "2": "3rd",
+        "3": "4th"
+      }
+    },
+    "feat_dist": {
+      "description": "Yards to go bucket",
+      "values": {
+        "0": "short(1-2)",
+        "1": "medium(3-6)",
+        "2": "long(7-10)",
+        "3": "very_long(11+)"
+      }
+    },
+    "feat_zone": {
+      "description": "Field position zone (yardline_100 = yards to opp end zone)",
+      "values": {
+        "0": "own_deep(80-100)",
+        "1": "own_mid(60-79)",
+        "2": "midfield(40-59)",
+        "3": "opp_mid(20-39)",
+        "4": "red_zone(5-19)",
+        "5": "goal_line(1-4)"
+      }
+    },
+    "feat_score": {
+      "description": "Score differential bucket",
+      "values": {
+        "0": "large_deficit(<=-17)",
+        "1": "deficit(-16 to -7)",
+        "2": "close(-6 to 6)",
+        "3": "lead(7 to 16)",
+        "4": "large_lead(>=17)"
+      }
+    },
+    "feat_qtr": {
+      "description": "Quarter 0-4 (OT=4)",
+      "values": {
+        "0": "Q1",
+        "1": "Q2",
+        "2": "Q3",
+        "3": "Q4",
+        "4": "OT"
+      }
+    },
+    "feat_time": {
+      "description": "Time urgency bucket",
+      "values": {
+        "0": "clutch(<2min Q4)",
+        "1": "late_Q4(2-8min)",
+        "2": "second_half_mid",
+        "3": "first_half",
+        "4": "early_Q1"
+      }
+    },
+    "feat_half_end": {
+      "description": "Near end of half",
+      "values": {
+        "0": "normal",
+        "1": "near_half_end"
+      }
+    },
+    "feat_trailing": {
+      "description": "Offense trailing",
+      "values": {
+        "0": "not_trailing",
+        "1": "trailing"
+      }
+    },
+    "feat_shotgun": {
+      "description": "Shotgun formation (strong pass signal)",
+      "values": {
+        "0": "under_center",
+        "1": "shotgun"
+      }
+    },
+    "feat_goal_to_go": {
+      "description": "Goal-to-go situation (heavy run signal)",
+      "values": {
+        "0": "normal",
+        "1": "goal_to_go"
+      }
+    }
+  }
+}
