@@ -1,0 +1,124 @@
+{
+  "feature_cols": [
+    "feat_play_type",
+    "feat_down",
+    "feat_dist",
+    "feat_zone",
+    "feat_score",
+    "feat_qtr",
+    "feat_shotgun",
+    "feat_goal_to_go",
+    "feat_air_yards",
+    "feat_kick_dist"
+  ],
+  "feat_cardinality": {
+    "feat_play_type": 4,
+    "feat_down": 4,
+    "feat_dist": 4,
+    "feat_zone": 6,
+    "feat_score": 5,
+    "feat_qtr": 5,
+    "feat_shotgun": 2,
+    "feat_goal_to_go": 2,
+    "feat_air_yards": 4,
+    "feat_kick_dist": 4
+  },
+  "play_type_map": {
+    "run": 0,
+    "pass": 1,
+    "punt": 2,
+    "field_goal": 3
+  },
+  "receiver_pos_classes": {
+    "0": "WR",
+    "1": "TE",
+    "2": "RB"
+  },
+  "fg_result_classes": {
+    "0": "made",
+    "1": "missed",
+    "2": "blocked"
+  },
+  "bucket_definitions": {
+    "feat_play_type": {
+      "values": {
+        "0": "run",
+        "1": "pass",
+        "2": "punt",
+        "3": "field_goal"
+      }
+    },
+    "feat_down": {
+      "values": {
+        "0": "1st",
+        "1": "2nd",
+        "2": "3rd",
+        "3": "4th"
+      }
+    },
+    "feat_dist": {
+      "values": {
+        "0": "short(1-2)",
+        "1": "medium(3-6)",
+        "2": "long(7-10)",
+        "3": "very_long(11+)"
+      }
+    },
+    "feat_zone": {
+      "values": {
+        "0": "own_deep",
+        "1": "own_mid",
+        "2": "midfield",
+        "3": "opp_mid",
+        "4": "red_zone",
+        "5": "goal_line"
+      }
+    },
+    "feat_score": {
+      "values": {
+        "0": "large_deficit",
+        "1": "deficit",
+        "2": "close",
+        "3": "lead",
+        "4": "large_lead"
+      }
+    },
+    "feat_qtr": {
+      "values": {
+        "0": "Q1",
+        "1": "Q2",
+        "2": "Q3",
+        "3": "Q4",
+        "4": "OT"
+      }
+    },
+    "feat_shotgun": {
+      "values": {
+        "0": "under_center",
+        "1": "shotgun"
+      }
+    },
+    "feat_goal_to_go": {
+      "values": {
+        "0": "normal",
+        "1": "goal_to_go"
+      }
+    },
+    "feat_air_yards": {
+      "values": {
+        "0": "screen/behind",
+        "1": "short(0-5)",
+        "2": "medium(6-15)",
+        "3": "deep(16+)"
+      }
+    },
+    "feat_kick_dist": {
+      "values": {
+        "0": "chip(<=30)",
+        "1": "short(31-40)",
+        "2": "medium(41-50)",
+        "3": "long(51+)"
+      }
+    }
+  }
+}
