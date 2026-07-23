@@ -50,7 +50,7 @@ type BoxEntry = {
   name: string;
   position: string;
   nfl_team?: string;
-  stats: Record<string, number | string>;
+  stats: { label: string; val: number | string }[];
 };
 
 type SimResult = {
@@ -459,7 +459,7 @@ export default function SimulateGame() {
                     ); })() : null}
                   </View>
                   <View style={styles.boxStats}>
-                    {Object.entries(player.stats).map(([label, val]) => (
+                    {player.stats.map(({ label, val }) => (
                       <View key={label} style={styles.statChip}>
                         <Text style={[styles.statVal, { color: c.text }]}>{val}</Text>
                         <Text style={[styles.statLabel, { color: c.subtext }]}>{label}</Text>
