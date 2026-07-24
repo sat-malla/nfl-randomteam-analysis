@@ -141,6 +141,12 @@ export default function RootLayout() {
             title: "About",
           }}
         />
+        <Stack.Screen
+          name="support"
+          options={{
+            title: "Support",
+          }}
+        />
       </Stack>
       <Drawer
         isOpen={showDrawer}
@@ -170,7 +176,7 @@ export default function RootLayout() {
             </View>
 
             <View style={[styles.divider, { backgroundColor: isDark ? "#edf5ff" : "#02080f", marginTop: 28 }]} />
-            <TouchableOpacity style={styles.supportRow} onPress={() => {}}>
+            <TouchableOpacity style={styles.supportRow} onPress={() => { setShowDrawer(false); router.push("/support"); }}>
               <Text style={styles.supportLink}>Support</Text>
               <Ionicons name="chevron-forward" size={16} color="#0099ff" />
             </TouchableOpacity>
