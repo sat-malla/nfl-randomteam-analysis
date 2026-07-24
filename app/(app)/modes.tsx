@@ -13,7 +13,7 @@ const SKEW = "-8deg";
 
 const ModeButtons = [
   { id: 1, title: "Simulate Game", link: "/simulate-game" },
-  { id: 2, title: "Optimal Team", link: null },
+  { id: 2, title: "Optimal Team", link: "/optimize-team" },
 ];
 
 export default function Modes() {

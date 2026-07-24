@@ -129,6 +129,12 @@ export default function RootLayout() {
             title: "Simulate Game",
           }}
         />
+        <Stack.Screen
+          name="optimize-team"
+          options={{
+            title: "Optimal Team",
+          }}
+        />
       </Stack>
       <Drawer
         isOpen={showDrawer}
