@@ -42,6 +42,7 @@ func main() {
 	handlers.NewCoachHandler(server.Group("/coaches"))
 	handlers.NewAnalysisHandler(server.Group("/analysis"), db.Collection("analyses"))
 	handlers.NewSimulateHandler(server.Group("/simulate"))
+	handlers.NewOptimizeHandler(server.Group("/optimize"))
 
 	sleeperService := services.NewSleeperService(db.Collection("nfl_players"))
 	go func() {
