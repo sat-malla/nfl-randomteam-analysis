@@ -60,8 +60,6 @@ _POS_SALARY_RANGE = {
 }
 _DEFAULT_SALARY_RANGE = (700_000, 5_000_000)
 
-# Exact slot counts per formation, mirroring generate-team.tsx exactly.
-# Each formation tuple: (offense_type, defense_type) -> {position: count}
 FORMATION_ROSTERS: dict[tuple[str, str], dict[str, int]] = {
     ("3 WR 1 TE", "4-3 Base Defense"): {
         "QB": 1, "RB": 2, "WR": 3, "TE": 1,
@@ -95,7 +93,6 @@ FORMATION_ROSTERS: dict[tuple[str, str], dict[str, int]] = {
 
 FORMATIONS = list(FORMATION_ROSTERS.keys())
 
-# Hard minimums that must hold across ALL formations (used for pool validation)
 POSITION_MINIMUMS = {
     "QB": 1, "RB": 2, "WR": 2, "TE": 1,
     "OT": 2, "G": 2, "C": 1,
@@ -104,7 +101,7 @@ POSITION_MINIMUMS = {
     "K": 1, "P": 1, "RS": 1, "LS": 1,
 }
 
-ROSTER_SIZE = 29  # max across all formations (4-3 gives 29, 3-4 gives 28)
+ROSTER_SIZE = 29
 
 OFFENSE_POS = {"QB", "RB", "FB", "WR", "TE"}
 DEFENSE_POS = {"DE", "DT", "NT", "DL", "LB", "OLB", "ILB", "MLB", "SLB", "WLB",
