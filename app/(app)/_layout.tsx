@@ -9,7 +9,7 @@ import { useState, useEffect } from "react";
 import { useFonts, Montserrat_400Regular, Montserrat_700Bold } from "@expo-google-fonts/montserrat";
 import { Appearance, StyleSheet, TouchableOpacity, View, useColorScheme } from "react-native";
 import * as SplashScreen from "expo-splash-screen";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "react-native-vector-icons/Ionicons";
 import {
   Drawer,
   DrawerBackdrop,
@@ -147,6 +147,12 @@ export default function RootLayout() {
             title: "Support",
           }}
         />
+        <Stack.Screen
+          name="donate"
+          options={{
+            title: "Donate",
+          }}
+        />
       </Stack>
       <Drawer
         isOpen={showDrawer}
@@ -179,6 +185,14 @@ export default function RootLayout() {
             <TouchableOpacity style={styles.supportRow} onPress={() => { setShowDrawer(false); router.push("/support"); }}>
               <Text style={styles.supportLink}>Support</Text>
               <Ionicons name="chevron-forward" size={16} color="#0099ff" />
+            </TouchableOpacity>
+            <View style={[styles.divider, { backgroundColor: isDark ? "#edf5ff" : "#02080f" }]} />
+            <TouchableOpacity style={styles.supportRow} onPress={() => { setShowDrawer(false); router.push("/donate"); }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Ionicons name="heart" size={16} color="#f43f5e" />
+                <Text style={styles.donateLink}>Donate</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color="#f43f5e" />
             </TouchableOpacity>
             
             <Text style={[styles.legalLabel, { color: isDark ? "#edf5ff" : "#02080f" }]}>LEGAL</Text>
@@ -235,6 +249,11 @@ const styles = StyleSheet.create({
     fontFamily: "Montserrat_400Regular",
     fontSize: 16,
     color: "#0099ff",
+  },
+  donateLink: {
+    fontFamily: "Montserrat_400Regular",
+    fontSize: 16,
+    color: "#f43f5e",
   },
   legalRow: {
     flexDirection: "row",

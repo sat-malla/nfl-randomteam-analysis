@@ -13,7 +13,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useState } from "react";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "react-native-vector-icons/Ionicons";
 
 const SUPPORT_EMAIL = "sathvikmalla17@gmail.com";
 const SUBJECTS = ["Bug Report", "Feature Request", "General Question", "Other"];
