@@ -11,6 +11,41 @@ import numpy as np
 import random
 import os
 import certifi
+import httpx
+
+PLAY_CALL_URL = os.getenv("PLAY_CALL_URL", "http://localhost:8003")
+OUTCOME_URL = os.getenv("OUTCOME_URL", "http://localhost:8004")
+ML_TIMEOUT = 2.0
+
+def _ml_play_call(down: int, ydstogo: float, yardline_100: float,
+                  score_diff: float, qtr: int, secs_remaining: float,
+                  shotgun: int = 0, goal_to_go: int = 0) -> dict | None:
+    """Returns {run, pass, punt, field_goal} probs or None on failure."""
+    try:
+        r = httpx.post(f"{PLAY_CALL_URL}/predict", json={"game_state": {
+            "down": down, "ydstogo": ydstogo, "yardline_100": yardline_100,
+            "score_differential": score_diff, "qtr": qtr,
+            "game_seconds_remaining": secs_remaining,
+            "shotgun": shotgun, "goal_to_go": goal_to_go,
+        }}, timeout=ML_TIMEOUT)
+        return r.json() if r.status_code == 200 else None
+    except Exception:
+        return None
+
+def _ml_outcome(play_type: str, down: int, ydstogo: float, yardline_100: float,
+                score_diff: float, qtr: int, shotgun: int = 0, goal_to_go: int = 0,
+                air_yards: float = 0.0, kick_distance: float = 0.0) -> dict | None:
+    """Returns outcome dict or None on failure."""
+    try:
+        r = httpx.post(f"{OUTCOME_URL}/predict", json={
+            "play_type": play_type, "down": down, "ydstogo": ydstogo,
+            "yardline_100": yardline_100, "score_differential": score_diff,
+            "qtr": qtr, "shotgun": shotgun, "goal_to_go": goal_to_go,
+            "air_yards": air_yards, "kick_distance": kick_distance,
+        }, timeout=ML_TIMEOUT)
+        return r.json() if r.status_code == 200 else None
+    except Exception:
+        return None
 
 load_dotenv()
 
@@ -68,16 +103,11 @@ _POS_STAT_CAPS_PER_GAME = {
     "RS": {"kickoff_return_yards": 550, "kickoff_returns": 30, "punt_return_yards": 400, "punt_returns": 35},
 }
 
-# Slot 1 gets a boost above raw population mean because the population mean is diluted
-# by backups, committee backs, and injured players. The starter is above average by definition.
 DEPTH_SLOT_SCALE = {1: 1.35, 2: 0.50, 3: 0.30}
-
-# Per-position starter multiplier — some positions (RB carry volume) are even more skewed
-# toward the starter, so apply an additional boost on top of DEPTH_SLOT_SCALE for slot 1.
 _STARTER_BOOST: dict[str, float] = {
-    "RB": 1.25,  # RB1 starter gets ~25% more carries/yards than DEPTH_SLOT_SCALE alone gives
+    "RB": 1.25,
     "FB": 1.10,
-    "WR": 1.15,  # WR1 target share is concentrated
+    "WR": 1.15,
     "TE": 1.10,
 }
 
@@ -274,43 +304,38 @@ def _player_rush_share(name: str, player_df: pd.DataFrame) -> float:
     carries = pd.to_numeric(rows.get("carries", pd.Series()), errors="coerce").sum()
     return float(carries) if carries >= 10 else 50.0
 
-
-# ─── Play-call probabilities calibrated from real ESPN play-by-play data ───
-# Source: Bills-Jags (145 plays) and Colts-Dolphins (135 plays) full PBP
 _RUN_PROB = {
-    # (down, distance_bucket) -> run probability
-    # distance_bucket: "short"=1-3, "medium"=4-7, "long"=8+
-    (1, "short"):  0.48,
+    (1, "short"): 0.48,
     (1, "medium"): 0.45,
-    (1, "long"):   0.40,
-    (2, "short"):  0.52,
+    (1, "long"): 0.40,
+    (2, "short"): 0.52,
     (2, "medium"): 0.38,
-    (2, "long"):   0.22,
-    (3, "short"):  0.42,
+    (2, "long"): 0.22,
+    (3, "short"): 0.42,
     (3, "medium"): 0.18,
-    (3, "long"):   0.10,
-    (4, "short"):  0.55,
+    (3, "long"): 0.10,
+    (4, "short"): 0.55,
     (4, "medium"): 0.25,
-    (4, "long"):   0.10,
+    (4, "long"): 0.10,
 }
 
-_SACK_PROB = 0.055        # 5.5% of pass plays result in sack
-_INT_PROB  = 0.025        # 2.5% of pass plays result in INT
-_INCOMP_PROB = 0.30       # 30% of pass plays incomplete
-_FUMBLE_PROB = 0.008      # 0.8% of run plays result in fumble lost
+_SACK_PROB = 0.055
+_INT_PROB  = 0.025
+_INCOMP_PROB = 0.30
+_FUMBLE_PROB = 0.008
 
-# Yards distributions calibrated from PBP data
 _RUN_YARDS_MEAN = 4.2
 _RUN_YARDS_STD  = 4.5
 _PASS_YARDS_MEAN = 9.5
 _PASS_YARDS_STD  = 8.0
 
-# Drive terminal outcomes — probability mass once a drive stalls on 4th down
-_FG_ATTEMPT_DIST = 0.55   # if in FG range (≤52 yds) and 4th down, attempt FG vs punt
-_FG_MAKE_PROB_BASE = 0.87  # base FG make rate (adjusted by distance)
+_FG_ATTEMPT_DIST = 0.55
+_FG_MAKE_PROB_BASE = 0.87
 
 _SACK_WEIGHT = {"DE": 5, "DT": 4, "NT": 3, "OLB": 3, "LB": 1, "ILB": 1, "MLB": 1}
-_INT_WEIGHT  = {"CB": 4, "FS": 2, "SS": 2, "S": 2, "SAF": 2}
+_INT_WEIGHT = {"CB": 4, "FS": 2, "SS": 2, "S": 2, "SAF": 2}
+_FUMBLE_WEIGHT = {"DE": 3, "DT": 2, "OLB": 3, "LB": 2, "ILB": 2, "MLB": 2, "CB": 1, "FS": 1, "SS": 1, "S": 1}
+_PD_WEIGHT = {"CB": 5, "FS": 3, "SS": 3, "S": 3, "SAF": 3, "LB": 1, "OLB": 1}
 
 _PLAY_TEMPLATES = {
     "run": [
@@ -336,35 +361,56 @@ _PLAY_TEMPLATES = {
         "{defender} strips {qb} on the sack... fumble recovered by the offense.",
     ],
     "interception": [
-        "{defender} reads the route and picks off {qb}! Turnover!",
-        "Tipped at the line... {defender} comes down with the PICK!",
-        "{defender} undercuts the route — INTERCEPTION!",
+        "{qb} throws... INTERCEPTED by {defender}, intended for {receiver}!",
+        "{qb} tries to find {receiver}... {defender} reads it perfectly! PICK!",
+        "Tipped and caught... {defender} intercepts {qb}'s pass intended for {receiver}!",
+        "{defender} undercuts the route on {receiver}... INTERCEPTION! Turnover!",
+    ],
+    "fumble_forced": [
+        "{defender} punches the ball out on {rusher}! FUMBLE recovered by the defense!",
+        "{defender} strips {rusher}... ball on the ground, DEFENSE RECOVERS!",
+        "Huge hit by {defender} jars the ball loose from {rusher}! TURNOVER!",
+    ],
+    "pass_defended": [
+        "{defender} bats the ball away... incomplete!",
+        "{defender} in tight coverage, breaks it up at the last second!",
+        "Good defense by {defender}, forces the incompletion.",
+    ],
+    "opp_fumble_forced": [
+        "{defender} rips the ball away from {rusher}! Big turnover for your team!",
+        "{defender} lays the hit on {rusher} and forces the fumble! Defense recovers!",
+        "Strip by {defender}! {rusher} loses the ball... your defense takes over!",
+    ],
+    "opp_pass_defended": [
+        "{defender} swats it away... no gain!",
+        "{defender} blanketed the receiver, forces the incompletion.",
+        "Nice play by {defender} to break that one up!",
     ],
     "rushing_td": [
         "{rusher} punches it in from {yards} yards! TOUCHDOWN!",
         "{rusher} breaks a tackle and scores from {yards} out! TD!",
-        "{rusher} up the gut from {yards} yards — TOUCHDOWN!",
+        "{rusher} up the gut from {yards} yards... TOUCHDOWN!",
         "{rusher} fights through the pile and scores! {yards}-yard TD!",
     ],
     "passing_td": [
-        "{qb} fires to {receiver} in the end zone — TOUCHDOWN! {yards} yards!",
+        "{qb} fires to {receiver} in the end zone... TOUCHDOWN! {yards} yards!",
         "{qb} threads the needle to {receiver} for a {yards}-yard TD!",
         "Beautiful throw from {qb}, {receiver} hauls it in for a {yards}-yard score!",
         "{qb} rolls out and finds {receiver} for a {yards}-yard TOUCHDOWN!",
     ],
     "fg_good": [
         "{kicker} lines it up from {yards} yards... it's GOOD! 3 points.",
-        "Field goal by {kicker} from {yards} yards — right down the middle!",
-        "{kicker} splits the uprights from {yards}. 3 more on the board.",
+        "Field goal by {kicker} from {yards} yards... RIGHT down the middle!",
+        "{kicker} splits the uprights from {yards}. 3 MORE on the board.",
     ],
     "fg_miss": [
-        "{kicker} pulls it wide left from {yards}. No good.",
-        "{kicker}'s {yards}-yard attempt misses right. No good.",
-        "The kick is off — {kicker} misses from {yards} yards.",
+        "{kicker} pulls it wide left from {yards}. NO GOOD!",
+        "{kicker}'s {yards}-yard attempt MISSES right. NO GOOD!",
+        "The kick is off... {kicker} MISSES from {yards} yards.",
     ],
     "punt": [
         "Offense stalls. Punting unit takes the field.",
-        "Can't convert on third down — punt.",
+        "Can't convert on third down... punt.",
         "Three-and-out. Forced to punt.",
     ],
     "opp_run": [
@@ -384,16 +430,18 @@ _PLAY_TEMPLATES = {
         "Pressure! {defender} brings down {qb} for the sack!",
     ],
     "opp_interception": [
-        "{defender} picks off {qb}! Huge turnover for your team!",
-        "{defender} reads it perfectly — INTERCEPTION!",
+        "{qb} fires for {receiver}... INTERCEPTED by {defender}! Huge turnover for your team!",
+        "{defender} steps in front of {receiver} and takes it... INT!",
+        "{qb} telegraphs it to {receiver}... {defender} reads it perfectly! INTERCEPTION!",
+        "{defender} picks off {qb}, intended for {receiver}! Your defense comes up huge!",
     ],
     "opp_rushing_td": [
         "{rusher} scores from {yards} yards out! TD for {team}!",
-        "{rusher} punches it in — {yards}-yard TD run for {team}!",
+        "{rusher} punches it in... {yards}-yard TD run for {team}!",
     ],
     "opp_passing_td": [
         "{qb} connects with {receiver} for a {yards}-yard TD! {team} scores!",
-        "{qb} fires to {receiver} in the end zone — TOUCHDOWN for {team}!",
+        "{qb} fires to {receiver} in the end zone... TOUCHDOWN for {team}!",
     ],
     "opp_fg_good": [
         "{kicker} hits from {yards} yards. {team} adds 3 points.",
@@ -421,11 +469,10 @@ def _dist_bucket(yards_to_go: int) -> str:
     return "long"
 
 def _fg_make_prob(distance: int) -> float:
-    # NFL averages: ~93% <30, ~87% 30-39, ~79% 40-49, ~60% 50-59, ~40% 60+
-    if distance < 30:   return 0.93
-    if distance < 40:   return 0.87
-    if distance < 50:   return 0.79
-    if distance < 60:   return 0.60
+    if distance < 30: return 0.93
+    if distance < 40: return 0.87
+    if distance < 50: return 0.79
+    if distance < 60: return 0.60
     return 0.38
 
 def _weighted_pick(pool: list[tuple]) -> str:
@@ -449,7 +496,6 @@ def simulate_game_drives(
     where *_game_stats are dicts of {player_name: {stat: value}}.
     """
 
-    # ── Roster lookups ──────────────────────────────────────────────────────
     def _first(players, positions):
         for p in players:
             if p["position"] in positions:
@@ -457,36 +503,43 @@ def simulate_game_drives(
         return None
 
     user_players = user_team["players"]
-    user_qb       = _first(user_players, {"QB"}) or "QB"
-    user_kicker   = _first(user_players, {"K"})  or "K"
-    user_punter   = _first(user_players, {"P"})  or None
+    user_qb = _first(user_players, {"QB"}) or "QB"
+    user_kicker = _first(user_players, {"K"})  or "K"
+    user_punter = _first(user_players, {"P"})  or None
     user_returner = _first(user_players, {"RS"}) or None
     user_rushers = [(p["name"], _player_rush_share(p["name"], user_player_df))
                     for p in user_players if p["position"] in ("RB", "FB")]
     user_receivers = [(p["name"], _player_target_share(p["name"], user_player_df, p["position"]))
                       for p in user_players if p["position"] in ("WR", "TE", "RB", "FB")]
     user_sack_pool = [(p["name"], _SACK_WEIGHT.get(p["position"], 1))
-                      for p in user_players if p["position"] in _SACK_WEIGHT]
-    user_int_pool  = [(p["name"], _INT_WEIGHT.get(p["position"], 1))
-                      for p in user_players if p["position"] in _INT_WEIGHT]
+                        for p in user_players if p["position"] in _SACK_WEIGHT]
+    user_int_pool = [(p["name"], _INT_WEIGHT.get(p["position"], 1))
+                        for p in user_players if p["position"] in _INT_WEIGHT]
+    user_fumble_pool = [(p["name"], _FUMBLE_WEIGHT.get(p["position"], 1))
+                        for p in user_players if p["position"] in _FUMBLE_WEIGHT]
+    user_pd_pool = [(p["name"], _PD_WEIGHT.get(p["position"], 1))
+                        for p in user_players if p["position"] in _PD_WEIGHT]
 
-    opp_qb      = _first(opp_roster, {"QB"}) or f"{opp_name} QB"
-    opp_kicker  = _first(opp_roster, {"K"})  or f"{opp_name} K"
+    opp_qb = _first(opp_roster, {"QB"}) or f"{opp_name} QB"
+    opp_kicker = _first(opp_roster, {"K"})  or f"{opp_name} K"
     opp_rushers = [(p["name"], _player_rush_share(p["name"], opp_player_df))
                    for p in opp_roster if p["position"] in ("RB", "FB")]
     opp_receivers = [(p["name"], _player_target_share(p["name"], opp_player_df, p["position"]))
                      for p in opp_roster if p["position"] in ("WR", "TE", "RB", "FB")]
     opp_sack_pool = [(p["name"], _SACK_WEIGHT.get(p["position"], 1))
-                     for p in opp_roster if p["position"] in _SACK_WEIGHT]
-    opp_int_pool  = [(p["name"], _INT_WEIGHT.get(p["position"], 1))
-                     for p in opp_roster if p["position"] in _INT_WEIGHT]
+                       for p in opp_roster if p["position"] in _SACK_WEIGHT]
+    opp_int_pool = [(p["name"], _INT_WEIGHT.get(p["position"], 1))
+                       for p in opp_roster if p["position"] in _INT_WEIGHT]
+    opp_fumble_pool = [(p["name"], _FUMBLE_WEIGHT.get(p["position"], 1))
+                       for p in opp_roster if p["position"] in _FUMBLE_WEIGHT]
+    opp_pd_pool = [(p["name"], _PD_WEIGHT.get(p["position"], 1))
+                       for p in opp_roster if p["position"] in _PD_WEIGHT]
 
-    # ── Per-player YPC / YPR lookup helpers ─────────────────────────────────
     _user_ypc = {n: _player_ypc(n, user_player_df) for n, _ in user_rushers}
     _user_ypr = {n: _player_ypr(n, user_player_df)
                  for n, _ in user_receivers}
-    _opp_ypc  = {n: _player_ypc(n, opp_player_df)  for n, _ in opp_rushers}
-    _opp_ypr  = {n: _player_ypr(n, opp_player_df)
+    _opp_ypc = {n: _player_ypc(n, opp_player_df)  for n, _ in opp_rushers}
+    _opp_ypr = {n: _player_ypr(n, opp_player_df)
                  for n, _ in opp_receivers}
 
     def _pick_rusher(pool):
@@ -501,11 +554,9 @@ def simulate_game_drives(
         name = random.choices(names, weights=weights, k=1)[0]
         return name, ypr_map.get(name, 9.5)
 
-    # ── Stat accumulators ────────────────────────────────────────────────────
-    # Pre-seed every player with zero stats so they always appear in box score
     _DEF_ZERO = {"def_tackles_solo": 0, "def_sacks": 0, "def_interceptions": 0, "def_pass_defended": 0}
-    _DL_ZERO  = {"def_tackles_solo": 0, "def_sacks": 0, "def_pass_defended": 0}
-    _DB_ZERO  = {"def_tackles_solo": 0, "def_interceptions": 0, "def_pass_defended": 0}
+    _DL_ZERO = {"def_tackles_solo": 0, "def_sacks": 0, "def_pass_defended": 0}
+    _DB_ZERO = {"def_tackles_solo": 0, "def_interceptions": 0, "def_pass_defended": 0}
     _POS_ZERO = {
         "DE": _DL_ZERO, "DT": _DL_ZERO, "NT": _DL_ZERO,
         "LB": _DEF_ZERO, "OLB": _DEF_ZERO, "ILB": _DEF_ZERO, "MLB": _DEF_ZERO,
@@ -524,10 +575,9 @@ def simulate_game_drives(
         for k, v in kwargs.items():
             stats_dict[name][k] = stats_dict[name].get(k, 0) + v
 
-    # ── Play log ─────────────────────────────────────────────────────────────
     play_log: list[dict] = []
     user_score = 0
-    opp_score  = 0
+    opp_score = 0
 
     def _log(quarter: int, team: str, text: str, is_score: bool = False):
         play_log.append({
@@ -538,33 +588,18 @@ def simulate_game_drives(
             "is_score": is_score,
         })
 
-    # ── Single play execution ────────────────────────────────────────────────
     user_name = user_team.get("team_name", "Your Team")
 
-    def run_play(side: str, down: int, ytg: int, quarter: int, score_diff: int) -> tuple[int, str, bool]:
-        """
-        Execute one play. Returns (yards_gained, terminal_event, is_highlight).
-        terminal_event: "" | "td" | "int" | "fumble"
-        """
-        bucket = _dist_bucket(ytg)
-
-        # Game-script: trailing team passes more in Q4
-        run_prob = _RUN_PROB.get((down, bucket), 0.40)
-        if score_diff < -10 and quarter >= 4:
-            run_prob *= 0.60   # desperation passing mode
-        if score_diff > 10 and quarter >= 4:
-            run_prob *= 1.35   # clock-killing run mode
-        run_prob = float(np.clip(run_prob, 0.05, 0.90))
-
-        is_run = random.random() < run_prob
-
+    def run_play(side: str, down: int, ytg: int, quarter: int, score_diff: int, current_yardline: int = 75) -> tuple[int, str, bool]:
         if side == "user":
             qb = user_qb
             rushers_pool = user_rushers
             receivers_pool = user_receivers
             ypr_map = _user_ypr
             sack_pool = opp_sack_pool
-            int_pool  = opp_int_pool
+            int_pool = opp_int_pool
+            fumble_pool = opp_fumble_pool
+            pd_pool = opp_pd_pool
             name = user_name
         else:
             qb = opp_qb
@@ -572,27 +607,69 @@ def simulate_game_drives(
             receivers_pool = opp_receivers
             ypr_map = _opp_ypr
             sack_pool = user_sack_pool
-            int_pool  = user_int_pool
+            int_pool = user_int_pool
+            fumble_pool = user_fumble_pool
+            pd_pool = user_pd_pool
             name = opp_name
+        yardline_100 = current_yardline
 
+        secs_remaining = max(0.0, (4 - quarter) * 900.0 + 450.0)
+        goal_to_go_flag = int(ytg >= int(100 - yardline_100))
+        ml_pc = _ml_play_call(
+            down=down, ydstogo=float(ytg), yardline_100=float(yardline_100),
+            score_diff=float(score_diff), qtr=quarter,
+            secs_remaining=secs_remaining, goal_to_go=goal_to_go_flag,
+        )
+        if ml_pc is not None:
+            run_p  = ml_pc.get("run", 0.40)
+            pass_p = ml_pc.get("pass", 0.40)
+            total_rp = run_p + pass_p
+            if total_rp > 0:
+                run_prob = run_p / total_rp
+            else:
+                run_prob = 0.40
+        else:
+            bucket = _dist_bucket(ytg)
+            run_prob = _RUN_PROB.get((down, bucket), 0.40)
+
+        if score_diff < -10 and quarter >= 4:
+            run_prob *= 0.60
+        if score_diff > 10 and quarter >= 4:
+            run_prob *= 1.35
+        run_prob = float(np.clip(run_prob, 0.05, 0.90))
+
+        is_run = random.random() < run_prob
         is_highlight = False
 
         if is_run:
             rusher, ypc = _pick_rusher(rushers_pool if side == "user" else [(n, w) for n, w in opp_rushers])
-            raw_yards = np.random.normal(ypc, _RUN_YARDS_STD)
+
+            ml_out = _ml_outcome(
+                play_type="run", down=down, ydstogo=float(ytg),
+                yardline_100=float(yardline_100), score_diff=float(score_diff),
+                qtr=quarter, goal_to_go=goal_to_go_flag,
+            )
+            if ml_out is not None:
+                raw_yards = ml_out["yards"]
+                fumble_prob = float(np.clip(ml_out["turnover_prob"], 0.005, 0.015))
+            else:
+                raw_yards = np.random.normal(ypc, _RUN_YARDS_STD)
+                fumble_prob = _FUMBLE_PROB
+
             yards = int(np.clip(round(raw_yards), -3, 25))
             is_highlight = yards >= 12
 
-            # Fumble?
-            if random.random() < _FUMBLE_PROB:
+            if random.random() < fumble_prob:
+                strip_defender = _weighted_pick(fumble_pool)
                 if side == "user":
                     _add(user_stats, rusher, carries=1, rushing_yards=max(0, yards))
+                    _add(opp_stats, strip_defender, def_tackles_solo=1)
+                    tmpl = "fumble_forced"
                 else:
                     _add(opp_stats, rusher, carries=1, rushing_yards=max(0, yards))
-                    defender = _weighted_pick(user_sack_pool)
-                    _add(user_stats, defender, def_tackles_solo=1)
-                tmpl = "opp_run" if side == "opp" else "run"
-                text = f"FUMBLE! {rusher} loses the ball — defense recovers. Turnover!"
+                    _add(user_stats, strip_defender, def_tackles_solo=1)
+                    tmpl = "opp_fumble_forced"
+                text = _pick_template(tmpl, defender=strip_defender, rusher=rusher)
                 _log(quarter, name, text)
                 return yards, "fumble", True
 
@@ -608,7 +685,22 @@ def simulate_game_drives(
             return yards, "", is_highlight
 
         else:
-            # Pass play
+            ml_out = _ml_outcome(
+                play_type="pass", down=down, ydstogo=float(ytg),
+                yardline_100=float(yardline_100), score_diff=float(score_diff),
+                qtr=quarter, goal_to_go=goal_to_go_flag,
+            )
+            if ml_out is not None:
+                int_prob = float(np.clip(ml_out["turnover_prob"], 0.010, 0.050))
+                incomp_prob = float(np.clip(
+                    1.0 - ml_out["td_prob"] - int_prob - 0.55, 0.20, 0.50
+                ))
+                pass_yards = ml_out["yards"]
+            else:
+                int_prob = _INT_PROB
+                incomp_prob = _INCOMP_PROB
+                pass_yards = None
+
             if random.random() < _SACK_PROB:
                 sacker = _weighted_pick(sack_pool)
                 sack_yds = random.randint(5, 12)
@@ -621,31 +713,47 @@ def simulate_game_drives(
                 _log(quarter, name, text)
                 return -sack_yds, "", False
 
-            if random.random() < _INT_PROB:
+            intended_receiver, _ = _pick_receiver(receivers_pool, ypr_map)
+
+            if random.random() < int_prob:
                 interceptor = _weighted_pick(int_pool)
                 if side == "opp":
                     _add(user_stats, interceptor, def_interceptions=1, def_pass_defended=1)
+                    _add(opp_stats, qb, passing_yards=0)
+                    _add(opp_stats, intended_receiver, targets=1)
                 else:
                     _add(opp_stats, interceptor, def_interceptions=1, def_pass_defended=1)
+                    _add(user_stats, qb, passing_yards=0)
+                    _add(user_stats, intended_receiver, targets=1)
                 tmpl = "interception" if side == "opp" else "opp_interception"
-                text = _pick_template(tmpl, defender=interceptor, qb=qb)
+                text = _pick_template(tmpl, defender=interceptor, qb=qb, receiver=intended_receiver)
                 _log(quarter, name, text, is_score=False)
                 return 0, "int", True
 
-            if random.random() < _INCOMP_PROB:
-                receiver, _ = _pick_receiver(receivers_pool, ypr_map)
+            if random.random() < incomp_prob:
+                receiver = intended_receiver
+                pd_defender = _weighted_pick(pd_pool)
                 if side == "user":
                     _add(user_stats, qb, passing_yards=0)
                     _add(user_stats, receiver, targets=1)
+                    _add(opp_stats, pd_defender, def_pass_defended=1)
+                    if down >= 3:
+                        text = _pick_template("opp_pass_defended", defender=pd_defender)
+                        _log(quarter, opp_name, text)
                 else:
                     _add(opp_stats, qb, passing_yards=0)
                     _add(opp_stats, receiver, targets=1)
+                    _add(user_stats, pd_defender, def_pass_defended=1)
+                    if down >= 3:
+                        text = _pick_template("pass_defended", defender=pd_defender)
+                        _log(quarter, user_name, text)
                 return 0, "", False
 
-            # Completion
             receiver, ypr = _pick_receiver(receivers_pool, ypr_map)
-            raw_yards = np.random.normal(ypr, _PASS_YARDS_STD)
-            yards = int(np.clip(round(raw_yards), 1, 55))
+            if pass_yards is not None:
+                yards = int(np.clip(round(pass_yards), 1, 55))
+            else:
+                yards = int(np.clip(round(np.random.normal(ypr, _PASS_YARDS_STD)), 1, 55))
             is_highlight = yards >= 20
 
             if side == "user":
@@ -661,7 +769,7 @@ def simulate_game_drives(
                 _log(quarter, name, text)
             return yards, "", is_highlight
 
-    XP_MAKE_PROB = 0.944  # NFL average XP make rate
+    XP_MAKE_PROB = 0.944
 
     def score_td(side: str, quarter: int, how: str, rusher_or_receiver: str = "", yards: int = 5):
         nonlocal user_score, opp_score
@@ -675,7 +783,6 @@ def simulate_game_drives(
                 _add(user_stats, rusher_or_receiver, receiving_tds=1)
                 text = _pick_template("passing_td", qb=user_qb, receiver=rusher_or_receiver, yards=yards)
             _log(quarter, user_name, text, is_score=True)
-            # Extra point
             _add(user_stats, user_kicker, xp_att=1)
             if random.random() < XP_MAKE_PROB:
                 user_score += 1
@@ -693,16 +800,33 @@ def simulate_game_drives(
             if random.random() < XP_MAKE_PROB:
                 opp_score += 1
 
-    def attempt_fg(side: str, quarter: int, distance: int):
+    def attempt_fg(side: str, quarter: int, distance: int, current_yardline: int = 75):
         nonlocal user_score, opp_score
         if side == "user":
             kicker = user_kicker
             team = user_name
+            sdiff  = float(user_score - opp_score)
         else:
             kicker = opp_kicker
             team = opp_name
-        make_prob = _fg_make_prob(distance)
-        if random.random() < make_prob:
+            sdiff  = float(opp_score - user_score)
+        yl100 = float(current_yardline)
+
+        ml_out = _ml_outcome(
+            play_type="field_goal", down=4, ydstogo=float(distance),
+            yardline_100=yl100, score_diff=sdiff, qtr=quarter,
+            kick_distance=float(distance),
+        )
+        if ml_out is not None:
+            fg_probs = ml_out.get("fg_result_probs", {})
+            made_p    = fg_probs.get("made",    _fg_make_prob(distance))
+            blocked_p = fg_probs.get("blocked", 0.02)
+        else:
+            made_p    = _fg_make_prob(distance)
+            blocked_p = 0.02
+
+        roll = random.random()
+        if roll < made_p:
             if side == "user":
                 user_score += 3
                 _add(user_stats, kicker, fg_made=1, fg_att=1)
@@ -721,33 +845,43 @@ def simulate_game_drives(
             text = _pick_template(tmpl, kicker=kicker, yards=distance, team=team)
             _log(quarter, team, text, is_score=False)
 
-    # ── Punt + return helper ─────────────────────────────────────────────────
-    # Punt return TD: ~1 per 200 punt returns in real NFL ≈ 0.005 per return.
-    # Kickoff return TD: ~1 per 250 kickoff returns ≈ 0.004 per return.
-    # Both are already rare; we apply an additional 0.02 multiplier so across
-    # a full season of simulated games it feels like a once-a-year surprise.
-    _PUNT_RET_TD_PROB  = 0.005 * 0.02   # ≈ 0.0001
-    _KO_RET_TD_PROB    = 0.004 * 0.02   # ≈ 0.00008
+    _PUNT_RET_TD_PROB  = 0.005 * 0.02
+    _KO_RET_TD_PROB    = 0.004 * 0.02
 
-    def _do_punt(side: str, yardline: int, quarter: int) -> int:
-        """Log punt stats, maybe a return TD, return next possession yardline."""
-        punt_yds = random.randint(38, 58)
+    def _do_punt(side: str, punt_yardline: int, quarter: int) -> int:
+        yl100 = float(punt_yardline)
+        sdiff = float((user_score - opp_score) if side == "user" else (opp_score - user_score))
+        kick_dist = float(max(30, 100 - punt_yardline))
+        ml_out = _ml_outcome(
+            play_type="punt", down=4, ydstogo=15.0,
+            yardline_100=yl100, score_diff=sdiff, qtr=quarter,
+            kick_distance=kick_dist,
+        )
+        if ml_out is not None:
+            net_yds = int(np.clip(round(ml_out["punt_net_yards"]), 15, 65))
+            blocked_p = ml_out.get("punt_blocked_prob", 0.01)
+        else:
+            net_yds = random.randint(28, 46)
+            blocked_p = 0.01
+
         if side == "user" and user_punter:
-            _add(user_stats, user_punter, punts=1, punt_yards=punt_yds)
+            _add(user_stats, user_punter, punts=1, punt_yards=net_yds)
 
-        # Receiving team's returner handles the punt return
+        if random.random() < blocked_p:
+            _log(quarter, ("opp" if side == "user" else user_name), "Punt is BLOCKED!")
+            return max(15, 100 - punt_yardline - 5)
+
         if side == "opp" and user_returner:
             ret_yds = random.randint(5, 14)
             if random.random() < _PUNT_RET_TD_PROB:
                 nonlocal user_score
                 user_score += 7
                 _add(user_stats, user_returner, punt_returns=1, punt_return_yards=100, punt_return_tds=1)
-                _log(quarter, user_name, f"{user_returner} takes the punt return ALL THE WAY — TOUCHDOWN! 🏈", is_score=True)
+                _log(quarter, user_name, f"{user_returner} takes the punt return ALL THE WAY... TOUCHDOWN!", is_score=True)
                 return 25
             _add(user_stats, user_returner, punt_returns=1, punt_return_yards=ret_yds)
 
-        net_yds = punt_yds - random.randint(5, 12)
-        return max(15, 100 - yardline - net_yds)
+        return max(15, 100 - punt_yardline - net_yds)
 
     def _do_kickoff_return(quarter: int) -> None:
         """Credit the returner for a kickoff return, with infinitesimal TD chance."""
@@ -762,51 +896,43 @@ def simulate_game_drives(
         else:
             _add(user_stats, user_returner, kickoff_returns=1, kickoff_return_yards=ret_yds)
 
-    # ── Drive simulation ─────────────────────────────────────────────────────
     def simulate_drive(side: str, start_yardline: int, quarter: int) -> tuple[int, int]:
         """Simulate a full drive. Returns (ending_quarter, final_yardline)."""
         down = 1
-        ytg  = 10
-        yardline = start_yardline   # yards from own end zone (0=own goal, 100=opp goal)
+        ytg = 10
+        yardline = start_yardline
         plays_run = 0
         MAX_PLAYS = 20
 
         while plays_run < MAX_PLAYS:
             score_diff = (user_score - opp_score) if side == "user" else (opp_score - user_score)
-            yards, event, _ = run_play(side, down, ytg, quarter, score_diff)
+            yards, event, _ = run_play(side, down, ytg, quarter, score_diff, yardline)
             plays_run += 1
             yardline += yards
 
-            # Touchdown
             if yardline >= 100:
                 td_yards = max(1, yards)
                 if side == "user":
                     rusher_name, _ = _pick_rusher(user_rushers)
-                    rec_name, _    = _pick_receiver(user_receivers, _user_ypr)
+                    rec_name, _  = _pick_receiver(user_receivers, _user_ypr)
                 else:
                     rusher_name, _ = _pick_rusher([(n, w) for n, w in opp_rushers])
-                    rec_name, _    = _pick_receiver(opp_receivers, _opp_ypr)
-                # Decide rush vs pass TD based on field position and down
-                bucket = _dist_bucket(ytg)
-                is_rush_td = random.random() < _RUN_PROB.get((down, bucket), 0.40)
+                    rec_name, _ = _pick_receiver(opp_receivers, _opp_ypr)
+                is_rush_td = random.random() < 0.40
                 scorer = rusher_name if is_rush_td else rec_name
                 score_td(side, quarter, "rush" if is_rush_td else "pass", scorer, min(td_yards, 20))
                 if side == "opp":
                     _do_kickoff_return(quarter)
                 return quarter, 25
 
-            # Turnover
             if event == "int" or event == "fumble":
-                return quarter, 100 - max(20, yardline)   # opponent gets ball
+                return quarter, 100 - max(20, yardline)
 
-            # Safety (ball behind own goal line)
             if yardline <= 0:
                 yardline = 5
                 down = 1
                 ytg = 10
                 continue
-
-            # Made first down
             if yards >= ytg:
                 down = 1
                 ytg  = 10
@@ -814,33 +940,26 @@ def simulate_game_drives(
                 ytg  -= yards
                 down += 1
 
-            # 4th down decision
             if down == 4:
                 dist_to_goal = 100 - yardline
                 if dist_to_goal <= 52 and random.random() < _FG_ATTEMPT_DIST:
-                    attempt_fg(side, quarter, dist_to_goal + 17)
+                    attempt_fg(side, quarter, dist_to_goal + 17, yardline)
                     if side == "opp":
                         _do_kickoff_return(quarter)
                     return quarter, 25
                 else:
                     return quarter, _do_punt(side, yardline, quarter)
 
-        # Drive ran too long — force punt
         return quarter, _do_punt(side, yardline, quarter)
 
-    # ── Game loop ────────────────────────────────────────────────────────────
-    # Typical NFL game: 11-12 drives per team (22-24 total), ~4 per quarter
-    # We simulate quarter by quarter and alternate possession
     possession_order = []
     for q in range(1, 5):
-        # Each quarter has ~2 drives per team; coin flip for who gets first in Q3
         if q == 1:
             sides = ["user", "opp", "user", "opp"]
         elif q == 3:
             sides = random.choice([["opp", "user", "opp", "user"],
                                    ["user", "opp", "user", "opp"]])
         else:
-            # Continue alternating from where Q left off
             last = possession_order[-1][0] if possession_order else "user"
             first = "opp" if last == "user" else "user"
             sides = [first, "user" if first == "opp" else "opp",
@@ -861,19 +980,12 @@ def simulate_game_drives(
         yardline[opp_side] = end_yl
         drives_per_team[side] += 1
 
-    # ── Apply opp quality factor to opp offensive stats ──────────────────────
     if opp_quality != 1.0:
         for pstats in opp_stats.values():
             for stat in ("passing_yards", "rushing_yards", "receptions", "receiving_yards"):
                 if stat in pstats:
                     pstats[stat] *= opp_quality
 
-    # ── Distribute realistic tackle counts across all defenders ──────────────
-    # The drive sim only assigns tackles on sacks/INTs/fumbles — every other
-    # defender stays at 0. We fix this by distributing a realistic total tackle
-    # count across all defenders weighted by their historical tackle averages.
-    # Typical NFL game: ~120-140 total tackles split across both teams → ~60-70
-    # per team, but only solo tackles show in box score (~35-45 per team).
     _TACKLE_MEAN_BY_POS = {
         "DE": 4.0, "DT": 3.0, "NT": 3.5,
         "LB": 7.0, "OLB": 6.0, "ILB": 8.0, "MLB": 8.0,
@@ -884,7 +996,6 @@ def simulate_game_drives(
         if not defenders:
             return
 
-        # Build weights: use historical tackle mean if available, else positional default
         weights = []
         for p in defenders:
             rows = player_df[player_df["player_display_name"] == p["name"]] if not player_df.empty else pd.DataFrame()
@@ -897,14 +1008,12 @@ def simulate_game_drives(
             weights.append(max(per_game, 0.5))
 
         total_weight = sum(weights)
-        # Total solo tackles for the user defense in this game: normally distributed around 38
         total_tackles = max(20, int(np.random.normal(38, 6)))
 
         for p, w in zip(defenders, weights):
             share = w / total_weight
             raw = np.random.normal(share * total_tackles, share * total_tackles * 0.25)
             tackles = max(0, round(raw))
-            # Add to whatever the sim already gave them (sack tackles etc.)
             existing = user_stats.get(p["name"], {}).get("def_tackles_solo", 0)
             if p["name"] not in user_stats:
                 user_stats[p["name"]] = {}
@@ -916,7 +1025,6 @@ def simulate_game_drives(
 
 
 def _passer_rating(yards: float, tds: float, ints: float, attempts: float) -> float:
-    """NFL passer rating formula (0-158.3 scale)."""
     if attempts < 1:
         return 0.0
     comp_pct = 0.63
@@ -1075,16 +1183,14 @@ def run_game_simulation(team_id: str, nfl_opponent: str, season: int, is_home: b
         raise ValueError(f"No roster data found for {nfl_opponent} in {season}")
     opp_player_names = [p["name"] for p in opp_roster]
     opp_player_df = fetch_player_stats(opp_player_names)
-
-    # Opponent quality factor — better teams push the user's stats down slightly
     opp_team_stats = fetch_team_season_stats(nfl_opponent, season)
     opp_quality = 1.0
+
     if not opp_team_stats.empty:
         avg_pass = float(opp_team_stats["passing_yards"].mean()) if "passing_yards" in opp_team_stats.columns else 230
         avg_rush = float(opp_team_stats["rushing_yards"].mean()) if "rushing_yards" in opp_team_stats.columns else 115
         opp_quality = float(np.clip((avg_pass / 230 + avg_rush / 115) / 2, 0.80, 1.25))
-
-    # Home/away quality bump
+    
     location_boost = 1.04 if is_home else 0.96
 
     user_stats, _opp_stats, play_log, user_score, opp_score = simulate_game_drives(
@@ -1096,7 +1202,6 @@ def run_game_simulation(team_id: str, nfl_opponent: str, season: int, is_home: b
         opp_quality=opp_quality,
     )
 
-    # Apply home/away multiplier to user offensive stats post-simulation
     if location_boost != 1.0:
         for pstats in user_stats.values():
             for stat in ("passing_yards", "rushing_yards", "receptions", "receiving_yards", "carries"):
