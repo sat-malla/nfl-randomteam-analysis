@@ -1,6 +1,7 @@
 import {
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TouchableOpacity,
   useColorScheme,
@@ -57,6 +58,8 @@ type SimResult = {
   user_team: string;
   opponent: string;
   season: number;
+  playoff_mode: boolean;
+  overtime_periods: number;
   final_score: { user: number; opponent: number };
   winner: string;
   play_by_play: PlayEntry[];
@@ -68,6 +71,11 @@ const QUARTER_COLORS: Record<string, string> = {
   Q2: "#f59e0b",
   Q3: "#10b981",
   Q4: "#ef4444",
+  OT1: "#7c3aed",
+  OT2: "#7c3aed",
+  OT3: "#7c3aed",
+  OT4: "#7c3aed",
+  OT5: "#7c3aed",
 };
 
 const POS_COLORS_LIGHT: Record<string, { bg: string; text: string }> = {
@@ -174,6 +182,7 @@ export default function SimulateGame() {
   const [result, setResult] = useState<SimResult | null>(null);
   const [error, setError] = useState("");
 
+  const [playoffMode, setPlayoffMode] = useState(false);
   const [myTeamOpen, setMyTeamOpen] = useState(false);
   const [nflPickerOpen, setNflPickerOpen] = useState(false);
   const [seasonOpen, setSeasonOpen] = useState(false);
@@ -237,6 +246,7 @@ export default function SimulateGame() {
           nfl_opponent: selectedOpponent,
           season: parseInt(selectedSeason, 10),
           is_home: isHome,
+          playoff_mode: playoffMode,
         }),
       });
       const data = await resp.json();
@@ -384,6 +394,21 @@ export default function SimulateGame() {
           </VStack>
         </FormControl>
 
+        <View style={[styles.playoffRow, { borderColor: c.border, backgroundColor: playoffMode ? (isDark ? "#1e1040" : "#f3f0ff") : "transparent" }]}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.playoffLabel, { color: c.text }]}>Playoff Mode</Text>
+            <Text style={[styles.playoffHint, { color: c.subtext }]}>
+              No ties — game goes to however many OTs it takes. Expect a tougher opponent.
+            </Text>
+          </View>
+          <Switch
+            value={playoffMode}
+            onValueChange={setPlayoffMode}
+            trackColor={{ false: c.border, true: "#7c3aed" }}
+            thumbColor="#fff"
+          />
+        </View>
+
         <TouchableOpacity
           style={[styles.simulateBtn, { backgroundColor: canSimulate ? c.button : "#9ca3af" }]}
           disabled={!canSimulate}
@@ -430,6 +455,13 @@ export default function SimulateGame() {
               </View>
             </View>
             <Text style={[styles.winnerBadge, { color: winnerColor }]}>{winnerLabel}</Text>
+            {result.overtime_periods > 0 && (
+              <View style={[styles.otBadge, { backgroundColor: isDark ? "#1e1040" : "#f3f0ff", borderColor: "#7c3aed" }]}>
+                <Text style={styles.otBadgeText}>
+                  {result.overtime_periods === 1 ? "Overtime" : `${result.overtime_periods}x Overtime`}
+                </Text>
+              </View>
+            )}
           </View>
 
           {result.box_score.length > 0 && (() => {
@@ -492,7 +524,7 @@ export default function SimulateGame() {
               <Text style={[styles.sectionTitle, { color: c.text }]}>Highlights</Text>
               {result.play_by_play.map((entry, i) => {
                 const isUser = entry.team === result.user_team;
-                const qColor = QUARTER_COLORS[entry.quarter] ?? c.subtext;
+                const qColor = QUARTER_COLORS[entry.quarter] ?? (entry.quarter.startsWith("OT") ? "#7c3aed" : c.subtext);
                 return (
                   <View key={i} style={[styles.playRow, { borderBottomColor: c.border }]}>
                     <View style={styles.playMeta}>
@@ -608,6 +640,24 @@ const styles = StyleSheet.create({
     fontFamily: "Montserrat_700Bold",
     fontSize: 14,
   },
+  playoffRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+  },
+  playoffLabel: {
+    fontFamily: "Montserrat_700Bold",
+    fontSize: 14,
+    marginBottom: 2,
+  },
+  playoffHint: {
+    fontFamily: "Montserrat_400Regular",
+    fontSize: 12,
+    lineHeight: 17,
+  },
   simulateBtn: {
     padding: 14,
     borderRadius: 10,
@@ -651,6 +701,21 @@ const styles = StyleSheet.create({
     fontSize: 20,
     textAlign: "center",
     letterSpacing: 2,
+  },
+  otBadge: {
+    alignSelf: "center",
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    marginTop: 4,
+  },
+  otBadgeText: {
+    fontFamily: "Montserrat_700Bold",
+    fontSize: 12,
+    color: "#7c3aed",
+    letterSpacing: 1,
+    textTransform: "uppercase",
   },
   seasonLabel: {
     fontFamily: "Montserrat_400Regular",

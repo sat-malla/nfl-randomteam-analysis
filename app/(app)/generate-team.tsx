@@ -6,7 +6,6 @@ import {
   FormControlLabelText,
 } from "@/components/ui/form-control";
 import { Heading } from "@/components/ui/heading";
-import { Input, InputField } from "@/components/ui/input";
 import PickerModal, { PickerTrigger } from "@/components/PickerModal";
 import { Spinner } from '@/components/ui/spinner';
 import {
@@ -30,6 +29,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   useColorScheme,
   View,
@@ -95,8 +95,6 @@ const GenerateTeam = () => {
     colorScheme === "light" ? styles.lightTable : styles.darkTable;
   const themeFormStyle =
     colorScheme === "light" ? styles.lightForm : styles.darkForm;
-  const themeInputTextStyle =
-    colorScheme === "light" ? styles.lightInputText : styles.darkInputText;
   const themeGenerateButtonStyle =
     colorScheme === "light" ? styles.lightGenerateButton : styles.darkGenerateButton;
   const themeGenerateButtonTextStyle =
@@ -608,17 +606,17 @@ const GenerateTeam = () => {
             <FormControlLabel style={{ marginTop: 15 }}>
               <FormControlLabelText style={{ fontFamily: "Montserrat_400Regular" }}>Team Name</FormControlLabelText>
             </FormControlLabel>
-            <Input size="lg">
-              <InputField
-                type="text"
-                placeholder="Team Name"
-                value={formData.teamName}
-                style={[themeInputTextStyle, { fontFamily: "Montserrat_400Regular" }]}
-                onChangeText={(text) =>
-                  setFormData({ ...formData, teamName: text })
-                }
-              />
-            </Input>
+            <TextInput
+              placeholder="Team Name"
+              placeholderTextColor={colorScheme === "dark" ? "#a0b4c8" : "#4a5568"}
+              value={formData.teamName}
+              onChangeText={(text) => setFormData({ ...formData, teamName: text })}
+              style={[styles.teamNameInput, {
+                backgroundColor: colorScheme === "dark" ? "#0d1f2d" : "#f0f7ff",
+                borderColor: colorScheme === "dark" ? "#1e3a52" : "#bfdbfe",
+                color: colorScheme === "dark" ? "#edf5ff" : "#02080f",
+              }]}
+            />
             <FormControlLabel style={{ marginTop: 15 }}>
               <FormControlLabelText style={{ fontFamily: "Montserrat_400Regular" }}>Type of Offense</FormControlLabelText>
             </FormControlLabel>
@@ -811,6 +809,14 @@ const styles = StyleSheet.create({
   darkInputText: {
     color: "#edf5ff",
     width: "100%",
+  },
+  teamNameInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 13,
+    fontFamily: "Montserrat_400Regular",
+    fontSize: 17,
   },
   lightGenerateButton: {
     backgroundColor: "#02080f",

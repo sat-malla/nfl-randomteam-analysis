@@ -656,7 +656,7 @@ def simulate_game_drives(
                 raw_yards = np.random.normal(ypc, _RUN_YARDS_STD)
                 fumble_prob = _FUMBLE_PROB
 
-            yards = int(np.clip(round(raw_yards), -3, 25))
+            yards = int(np.clip(round(raw_yards), -3, 35))
             is_highlight = yards >= 12
 
             if random.random() < fumble_prob:
@@ -878,7 +878,7 @@ def simulate_game_drives(
                 user_score += 7
                 _add(user_stats, user_returner, punt_returns=1, punt_return_yards=100, punt_return_tds=1)
                 _log(quarter, user_name, f"{user_returner} takes the punt return ALL THE WAY... TOUCHDOWN!", is_score=True)
-                return 25
+                return 35
             _add(user_stats, user_returner, punt_returns=1, punt_return_yards=ret_yds)
 
         return max(15, 100 - punt_yardline - net_yds)
@@ -923,7 +923,7 @@ def simulate_game_drives(
                 score_td(side, quarter, "rush" if is_rush_td else "pass", scorer, min(td_yards, 20))
                 if side == "opp":
                     _do_kickoff_return(quarter)
-                return quarter, 25
+                return quarter, 35
 
             if event == "int" or event == "fumble":
                 return quarter, 100 - max(20, yardline)
@@ -946,7 +946,7 @@ def simulate_game_drives(
                     attempt_fg(side, quarter, dist_to_goal + 17, yardline)
                     if side == "opp":
                         _do_kickoff_return(quarter)
-                    return quarter, 25
+                    return quarter, 35
                 else:
                     return quarter, _do_punt(side, yardline, quarter)
 
@@ -967,7 +967,7 @@ def simulate_game_drives(
         for s in sides:
             possession_order.append((s, q))
 
-    yardline = {"user": 25, "opp": 25}
+    yardline = {"user": 35, "opp": 35}
     drives_per_team = {"user": 0, "opp": 0}
     MAX_DRIVES_PER_TEAM = 12
 
@@ -1168,7 +1168,267 @@ def build_box_score(user_game: dict, team_players: list) -> list[dict]:
     return box
 
 
-def run_game_simulation(team_id: str, nfl_opponent: str, season: int, is_home: bool = True) -> dict:
+def simulate_overtime_period(
+    ot_num: int,
+    user_team: dict,
+    user_player_df,
+    opp_roster: list,
+    opp_player_df,
+    opp_name: str,
+    opp_quality: float,
+    playoff_mode: bool,
+) -> tuple[dict, dict, list[dict], int, int]:
+    """
+    Simulate one overtime period (sudden death, 10-min drive series).
+    """
+    scratch_user_stats: dict = {}
+    scratch_opp_stats: dict = {}
+    ot_play_log: list = []
+    u_score = 0
+    o_score = 0
+
+    first = random.choice(["user", "opp"])
+    order = [first, "opp" if first == "user" else "user"]
+
+    def _first(players, positions):
+        for p in players:
+            if p["position"] in positions:
+                return p["name"]
+        return None
+
+    user_players = user_team["players"]
+    user_qb = _first(user_players, {"QB"}) or "QB"
+    user_kicker = _first(user_players, {"K"}) or "K"
+    user_rushers = [(p["name"], _player_rush_share(p["name"], user_player_df))
+                    for p in user_players if p["position"] in ("RB", "FB")]
+    user_receivers = [(p["name"], _player_target_share(p["name"], user_player_df, p["position"]))
+                      for p in user_players if p["position"] in ("WR", "TE", "RB", "FB")]
+    user_sack_pool = [(p["name"], _SACK_WEIGHT.get(p["position"], 1))
+                      for p in user_players if p["position"] in _SACK_WEIGHT]
+    user_int_pool = [(p["name"], _INT_WEIGHT.get(p["position"], 1))
+                     for p in user_players if p["position"] in _INT_WEIGHT]
+    user_fumble_pool = [(p["name"], _FUMBLE_WEIGHT.get(p["position"], 1))
+                        for p in user_players if p["position"] in _FUMBLE_WEIGHT]
+    user_pd_pool = [(p["name"], _PD_WEIGHT.get(p["position"], 1))
+                    for p in user_players if p["position"] in _PD_WEIGHT]
+
+    opp_qb = _first(opp_roster, {"QB"}) or f"{opp_name} QB"
+    opp_kicker = _first(opp_roster, {"K"}) or f"{opp_name} K"
+    opp_rushers = [(p["name"], _player_rush_share(p["name"], opp_player_df))
+                   for p in opp_roster if p["position"] in ("RB", "FB")]
+    opp_receivers = [(p["name"], _player_target_share(p["name"], opp_player_df, p["position"]))
+                     for p in opp_roster if p["position"] in ("WR", "TE", "RB", "FB")]
+    opp_sack_pool = [(p["name"], _SACK_WEIGHT.get(p["position"], 1))
+                     for p in opp_roster if p["position"] in _SACK_WEIGHT]
+    opp_int_pool = [(p["name"], _INT_WEIGHT.get(p["position"], 1))
+                    for p in opp_roster if p["position"] in _INT_WEIGHT]
+    opp_fumble_pool = [(p["name"], _FUMBLE_WEIGHT.get(p["position"], 1))
+                       for p in opp_roster if p["position"] in _FUMBLE_WEIGHT]
+    opp_pd_pool = [(p["name"], _PD_WEIGHT.get(p["position"], 1))
+                   for p in opp_roster if p["position"] in _PD_WEIGHT]
+
+    _user_ypc = {n: _player_ypc(n, user_player_df) for n, _ in user_rushers}
+    _user_ypr = {n: _player_ypr(n, user_player_df) for n, _ in user_receivers}
+    _opp_ypc = {n: _player_ypc(n, opp_player_df)  for n, _ in opp_rushers}
+    _opp_ypr = {n: _player_ypr(n, opp_player_df)  for n, _ in opp_receivers}
+    user_name = user_team.get("team_name", "Your Team")
+
+    int_scale = 0.80 if playoff_mode else 1.0
+    incomp_scale = 0.85 if playoff_mode else 1.0
+
+    def _add(stats_dict, name, **kwargs):
+        if name not in stats_dict:
+            stats_dict[name] = {}
+        for k, v in kwargs.items():
+            stats_dict[name][k] = stats_dict[name].get(k, 0) + v
+
+    def _log_ot(team_name: str, text: str, is_score: bool = False):
+        ot_play_log.append({
+            "quarter": f"OT{ot_num}",
+            "team": team_name,
+            "play": text,
+            "score": f"{u_score}-{o_score}",
+            "is_score": is_score,
+        })
+
+    def _pick_rusher(pool, ypc_map):
+        if not pool: return ("RB", 4.2)
+        names, weights = zip(*pool)
+        name = random.choices(names, weights=weights, k=1)[0]
+        return name, ypc_map.get(name, 4.2)
+
+    def _pick_receiver(pool, ypr_map):
+        if not pool: return ("WR", 9.5)
+        names, weights = zip(*pool)
+        name = random.choices(names, weights=weights, k=1)[0]
+        return name, ypr_map.get(name, 9.5)
+
+    scored = False
+
+    def run_ot_drive(side: str, start_yl: int) -> tuple[bool, int]:
+        nonlocal u_score, o_score, scored
+
+        if side == "user":
+            qb, kicker = user_qb, user_kicker
+            rushers_pool, receivers_pool = user_rushers, user_receivers
+            ypc_map, ypr_map = _user_ypc, _user_ypr
+            sack_pool, int_pool, fumble_pool, pd_pool = opp_sack_pool, opp_int_pool, opp_fumble_pool, opp_pd_pool
+            team_name = user_name
+        else:
+            qb, kicker = opp_qb, opp_kicker
+            rushers_pool, receivers_pool = opp_rushers, opp_receivers
+            ypc_map, ypr_map = _opp_ypc, _opp_ypr
+            sack_pool, int_pool, fumble_pool, pd_pool = user_sack_pool, user_int_pool, user_fumble_pool, user_pd_pool
+            team_name = opp_name
+
+        down, ytg, yardline = 1, 10, start_yl
+        plays_run = 0
+
+        while plays_run < 20:
+            bucket = _dist_bucket(ytg)
+            run_prob = _RUN_PROB.get((down, bucket), 0.40)
+            run_prob = float(np.clip(run_prob, 0.05, 0.90))
+            is_run = random.random() < run_prob
+            plays_run += 1
+
+            if is_run:
+                rusher, ypc = _pick_rusher(rushers_pool, ypc_map)
+                yards = int(np.clip(round(np.random.normal(ypc, _RUN_YARDS_STD)), -3, 35))
+                fumble_p = _FUMBLE_PROB
+                if random.random() < fumble_p:
+                    strip_def = _weighted_pick(fumble_pool)
+                    text = _pick_template("fumble_forced" if side == "user" else "opp_fumble_forced",
+                                          defender=strip_def, rusher=rusher)
+                    _log_ot(team_name, text)
+                    return False, 100 - max(20, yardline + yards)
+                if side == "user":
+                    _add(scratch_user_stats, rusher, carries=1, rushing_yards=max(0, yards))
+                else:
+                    _add(scratch_opp_stats, rusher, carries=1, rushing_yards=max(0, yards))
+                yardline += yards
+            else:
+                int_prob = _INT_PROB * int_scale
+                incomp_prob = _INCOMP_PROB * incomp_scale
+                if random.random() < _SACK_PROB:
+                    sacker = _weighted_pick(sack_pool)
+                    sack_yds = random.randint(5, 12)
+                    if side == "user":
+                        _add(scratch_opp_stats, sacker, def_sacks=1)
+                    else:
+                        _add(scratch_user_stats, sacker, def_sacks=1)
+                    text = _pick_template("sack" if side == "user" else "opp_sack", defender=sacker, qb=qb)
+                    _log_ot(team_name, text)
+                    yardline -= sack_yds
+                    yards = -sack_yds
+                elif random.random() < int_prob:
+                    interceptor = _weighted_pick(int_pool)
+                    receiver, _ = _pick_receiver(receivers_pool, ypr_map)
+                    if side == "user":
+                        _add(scratch_opp_stats, interceptor, def_interceptions=1)
+                    else:
+                        _add(scratch_user_stats, interceptor, def_interceptions=1)
+                    text = _pick_template("interception" if side == "opp" else "opp_interception", defender=interceptor, qb=qb, receiver=receiver)
+                    _log_ot(team_name, text)
+                    return False, 100 - max(20, yardline)
+                elif random.random() < incomp_prob:
+                    receiver, _ = _pick_receiver(receivers_pool, ypr_map)
+                    pd_def = _weighted_pick(pd_pool)
+                    if side == "user":
+                        _add(scratch_opp_stats, pd_def, def_pass_defended=1)
+                    else:
+                        _add(scratch_user_stats, pd_def, def_pass_defended=1)
+                    yards = 0
+                else:
+                    receiver, ypr = _pick_receiver(receivers_pool, ypr_map)
+                    yards = int(np.clip(round(np.random.normal(ypr, _PASS_YARDS_STD)), 1, 55))
+                    if side == "user":
+                        _add(scratch_user_stats, qb, passing_yards=yards)
+                        _add(scratch_user_stats, receiver, receptions=1, receiving_yards=yards)
+                    else:
+                        _add(scratch_opp_stats, qb, passing_yards=yards)
+                        _add(scratch_opp_stats, receiver, receptions=1, receiving_yards=yards)
+                    if yards >= 20:
+                        tmpl = "pass_complete" if side == "user" else "opp_pass_complete"
+                        _log_ot(team_name, _pick_template(tmpl, qb=qb, receiver=receiver, yards=yards))
+                    yardline += yards
+
+            if yardline >= 100:
+                is_rush_td = random.random() < 0.40
+                rusher_name, _ = _pick_rusher(rushers_pool, ypc_map)
+                rec_name, _    = _pick_receiver(receivers_pool, ypr_map)
+                scorer = rusher_name if is_rush_td else rec_name
+                td_yards = max(1, min(yards, 20))
+                if side == "user":
+                    u_score += 7
+                    text = _pick_template("rushing_td" if is_rush_td else "passing_td",
+                                          **{"rusher": scorer, "yards": td_yards} if is_rush_td
+                                          else {"qb": qb, "receiver": scorer, "yards": td_yards})
+                else:
+                    o_score += 7
+                    text = _pick_template("opp_rushing_td" if is_rush_td else "opp_passing_td",
+                                          **{"rusher": scorer, "yards": td_yards, "team": opp_name} if is_rush_td
+                                          else {"qb": qb, "receiver": scorer, "yards": td_yards, "team": opp_name})
+                _log_ot(team_name, text, is_score=True)
+                scored = True
+                return True, 35
+
+            if yardline <= 0:
+                yardline, down, ytg = 5, 1, 10
+                continue
+            if yards >= ytg:
+                down, ytg = 1, 10
+            else:
+                ytg -= yards
+                down += 1
+
+            if down == 4:
+                dist_to_goal = 100 - yardline
+                if dist_to_goal <= 52 and random.random() < _FG_ATTEMPT_DIST:
+                    make_p = _fg_make_prob(dist_to_goal + 17)
+                    if random.random() < make_p:
+                        if side == "user":
+                            u_score += 3
+                            _add(scratch_user_stats, kicker, fg_made=1, fg_att=1)
+                        else:
+                            o_score += 3
+                            _add(scratch_opp_stats, kicker, fg_made=1, fg_att=1)
+                        text = _pick_template("fg_good" if side == "user" else "opp_fg_good",
+                                              kicker=kicker, yards=dist_to_goal + 17, team=team_name)
+                        _log_ot(team_name, text, is_score=True)
+                        scored = True
+                        return True, 35
+                    else:
+                        text = _pick_template("fg_miss" if side == "user" else "opp_fg_miss",
+                                              kicker=kicker, yards=dist_to_goal + 17, team=team_name)
+                        _log_ot(team_name, text)
+                        return False, max(20, 100 - yardline - 5)
+                else:
+                    net_yds = random.randint(28, 46)
+                    tmpl = "punt" if side == "user" else "opp_punt"
+                    _log_ot(team_name, _pick_template(tmpl, team=team_name))
+                    return False, max(15, 100 - yardline - net_yds)
+
+        return False, 35
+
+    yl = {"user": 35, "opp": 35}
+    max_drives = 20
+    drive_count = 0
+    while not scored and drive_count < max_drives:
+        for side in order:
+            if scored:
+                break
+            s_yl = yl[side]
+            did_score, new_yl = run_ot_drive(side, s_yl)
+            opp_side = "opp" if side == "user" else "user"
+            yl[opp_side] = new_yl
+            drive_count += 1
+            if did_score:
+                break
+
+    return scratch_user_stats, scratch_opp_stats, ot_play_log, u_score, o_score
+
+
+def run_game_simulation(team_id: str, nfl_opponent: str, season: int, is_home: bool = True, playoff_mode: bool = False) -> dict:
     _POS_STATS_CACHE.clear()
 
     team = get_generated_team(team_id)
@@ -1190,7 +1450,10 @@ def run_game_simulation(team_id: str, nfl_opponent: str, season: int, is_home: b
         avg_pass = float(opp_team_stats["passing_yards"].mean()) if "passing_yards" in opp_team_stats.columns else 230
         avg_rush = float(opp_team_stats["rushing_yards"].mean()) if "rushing_yards" in opp_team_stats.columns else 115
         opp_quality = float(np.clip((avg_pass / 230 + avg_rush / 115) / 2, 0.80, 1.25))
-    
+
+    if playoff_mode:
+        opp_quality = float(np.clip(opp_quality * 1.15, 0.80, 1.40))
+
     location_boost = 1.04 if is_home else 0.96
 
     user_stats, _opp_stats, play_log, user_score, opp_score = simulate_game_drives(
@@ -1208,6 +1471,41 @@ def run_game_simulation(team_id: str, nfl_opponent: str, season: int, is_home: b
                 if stat in pstats:
                     pstats[stat] *= location_boost
 
+    if user_score == opp_score and random.random() < 0.88:
+        if random.random() < 0.5:
+            user_score += random.choice([3, 7])
+        else:
+            opp_score += random.choice([3, 7])
+
+    overtime_periods = 0
+
+    if user_score == opp_score:
+        max_ot = 10 if playoff_mode else 1
+        for ot_num in range(1, max_ot + 1):
+            ot_u_stats, _, ot_log, ot_u_delta, ot_o_delta = simulate_overtime_period(
+                ot_num=ot_num,
+                user_team=team,
+                user_player_df=user_player_df,
+                opp_roster=opp_roster,
+                opp_player_df=opp_player_df,
+                opp_name=nfl_opponent,
+                opp_quality=opp_quality,
+                playoff_mode=playoff_mode,
+            )
+            overtime_periods += 1
+            user_score += ot_u_delta
+            opp_score  += ot_o_delta
+            for name, stats in ot_u_stats.items():
+                if name not in user_stats:
+                    user_stats[name] = {}
+                for k, v in stats.items():
+                    user_stats[name][k] = user_stats[name].get(k, 0) + v
+            play_log.extend(ot_log)
+            if user_score != opp_score:
+                break
+            if not playoff_mode:
+                break
+
     user_name = team.get("team_name", "Your Team")
     winner = user_name if user_score > opp_score else (nfl_opponent if opp_score > user_score else "TIE")
 
@@ -1218,6 +1516,8 @@ def run_game_simulation(team_id: str, nfl_opponent: str, season: int, is_home: b
         "opponent": nfl_opponent,
         "season": season,
         "is_home": is_home,
+        "playoff_mode": playoff_mode,
+        "overtime_periods": overtime_periods,
         "final_score": {"user": user_score, "opponent": opp_score},
         "winner": winner,
         "play_by_play": play_log,
@@ -1232,11 +1532,12 @@ class SimulateGameRequest(BaseModel):
     nfl_opponent: str
     season: int
     is_home: bool = True
+    playoff_mode: bool = False
 
 @app.post("/simulate-game")
 async def simulate_game_endpoint(req: SimulateGameRequest):
     try:
-        result = run_game_simulation(req.team_id, req.nfl_opponent, req.season, req.is_home)
+        result = run_game_simulation(req.team_id, req.nfl_opponent, req.season, req.is_home, req.playoff_mode)
         return result
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

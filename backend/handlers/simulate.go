@@ -13,10 +13,11 @@ import (
 )
 
 type SimulateGameRequest struct {
-	TeamID      string `json:"team_id"`
-	NFLOpponent string `json:"nfl_opponent"`
-	Season      int    `json:"season"`
-	IsHome      bool   `json:"is_home"`
+	TeamID       string `json:"team_id"`
+	NFLOpponent  string `json:"nfl_opponent"`
+	Season       int    `json:"season"`
+	IsHome       bool   `json:"is_home"`
+	PlayoffMode  bool   `json:"playoff_mode"`
 }
 
 func SimulateGame(c *fiber.Ctx) error {
