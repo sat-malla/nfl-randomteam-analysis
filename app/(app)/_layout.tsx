@@ -91,7 +91,7 @@ export default function RootLayout() {
             headerLeft: () => (
               <Button
                 size="sm"
-                onPress={() => {}}
+                onPress={() => router.push("/info")}
                 style={{ backgroundColor: "transparent" }}
               >
                 <ButtonIcon as={InfoIcon} style={{ color: "#fff", width: 27, height: 27, marginBottom: 4 }} />
@@ -133,6 +133,12 @@ export default function RootLayout() {
           name="optimize-team"
           options={{
             title: "Optimal Team",
+          }}
+        />
+        <Stack.Screen
+          name="info"
+          options={{
+            title: "About",
           }}
         />
       </Stack>
