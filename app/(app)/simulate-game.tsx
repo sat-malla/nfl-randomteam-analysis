@@ -1,3 +1,4 @@
+import { NFL_TEAM_COLORS, NFL_TEAM_COLORS_DARK } from "@/utils/nflTeamColors";
 import {
   ScrollView,
   StyleSheet,
@@ -134,41 +135,6 @@ const POS_COLORS_DARK: Record<string, { bg: string; text: string }> = {
   RS: { bg: "#a16207", text: "#000000" },
 };
 
-const NFL_TEAM_COLORS: Record<string, { bg: string; text: string }> = {
-  ARI: { bg: "#97233F", text: "#ffffff" },
-  ATL: { bg: "#A71930", text: "#ffffff" },
-  BAL: { bg: "#241773", text: "#ffffff" },
-  BUF: { bg: "#00338D", text: "#ffffff" },
-  CAR: { bg: "#0085CA", text: "#ffffff" },
-  CHI: { bg: "#0B162A", text: "#ffffff" },
-  CIN: { bg: "#FB4F14", text: "#ffffff" },
-  CLE: { bg: "#FF3C00", text: "#ffffff" },
-  DAL: { bg: "#003594", text: "#ffffff" },
-  DEN: { bg: "#FB4F14", text: "#ffffff" },
-  DET: { bg: "#0076B6", text: "#ffffff" },
-  GB: { bg: "#203731", text: "#ffffff" },
-  HOU: { bg: "#03202F", text: "#ffffff" },
-  IND: { bg: "#002C5F", text: "#ffffff" },
-  JAX: { bg: "#006778", text: "#ffffff" },
-  KC: { bg: "#E31837", text: "#ffffff" },
-  LAC: { bg: "#0080C6", text: "#ffffff" },
-  LAR: { bg: "#003594", text: "#ffffff" },
-  LV: { bg: "#000000", text: "#ffffff" },
-  MIA: { bg: "#008E97", text: "#ffffff" },
-  MIN: { bg: "#4F2683", text: "#ffffff" },
-  NE: { bg: "#002244", text: "#ffffff" },
-  NO: { bg: "#D3BC8D", text: "#000000" },
-  NYG: { bg: "#0B2265", text: "#ffffff" },
-  NYJ: { bg: "#125740", text: "#ffffff" },
-  PHI: { bg: "#004C54", text: "#ffffff" },
-  PIT: { bg: "#FFB612", text: "#000000" },
-  SF: { bg: "#AA0000", text: "#ffffff" },
-  SEA: { bg: "#002244", text: "#ffffff" },
-  TB: { bg: "#D50A0A", text: "#ffffff" },
-  TEN: { bg: "#0C2340", text: "#ffffff" },
-  WAS: { bg: "#5A1414", text: "#ffffff" },
-};
-
 export default function SimulateGame() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -180,7 +146,7 @@ export default function SimulateGame() {
   const [isHome, setIsHome] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<SimResult | null>(null);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<{ message: string; status: number; raw: string } | null>(null);
 
   const [playoffMode, setPlayoffMode] = useState(false);
   const [myTeamOpen, setMyTeamOpen] = useState(false);
@@ -236,7 +202,7 @@ export default function SimulateGame() {
     if (!canSimulate || !selectedTeam) return;
     setLoading(true);
     setResult(null);
-    setError("");
+    setError(null);
     try {
       const resp = await fetch(`${API_URL}/api/simulate/`, {
         method: "POST",
@@ -249,14 +215,23 @@ export default function SimulateGame() {
           playoff_mode: playoffMode,
         }),
       });
-      const data = await resp.json();
+      const rawText = await resp.text();
       if (!resp.ok) {
-        setError(data.message ?? "Simulation failed. Try again.");
+        let message = "Simulation failed. Try again.";
+        try {
+          const data = JSON.parse(rawText);
+          message = data.message ?? data.detail ?? message;
+        } catch {}
+        setError({ message, status: resp.status, raw: rawText });
       } else {
-        setResult(data);
+        try {
+          setResult(JSON.parse(rawText));
+        } catch {
+          setError({ message: "Received invalid response from server.", status: resp.status, raw: rawText });
+        }
       }
-    } catch {
-      setError("Network error. Make sure the backend is running.");
+    } catch (e: any) {
+      setError({ message: e?.message ?? "Network error. Make sure the backend is running.", status: 0, raw: "" });
     } finally {
       setLoading(false);
     }
@@ -398,7 +373,7 @@ export default function SimulateGame() {
           <View style={{ flex: 1 }}>
             <Text style={[styles.playoffLabel, { color: c.text }]}>Playoff Mode</Text>
             <Text style={[styles.playoffHint, { color: c.subtext }]}>
-              No ties — game goes to however many OTs it takes. Expect a tougher opponent.
+              No ties! Game goes to however many OTs it takes. Expect a tougher play by the opponent.
             </Text>
           </View>
           <Switch
@@ -425,10 +400,29 @@ export default function SimulateGame() {
       </View>
 
       {!!error && (
-        <View style={[styles.card, { backgroundColor: "#fee2e2", borderColor: "#fca5a5", boxShadow: c.shadow }]}>
-          <Text style={{ color: "#dc2626", fontFamily: "Montserrat_400Regular", fontSize: 14 }}>
-            {error}
+        <View style={[styles.card, { backgroundColor: "#fee2e2", borderColor: "#fca5a5", boxShadow: c.shadow, gap: 8 }]}>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+            <Text style={{ color: "#dc2626", fontFamily: "Montserrat_700Bold", fontSize: 15 }}>
+              Simulation Error
+            </Text>
+            {error.status > 0 && (
+              <View style={{ backgroundColor: "#dc2626", borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 }}>
+                <Text style={{ color: "#fff", fontFamily: "Montserrat_700Bold", fontSize: 12 }}>
+                  HTTP {error.status}
+                </Text>
+              </View>
+            )}
+          </View>
+          <Text style={{ color: "#991b1b", fontFamily: "Montserrat_400Regular", fontSize: 14, lineHeight: 20 }}>
+            {error.message}
           </Text>
+          {!!error.raw && error.raw !== error.message && (
+            <View style={{ backgroundColor: "#fecaca", borderRadius: 8, padding: 10, marginTop: 2 }}>
+              <Text style={{ color: "#7f1d1d", fontFamily: "Montserrat_400Regular", fontSize: 12, lineHeight: 18 }}>
+                {error.raw.length > 500 ? error.raw.slice(0, 500) + "..." : error.raw}
+              </Text>
+            </View>
+          )}
         </View>
       )}
 
@@ -484,7 +478,7 @@ export default function SimulateGame() {
                       <Text style={[styles.posText, { color: posColor.text }]}>{player.position}</Text>
                     </View>
                     <Text style={[styles.boxName, { color: c.text }]}>{player.name}</Text>
-                    {player.nfl_team ? (() => { const tc = NFL_TEAM_COLORS[player.nfl_team] ?? { bg: "#334155", text: "#ffffff" }; return (
+                    {player.nfl_team ? (() => { const tc = (isDark ? NFL_TEAM_COLORS_DARK : NFL_TEAM_COLORS)[player.nfl_team] ?? (isDark ? { bg: "#4a5568", text: "#000000" } : { bg: "#334155", text: "#ffffff" }); return (
                       <View style={{ backgroundColor: tc.bg, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 6 }}>
                         <Text style={{ color: tc.text, fontSize: 11, fontFamily: "Montserrat_700Bold" }}>{player.nfl_team}</Text>
                       </View>

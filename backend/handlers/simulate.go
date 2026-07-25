@@ -37,7 +37,7 @@ func SimulateGame(c *fiber.Ctx) error {
 
 	pythonURL := os.Getenv("SIMULATE_API_URL")
 	if pythonURL == "" {
-		pythonURL = "http://localhost:8003"
+		pythonURL = "http://localhost:8006"
 	}
 
 	payload, err := json.Marshal(body)
