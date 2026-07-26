@@ -3,7 +3,7 @@
   "hidden": 512,
   "dropout": 0.3,
   "n_features": 10,
-  "best_val_loss": 2.8728859709026437,
+  "best_val_loss": 3.0892431883112295,
   "training_seasons": [
     2015,
     2016,
@@ -17,6 +17,15 @@
     2024,
     2025
   ],
+  "loss_weights": {
+    "W_YARDS": 1.0,
+    "W_TURNOVER": 2.0,
+    "W_TD": 4.0,
+    "W_REC_POS": 0.5,
+    "W_PUNT_YARDS": 1.0,
+    "W_PUNT_BLOCK": 3.0,
+    "W_FG_RESULT": 2.0
+  },
   "yards_clip": [
     -10,
     50

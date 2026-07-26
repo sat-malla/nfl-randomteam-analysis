@@ -122,6 +122,10 @@ def encode_features(
     goal_to_go: int = 0,
     air_yards: float = 0.0,
     kick_distance: float = 0.0,
+    def_pass_tier: int = 2,
+    def_rush_tier: int = 2,
+    def_sack_tier: int = 2,
+    def_coverage_tier: int = 2,
 ) -> torch.Tensor:
     feats = [
         PLAY_TYPE_MAP.get(play_type, 0),
@@ -134,6 +138,11 @@ def encode_features(
         min(1, max(0, goal_to_go)),
         _air_yards_bucket(air_yards),
         _kick_dist_bucket(kick_distance),
+        # Matchup tiers (0=elite defense, 4=bad defense)
+        min(4, max(0, def_pass_tier)),
+        min(4, max(0, def_rush_tier)),
+        min(4, max(0, def_sack_tier)),
+        min(4, max(0, def_coverage_tier)),
     ]
     return torch.LongTensor([feats]).to(DEVICE)
 
@@ -150,6 +159,11 @@ class PlayRequest(BaseModel):
     goal_to_go: int = 0
     air_yards: float = 0.0       # pass plays: intended air yards
     kick_distance: float = 0.0   # FG/punt: distance of kick
+    # Matchup tier features (0=elite defense, 4=bad defense) — defaults to average
+    def_pass_tier: int = 2
+    def_rush_tier: int = 2
+    def_sack_tier: int = 2
+    def_coverage_tier: int = 2
 
 @app.get("/health")
 def health():
@@ -177,6 +191,10 @@ def predict(req: PlayRequest):
             goal_to_go=req.goal_to_go,
             air_yards=req.air_yards,
             kick_distance=req.kick_distance,
+            def_pass_tier=req.def_pass_tier,
+            def_rush_tier=req.def_rush_tier,
+            def_sack_tier=req.def_sack_tier,
+            def_coverage_tier=req.def_coverage_tier,
         )
         with torch.no_grad():
             y_hat, to_l, td_l, rp_l, py_hat, pb_l, fg_l = model(x)
