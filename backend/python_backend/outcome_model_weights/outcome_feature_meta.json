@@ -9,7 +9,11 @@
     "feat_shotgun",
     "feat_goal_to_go",
     "feat_air_yards",
-    "feat_kick_dist"
+    "feat_kick_dist",
+    "feat_def_pass_tier",
+    "feat_def_rush_tier",
+    "feat_def_sack_tier",
+    "feat_def_coverage_tier"
   ],
   "feat_cardinality": {
     "feat_play_type": 4,
@@ -21,7 +25,11 @@
     "feat_shotgun": 2,
     "feat_goal_to_go": 2,
     "feat_air_yards": 4,
-    "feat_kick_dist": 4
+    "feat_kick_dist": 4,
+    "feat_def_pass_tier": 5,
+    "feat_def_rush_tier": 5,
+    "feat_def_sack_tier": 5,
+    "feat_def_coverage_tier": 5
   },
   "play_type_map": {
     "run": 0,
@@ -38,5 +46,12 @@
     "0": "made",
     "1": "missed",
     "2": "blocked"
-  }
+  },
+  "matchup_features": {
+    "feat_def_pass_tier": "Opponent pass defense tier (0=elite, 4=bad). Lower = harder for offense.",
+    "feat_def_rush_tier": "Opponent rush defense tier (0=elite, 4=bad). Lower = harder for offense.",
+    "feat_def_sack_tier": "Opponent pass rush tier (0=high pressure, 4=none). Lower = more sacks.",
+    "feat_def_coverage_tier": "Opponent coverage tier (0=elite, 4=bad). Lower = more INTs/fewer yards."
+  },
+  "inference_note": "For user offense vs opp defense: look up opp team+season in outcome_def_tiers.json. For opp offense vs user defense: compute user team defensive tier from player ratings using position group quality scores (see simulate_game.py _compute_team_def_tiers)."
 }

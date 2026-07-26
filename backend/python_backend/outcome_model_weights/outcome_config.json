@@ -2,8 +2,8 @@
   "emb_dim": 8,
   "hidden": 512,
   "dropout": 0.3,
-  "n_features": 10,
-  "best_val_loss": 3.0892431883112295,
+  "n_features": 14,
+  "best_val_loss": 3.0943860218831105,
   "training_seasons": [
     2015,
     2016,
@@ -33,5 +33,11 @@
   "punt_yards_clip": [
     0,
     80
-  ]
+  ],
+  "matchup_col_indices": {
+    "feat_def_pass_tier": 10,
+    "feat_def_rush_tier": 11,
+    "feat_def_sack_tier": 12,
+    "feat_def_coverage_tier": 13
+  }
 }

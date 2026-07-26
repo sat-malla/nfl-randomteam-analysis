@@ -76,7 +76,7 @@ def _compute_user_def_tiers(players: list, player_df: pd.DataFrame) -> dict:
     """
     Estimate defensive tiers for the user's generated team from player ratings.
     Uses position group quality scores derived from historical stats.
-    Returns tiers 0-4 (0 = elite, 4 = bad).
+    (0 = elite, 4 = bad).
     """
     PASS_DEF_POS = {"CB", "FS", "SS", "S", "SAF"}
     RUSH_DEF_POS = {"DT", "NT", "DE", "ILB", "MLB", "LB"}
@@ -344,36 +344,37 @@ def _player_ypc(name: str, player_df: pd.DataFrame, default: float = 4.2) -> flo
 
 def _player_ypr(name: str, player_df: pd.DataFrame, default: float = 10.0) -> float:
     if player_df.empty:
-        return default
+        return 6.0
     rows = player_df[player_df["player_display_name"] == name]
     if rows.empty:
-        return default
+        return 6.0
     recs = pd.to_numeric(rows.get("receptions", pd.Series()), errors="coerce").sum()
     rec_yds = pd.to_numeric(rows.get("receiving_yards", pd.Series()), errors="coerce").sum()
     if recs < 5:
-        return default
+        return 6.0
     return float(np.clip(rec_yds / recs, 4.0, 22.0))
 
 
 def _player_target_share(name: str, player_df: pd.DataFrame, pos: str) -> float:
-    POS_DEFAULT = {"WR": 80.0, "TE": 55.0, "RB": 35.0, "FB": 15.0}
+    # Rookies/unknown players get a tiny weight so real starters dominate target share
+    ROOKIE_DEFAULT = {"WR": 3.0, "TE": 2.0, "RB": 4.0, "FB": 1.0}
     if player_df.empty:
-        return POS_DEFAULT.get(pos, 30.0)
+        return ROOKIE_DEFAULT.get(pos, 2.0)
     rows = player_df[player_df["player_display_name"] == name]
     if rows.empty:
-        return POS_DEFAULT.get(pos, 30.0)
+        return ROOKIE_DEFAULT.get(pos, 2.0)
     tgts = pd.to_numeric(rows.get("targets", pd.Series()), errors="coerce").sum()
-    return float(tgts) if tgts >= 5 else POS_DEFAULT.get(pos, 30.0)
+    return float(tgts) if tgts >= 5 else ROOKIE_DEFAULT.get(pos, 2.0)
 
 
 def _player_rush_share(name: str, player_df: pd.DataFrame) -> float:
     if player_df.empty:
-        return 100.0
+        return 5.0  # rookie/unknown: minimal carry share
     rows = player_df[player_df["player_display_name"] == name]
     if rows.empty:
-        return 100.0
+        return 5.0
     carries = pd.to_numeric(rows.get("carries", pd.Series()), errors="coerce").sum()
-    return float(carries) if carries >= 10 else 50.0
+    return float(carries) if carries >= 10 else 5.0
 
 _RUN_PROB = {
     (1, "short"): 0.48,
@@ -639,6 +640,43 @@ def simulate_game_drives(
                  for n, _ in opp_receivers}
     _user_wr_te_names = {p["name"] for p in user_players if p["position"] in ("WR", "TE")}
     _opp_wr_te_names  = {p["name"] for p in opp_roster  if p["position"] in ("WR", "TE")}
+    _user_wr_names    = {p["name"] for p in user_players if p["position"] == "WR"}
+    _opp_wr_names     = {p["name"] for p in opp_roster  if p["position"] == "WR"}
+    _user_te_names    = {p["name"] for p in user_players if p["position"] == "TE"}
+    _opp_te_names     = {p["name"] for p in opp_roster  if p["position"] == "TE"}
+
+    _TARGET_SHARE_BY_POS = {"WR": 0.67, "TE": 0.22, "RB": 0.10, "FB": 0.01}
+    _MIN_WEIGHT_FLOOR = {"WR": 0.5, "TE": 0.4, "RB": 0.2, "FB": 0.05}
+
+    def _normalize_receiver_pool(pool, wr_names: set, te_names: set) -> dict:
+        """Build per-pos-group normalized pools keyed by group name.
+        Returns {"WR": [(name, w), ...], "TE": [...], "RB": [...]}
+        with weights normalized within group and a minimum floor applied.
+        """
+        if not pool:
+            return {"WR": [], "TE": [], "RB": []}
+        groups: dict[str, list] = {"WR": [], "TE": [], "RB": []}
+        for name, w in pool:
+            if name in wr_names:
+                groups["WR"].append((name, w))
+            elif name in te_names:
+                groups["TE"].append((name, w))
+            else:
+                groups["RB"].append((name, w))
+
+        result: dict[str, list] = {}
+        for pos, members in groups.items():
+            if not members:
+                result[pos] = []
+                continue
+            floor = _MIN_WEIGHT_FLOOR.get(pos, 0.2)
+            floored = [(n, max(w, floor)) for n, w in members]
+            total_w = sum(w for _, w in floored)
+            result[pos] = [(n, w / total_w) for n, w in floored]
+        return result
+
+    _user_rec_pools = _normalize_receiver_pool(user_receivers, _user_wr_names, _user_te_names)
+    _opp_rec_pools = _normalize_receiver_pool(opp_receivers,  _opp_wr_names,  _opp_te_names)
 
     def _pick_rusher(pool):
         if not pool: return ("RB", 4.2)
@@ -646,18 +684,62 @@ def simulate_game_drives(
         name = random.choices(names, weights=weights, k=1)[0]
         return name, _user_ypc.get(name, _opp_ypc.get(name, 4.2))
 
-    def _pick_receiver(pool, ypr_map):
-        if not pool: return ("WR", 9.5)
-        wr_te_names = _user_wr_te_names | _opp_wr_te_names
-        boosted = [(n, w * 2.5 if n in wr_te_names else w) for n, w in pool]
-        names, weights = zip(*boosted)
+    def _pick_receiver(pool, ypr_map, rec_pos_probs: dict | None = None):
+        """Pick a receiver using outcome-model position probabilities when available.
+        rec_pos_probs: {"WR": float, "TE": float, "RB": float} from outcome model.
+        Falls back to _TARGET_SHARE_BY_POS if not provided.
+        """
+        is_user = (pool is user_receivers)
+        group_pools = _user_rec_pools if is_user else _opp_rec_pools
+
+        if rec_pos_probs is not None:
+            wr_p = float(rec_pos_probs.get("WR", _TARGET_SHARE_BY_POS["WR"]))
+            te_p = float(rec_pos_probs.get("TE", _TARGET_SHARE_BY_POS["TE"]))
+            rb_p = float(rec_pos_probs.get("RB", _TARGET_SHARE_BY_POS["RB"]))
+        else:
+            wr_p = _TARGET_SHARE_BY_POS["WR"]
+            te_p = _TARGET_SHARE_BY_POS["TE"]
+            rb_p = _TARGET_SHARE_BY_POS["RB"]
+
+        wr_p = max(wr_p, 0.30) if group_pools["WR"] else 0.0
+        te_p = max(te_p, 0.10) if group_pools["TE"] else 0.0
+        rb_p = max(rb_p, 0.08) if group_pools["RB"] else 0.0
+
+        total = wr_p + te_p + rb_p
+        if total <= 0:
+            if not pool: return ("WR", 9.5)
+            names, weights = zip(*pool)
+            return random.choices(names, weights=weights, k=1)[0], 9.5
+        wr_p /= total; te_p /= total; rb_p /= total
+
+        group = random.choices(["WR", "TE", "RB"], weights=[wr_p, te_p, rb_p], k=1)[0]
+        members = group_pools.get(group, [])
+        if not members:
+            for fallback in ["WR", "TE", "RB"]:
+                if group_pools.get(fallback):
+                    members = group_pools[fallback]
+                    break
+        if not members:
+            return ("WR", 9.5)
+        names, weights = zip(*members)
         name = random.choices(names, weights=weights, k=1)[0]
         return name, ypr_map.get(name, 9.5)
 
     _DEF_ZERO = {"def_tackles_solo": 0, "def_sacks": 0, "def_interceptions": 0, "def_pass_defended": 0}
     _DL_ZERO = {"def_tackles_solo": 0, "def_sacks": 0, "def_pass_defended": 0}
     _DB_ZERO = {"def_tackles_solo": 0, "def_interceptions": 0, "def_pass_defended": 0}
+    _QB_ZERO = {"passing_attempts": 0, "passing_completions": 0, "passing_yards": 0, "passing_tds": 0, "passing_interceptions": 0}
+    _RB_ZERO = {"carries": 0, "rushing_yards": 0, "rushing_tds": 0, "receptions": 0, "targets": 0, "receiving_yards": 0, "receiving_tds": 0}
+    _WR_ZERO = {"targets": 0, "receptions": 0, "receiving_yards": 0, "receiving_tds": 0}
+    _TE_ZERO = {"targets": 0, "receptions": 0, "receiving_yards": 0, "receiving_tds": 0}
+    _K_ZERO = {"fg_made": 0, "fg_att": 0, "xp_made": 0, "xp_att": 0}
+    _P_ZERO = {"punts": 0, "punt_yards": 0}
+    _RS_ZERO = {"kickoff_returns": 0, "kickoff_return_yards": 0, "kickoff_return_tds": 0, "punt_returns": 0, "punt_return_yards": 0, "punt_return_tds": 0}
     _POS_ZERO = {
+        "QB": _QB_ZERO,
+        "RB": _RB_ZERO, "FB": _RB_ZERO,
+        "WR": _WR_ZERO, "TE": _TE_ZERO,
+        "K": _K_ZERO, "P": _P_ZERO, "RS": _RS_ZERO,
         "DE": _DL_ZERO, "DT": _DL_ZERO, "NT": _DL_ZERO,
         "LB": _DEF_ZERO, "OLB": _DEF_ZERO, "ILB": _DEF_ZERO, "MLB": _DEF_ZERO,
         "CB": _DB_ZERO, "FS": _DB_ZERO, "SS": _DB_ZERO, "S": _DB_ZERO, "SAF": _DB_ZERO,
@@ -668,6 +750,10 @@ def simulate_game_drives(
         if zeros is not None:
             user_stats[p["name"]] = dict(zeros)
     opp_stats: dict[str, dict] = {}
+    for p in opp_roster:
+        zeros = _POS_ZERO.get(p["position"])
+        if zeros is not None:
+            opp_stats[p["name"]] = dict(zeros)
 
     def _add(stats_dict, name, **kwargs):
         if name not in stats_dict:
@@ -787,8 +873,10 @@ def simulate_game_drives(
                         _add(user_stats, rusher, carries=1, rushing_yards=td_yards, rushing_tds=1)
                     else:
                         _add(opp_stats, rusher, carries=1, rushing_yards=td_yards, rushing_tds=1)
-                    tmpl = "rushing_td" if side == "user" else "opp_rushing_td"
-                    text = _pick_template(tmpl, rusher=rusher, yards=td_yards)
+                    if side == "user":
+                        text = _pick_template("rushing_td", rusher=rusher, yards=td_yards)
+                    else:
+                        text = _pick_template("opp_rushing_td", rusher=rusher, yards=td_yards, team=opp_name)
                     _log(quarter, name, text, is_score=True)
                     return int(yardline_100) + 1, "td", True
 
@@ -839,11 +927,13 @@ def simulate_game_drives(
                     1.0 - raw_td_prob * 2.0 - int_prob - 0.60, 0.15, 0.35
                 ))
                 pass_yards = ml_out["yards"]
+                rec_pos_probs = ml_out.get("receiver_pos_probs")
             else:
                 raw_td_prob = 0.0
                 int_prob = _INT_PROB
                 incomp_prob = _INCOMP_PROB
                 pass_yards = None
+                rec_pos_probs = None
 
             if random.random() < _SACK_PROB:
                 sacker = _weighted_pick(sack_pool)
@@ -857,7 +947,7 @@ def simulate_game_drives(
                 _log(quarter, name, text)
                 return -sack_yds, "", False
 
-            intended_receiver, ypr = _pick_receiver(receivers_pool, ypr_map)
+            intended_receiver, ypr = _pick_receiver(receivers_pool, ypr_map, rec_pos_probs)
 
             if random.random() < int_prob:
                 interceptor = _weighted_pick(int_pool)
@@ -910,8 +1000,10 @@ def simulate_game_drives(
                     else:
                         _add(opp_stats, qb, passing_attempts=1, passing_completions=1, passing_yards=td_yards, passing_tds=1)
                         _add(opp_stats, receiver, receptions=1, targets=1, receiving_yards=td_yards, receiving_tds=1)
-                    tmpl = "passing_td" if side == "user" else "opp_passing_td"
-                    text = _pick_template(tmpl, qb=qb, receiver=receiver, yards=td_yards)
+                    if side == "user":
+                        text = _pick_template("passing_td", qb=qb, receiver=receiver, yards=td_yards)
+                    else:
+                        text = _pick_template("opp_passing_td", qb=qb, receiver=receiver, yards=td_yards, team=opp_name)
                     _log(quarter, name, text, is_score=True)
                     return int(yardline_100) + 1, "td", True
 
@@ -1094,6 +1186,7 @@ def simulate_game_drives(
 
     def simulate_drive(side: str, start_yardline: int, quarter: int) -> tuple[int, int]:
         """Simulate a full drive. Returns (ending_quarter, final_yardline)."""
+        nonlocal user_score, opp_score
         down = 1
         ytg = 10
         yardline = start_yardline
@@ -1124,10 +1217,10 @@ def simulate_game_drives(
                 td_yards = max(1, yards)
                 if side == "user":
                     rusher_name, _ = _pick_rusher(user_rushers)
-                    rec_name, _  = _pick_receiver(user_receivers, _user_ypr)
+                    rec_name, _  = _pick_receiver(user_receivers, _user_ypr, None)
                 else:
                     rusher_name, _ = _pick_rusher([(n, w) for n, w in opp_rushers])
-                    rec_name, _ = _pick_receiver(opp_receivers, _opp_ypr)
+                    rec_name, _ = _pick_receiver(opp_receivers, _opp_ypr, None)
                 is_rush_td = random.random() < 0.40
                 scorer = rusher_name if is_rush_td else rec_name
                 score_td(side, quarter, "rush" if is_rush_td else "pass", scorer, min(td_yards, 20))
@@ -1289,7 +1382,7 @@ def build_box_score(user_game: dict, team_players: list) -> list[dict]:
         name = p["name"]
         pos = "NT" if p["position"] == "DT" else p["position"]
         raw = user_game.get(name, {})
-        if not raw:
+        if pos in ("OL", "OT", "OG", "C", "LS"):
             continue
 
         stat_lines: dict[str, float | int] = {}
@@ -1443,6 +1536,28 @@ def simulate_overtime_period(
     _opp_ypr = {n: _player_ypr(n, opp_player_df)  for n, _ in opp_receivers}
     user_name = user_team.get("team_name", "Your Team")
 
+    _ot_user_wr = {p["name"] for p in user_players if p["position"] == "WR"}
+    _ot_user_te = {p["name"] for p in user_players if p["position"] == "TE"}
+    _ot_opp_wr = {p["name"] for p in opp_roster  if p["position"] == "WR"}
+    _ot_opp_te = {p["name"] for p in opp_roster  if p["position"] == "TE"}
+
+    def _ot_build_rec_pools(pool, wr_names, te_names):
+        groups: dict = {"WR": [], "TE": [], "RB": []}
+        for name, w in pool:
+            g = "WR" if name in wr_names else ("TE" if name in te_names else "RB")
+            groups[g].append((name, max(w, 0.3)))
+        result = {}
+        for pos, members in groups.items():
+            if not members:
+                result[pos] = []
+                continue
+            total = sum(w for _, w in members)
+            result[pos] = [(n, w / total) for n, w in members]
+        return result
+
+    _ot_user_rec_pools = _ot_build_rec_pools(user_receivers, _ot_user_wr, _ot_user_te)
+    _ot_opp_rec_pools = _ot_build_rec_pools(opp_receivers,  _ot_opp_wr,  _ot_opp_te)
+
     int_scale = 0.80 if playoff_mode else 1.0
     incomp_scale = 0.85 if playoff_mode else 1.0
 
@@ -1468,8 +1583,28 @@ def simulate_overtime_period(
         return name, ypc_map.get(name, 4.2)
 
     def _pick_receiver(pool, ypr_map):
-        if not pool: return ("WR", 9.5)
-        names, weights = zip(*pool)
+        is_user = (pool is user_receivers)
+        group_pools = _ot_user_rec_pools if is_user else _ot_opp_rec_pools
+        wr_p = 0.57 if group_pools["WR"] else 0.0
+        te_p = 0.22 if group_pools["TE"] else 0.0
+        rb_p = 0.21 if group_pools["RB"] else 0.0
+        wr_p = max(wr_p, 0.30) if group_pools["WR"] else 0.0
+        te_p = max(te_p, 0.10) if group_pools["TE"] else 0.0
+        rb_p = max(rb_p, 0.08) if group_pools["RB"] else 0.0
+        total = wr_p + te_p + rb_p
+        if total <= 0 or not pool:
+            return ("WR", 9.5)
+        wr_p /= total; te_p /= total; rb_p /= total
+        group = random.choices(["WR", "TE", "RB"], weights=[wr_p, te_p, rb_p], k=1)[0]
+        members = group_pools.get(group, [])
+        if not members:
+            for fallback in ["WR", "TE", "RB"]:
+                if group_pools.get(fallback):
+                    members = group_pools[fallback]
+                    break
+        if not members:
+            return ("WR", 9.5)
+        names, weights = zip(*members)
         name = random.choices(names, weights=weights, k=1)[0]
         return name, ypr_map.get(name, 9.5)
 
