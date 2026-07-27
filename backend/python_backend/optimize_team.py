@@ -27,7 +27,7 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 app = FastAPI(title="NFL Team Optimizer")
 
-SALARY_CAP = 200_000_000
+SALARY_CAP = 301_200_000
 LEAGUE_MIN = 790_000
 
 _POS_SALARY_RANGE = {

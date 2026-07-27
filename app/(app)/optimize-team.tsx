@@ -222,7 +222,7 @@ export default function OptimizeTeam() {
       <Text style={[styles.title, { color: c.text }]}>Optimal Team Builder</Text>
       <Text style={[styles.subtitle, { color: c.subtext }]}>
         Generate a RANDOMIZED but OPTIMAL team under a{" "}
-        <Text style={{ fontFamily: "Montserrat_700Bold" }}>$200M salary cap</Text> to
+        <Text style={{ fontFamily: "Montserrat_700Bold" }}>$301.2M salary cap</Text> to
         maximize Super Bowl probability!
       </Text>
 
@@ -241,9 +241,9 @@ export default function OptimizeTeam() {
             <Text style={[styles.modalTitle, { color: c.text }]}>How It Works</Text>
 
             <View style={styles.modalItem}>
-              <Text style={[styles.modalItemTitle, { color: c.text }]}>$200M Salary Cap</Text>
+              <Text style={[styles.modalItemTitle, { color: c.text }]}>$301.2M Salary Cap</Text>
               <Text style={[styles.modalItemBody, { color: c.subtext }]}>
-                The NFL uses a salary cap to stop teams from buying every superstar. We will use $200M, which roughly what real NFL teams work with so you can't just stack the roster with Patrick Mahomes, Puka Nacua, and Myles Garrett. Every player has a price tag based on their real performance, so you have to make tradeoffs.
+                The NFL uses a salary cap to stop teams from buying every superstar. We use the official 2026 NFL salary cap of $301.2M so you can't just stack the roster with Patrick Mahomes, George Kittle, and Myles Garrett. Every player has a price tag based on their real performance, so you have to make tradeoffs.
               </Text>
             </View>
 
@@ -276,11 +276,11 @@ export default function OptimizeTeam() {
 
         <View style={styles.paramGrid}>
           <View style={styles.paramItem}>
-            <Text style={[styles.paramValue, { color: c.accent }]}>$200M</Text>
+            <Text style={[styles.paramValue, { color: c.accent }]}>$301.2M</Text>
             <Text style={[styles.paramLabel, { color: c.subtext }]}>Salary Cap</Text>
           </View>
           <View style={styles.paramItem}>
-            <Text style={[styles.paramValue, { color: c.accent }]}>22</Text>
+            <Text style={[styles.paramValue, { color: c.accent }]}>29</Text>
             <Text style={[styles.paramLabel, { color: c.subtext }]}>Roster Slots</Text>
           </View>
         </View>
