@@ -79,6 +79,14 @@ func (h *NFLPlayerHandler) GetByPosition(c *fiber.Ctx) error {
 	})
 }
 
+func excludeFilter(c *fiber.Ctx) []string {
+	raw := c.Query("exclude")
+	if raw == "" {
+		return nil
+	}
+	return strings.Split(raw, ",")
+}
+
 func (h *NFLPlayerHandler) GetRandomByPosition(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -89,8 +97,12 @@ func (h *NFLPlayerHandler) GetRandomByPosition(c *fiber.Ctx) error {
 			"message": "position query parameter is required",
 		})
 	}
+	matchFilter := bson.M{"position": position, "active": true}
+	if excluded := excludeFilter(c); len(excluded) > 0 {
+		matchFilter["full_name"] = bson.M{"$nin": excluded}
+	}
 	pipeline := mongo.Pipeline{
-		{{Key: "$match", Value: bson.M{"position": position, "active": true}}},
+		{{Key: "$match", Value: matchFilter}},
 		{{Key: "$sample", Value: bson.M{"size": 1}}},
 	}
 	cursor, err := h.collection.Aggregate(ctx, pipeline)
@@ -134,6 +146,9 @@ func (h *NFLPlayerHandler) GetManyRandomByPosition(c *fiber.Ctx) error {
 		matchFilter["depth_chart_order"] = bson.M{"$eq": 1}
 	case 2:
 		matchFilter["depth_chart_order"] = bson.M{"$gte": 2}
+	}
+	if excluded := excludeFilter(c); len(excluded) > 0 {
+		matchFilter["full_name"] = bson.M{"$nin": excluded}
 	}
 	
 	pipeline := mongo.Pipeline{
@@ -190,8 +205,12 @@ func (h *NFLPlayerHandler) GetOneFromManyPositions(c *fiber.Ctx) error {
 		})
 	}
 	positionList := strings.Split(positions, ",")
+	matchFilter := bson.M{"position": bson.M{"$in": positionList}, "active": true}
+	if excluded := excludeFilter(c); len(excluded) > 0 {
+		matchFilter["full_name"] = bson.M{"$nin": excluded}
+	}
 	pipeline := mongo.Pipeline{
-		{{Key: "$match", Value: bson.M{"position": bson.M{"$in": positionList}, "active": true}}},
+		{{Key: "$match", Value: matchFilter}},
 		{{Key: "$sample", Value: bson.M{"size": 1}}},
 	}
 	cursor, err := h.collection.Aggregate(ctx, pipeline)

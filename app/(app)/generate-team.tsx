@@ -150,11 +150,21 @@ const GenerateTeam = () => {
   const handleGenerateTeam = async () => {
     setLoading(true);
     setGenerateTeam(false);
-    const players = [];
+    const players: { position: string; name: string; nfl_team: string }[] = [];
+    const usedNames = new Set<string>();
+
+    const addPlayer = (player: { position: string; name: string; nfl_team: string }) => {
+      if (!usedNames.has(player.name)) {
+        usedNames.add(player.name);
+        players.push(player);
+      }
+    };
+
+    const excludeParam = () =>
+      usedNames.size > 0 ? `&exclude=${encodeURIComponent([...usedNames].join(","))}` : "";
 
     const positions = ["QB", "RB", "WR", "TE", "OT", "G", "C", "DE", "DT", "LB", "CB", "FS", "SS", "Nickel", "Dime", "K", "P", "RS", "LS"]
 
-    // Pick 2 random offensive and 2 random defensive positions to guarantee slot=1 (true starters)
     const offPositions = ["QB", "WR", "TE", "OT", "G", "C"];
     const defPositions = ["DE", "DT", "LB", "CB", "FS", "SS"];
     const slot1OffPositions = new Set(pickRandom(offPositions, 2));
@@ -169,21 +179,20 @@ const GenerateTeam = () => {
       if (formData.offenseType === "3 WR 1 TE" && formData.defenseType === "4-3 Base Defense") {
         for (const position of positions) {
           if (position == "RB") {
-            // RB1 from starters (depth 1), RB2 from backups (depth 2+)
             for (const slot of [1, 2]) {
-              const response = await fetch(`${API_URL}/api/players/random-players?position=RB&count=1&slot=${slot}`)
+              const response = await fetch(`${API_URL}/api/players/random-players?position=RB&count=1&slot=${slot}${excludeParam()}`)
               const result = await response.json()
               if (result.status === "Success" && result.data) {
                 const player = result.data[0]
-                players.push({ position: "RB", name: player.full_name || player.first_name + " " + player.last_name, nfl_team: player.nfl_team })
+                addPlayer({ position: "RB", name: player.full_name || player.first_name + " " + player.last_name, nfl_team: player.nfl_team })
               }
             }
           } else if (position == "OT" || position == "G" || position == "DE" || position == "DT" || position == "CB") {
-            const response = await fetch(`${API_URL}/api/players/random-players?position=${position}&count=2${fetchSlot(position)}`)
+            const response = await fetch(`${API_URL}/api/players/random-players?position=${position}&count=2${fetchSlot(position)}${excludeParam()}`)
             const result = await response.json()
             if (result.status === "Success" && result.data) {
               for (const player of result.data) {
-                players.push({
+                addPlayer({
                   position: position,
                   name: player.full_name || player.first_name + " " + player.last_name,
                   nfl_team: player.nfl_team
@@ -193,11 +202,11 @@ const GenerateTeam = () => {
               console.log("No data found for position: " + position)
             }
           } else if (position == "WR" || position == "LB") {
-            const response = await fetch(`${API_URL}/api/players/random-players?position=${position}&count=3${fetchSlot(position)}`)
+            const response = await fetch(`${API_URL}/api/players/random-players?position=${position}&count=3${fetchSlot(position)}${excludeParam()}`)
             const result = await response.json()
             if (result.status === "Success" && result.data) {
               for (const player of result.data) {
-                players.push({
+                addPlayer({
                   position: position,
                   name: player.full_name || player.first_name + " " + player.last_name,
                   nfl_team: player.nfl_team
@@ -207,10 +216,10 @@ const GenerateTeam = () => {
               console.log("No data found for position: " + position)
             }
           } else if (position == "Nickel" || position == "Dime") {
-            const response = await fetch(`${API_URL}/api/players/one-from-many-positions?positions=CB,SS,DB,S`)
+            const response = await fetch(`${API_URL}/api/players/one-from-many-positions?positions=CB,SS,DB,S${excludeParam()}`)
             const result = await response.json()
             if (result.status === "Success" && result.data) {
-              players.push({
+              addPlayer({
                 position: position,
                 name: result.data.full_name || result.data.first_name + " " + result.data.last_name,
                 nfl_team: result.data.nfl_team
@@ -219,10 +228,10 @@ const GenerateTeam = () => {
               console.log("No data found for position: " + position)
             }
           } else if (position == "FS") {
-            const response = await fetch(`${API_URL}/api/players/random-player?position=S`)
+            const response = await fetch(`${API_URL}/api/players/random-player?position=S${excludeParam()}`)
             const result = await response.json()
             if (result.status === "Success" && result.data) {
-              players.push({
+              addPlayer({
                 position: position,
                 name: result.data.full_name || result.data.first_name + " " + result.data.last_name,
                 nfl_team: result.data.nfl_team
@@ -232,10 +241,10 @@ const GenerateTeam = () => {
             }
           } else {
             const slotParam = fetchSlot(position);
-            const response = await fetch(`${API_URL}/api/players/random-player?position=${position}${slotParam}`)
+            const response = await fetch(`${API_URL}/api/players/random-player?position=${position}${slotParam}${excludeParam()}`)
             const result = await response.json()
             if (result.status === "Success" && result.data) {
-              players.push({
+              addPlayer({
                 position: position,
                 name: result.data.full_name || result.data.first_name + " " + result.data.last_name,
                 nfl_team: result.data.nfl_team
@@ -249,19 +258,19 @@ const GenerateTeam = () => {
         for (const position of positions) {
           if (position == "RB") {
             for (const slot of [1, 2]) {
-              const response = await fetch(`${API_URL}/api/players/random-players?position=RB&count=1&slot=${slot}`)
+              const response = await fetch(`${API_URL}/api/players/random-players?position=RB&count=1&slot=${slot}${excludeParam()}`)
               const result = await response.json()
               if (result.status === "Success" && result.data) {
                 const player = result.data[0]
-                players.push({ position: "RB", name: player.full_name || player.first_name + " " + player.last_name, nfl_team: player.nfl_team })
+                addPlayer({ position: "RB", name: player.full_name || player.first_name + " " + player.last_name, nfl_team: player.nfl_team })
               }
             }
           } else if (position == "WR" || position == "TE" || position == "OT" || position == "G" || position == "DE" || position == "DT" || position == "CB") {
-            const response = await fetch(`${API_URL}/api/players/random-players?position=${position}&count=2${fetchSlot(position)}`)
+            const response = await fetch(`${API_URL}/api/players/random-players?position=${position}&count=2${fetchSlot(position)}${excludeParam()}`)
             const result = await response.json()
             if (result.status === "Success" && result.data) {
               for (const player of result.data) {
-                players.push({
+                addPlayer({
                   position: position,
                   name: player.full_name || player.first_name + " " + player.last_name,
                   nfl_team: player.nfl_team
@@ -271,11 +280,11 @@ const GenerateTeam = () => {
               console.log("No data found for position: " + position)
             }
           } else if (position == "LB") {
-            const response = await fetch(`${API_URL}/api/players/random-players?position=${position}&count=3${fetchSlot(position)}`)
+            const response = await fetch(`${API_URL}/api/players/random-players?position=${position}&count=3${fetchSlot(position)}${excludeParam()}`)
             const result = await response.json()
             if (result.status === "Success" && result.data) {
               for (const player of result.data) {
-                players.push({
+                addPlayer({
                   position: position,
                   name: player.full_name || player.first_name + " " + player.last_name,
                   nfl_team: player.nfl_team
@@ -285,10 +294,10 @@ const GenerateTeam = () => {
               console.log("No data found for position: " + position)
             }
           } else if (position == "Nickel" || position == "Dime") {
-            const response = await fetch(`${API_URL}/api/players/one-from-many-positions?positions=CB,SS,DB,S`)
+            const response = await fetch(`${API_URL}/api/players/one-from-many-positions?positions=CB,SS,DB,S${excludeParam()}`)
             const result = await response.json()
             if (result.status === "Success" && result.data) {
-              players.push({
+              addPlayer({
                 position: position,
                 name: result.data.full_name || result.data.first_name + " " + result.data.last_name,
                 nfl_team: result.data.nfl_team
@@ -297,10 +306,10 @@ const GenerateTeam = () => {
               console.log("No data found for position: " + position)
             }
           } else if (position == "FS") {
-            const response = await fetch(`${API_URL}/api/players/random-player?position=S`)
+            const response = await fetch(`${API_URL}/api/players/random-player?position=S${excludeParam()}`)
             const result = await response.json()
             if (result.status === "Success" && result.data) {
-              players.push({
+              addPlayer({
                 position: position,
                 name: result.data.full_name || result.data.first_name + " " + result.data.last_name,
                 nfl_team: result.data.nfl_team
@@ -310,10 +319,10 @@ const GenerateTeam = () => {
             }
           } else {
             const slotParam = fetchSlot(position);
-            const response = await fetch(`${API_URL}/api/players/random-player?position=${position}${slotParam}`)
+            const response = await fetch(`${API_URL}/api/players/random-player?position=${position}${slotParam}${excludeParam()}`)
             const result = await response.json()
             if (result.status === "Success" && result.data) {
-              players.push({
+              addPlayer({
                 position: position,
                 name: result.data.full_name || result.data.first_name + " " + result.data.last_name,
                 nfl_team: result.data.nfl_team
@@ -327,19 +336,19 @@ const GenerateTeam = () => {
          for (const position of positions) {
           if (position == "RB") {
             for (const slot of [1, 2]) {
-              const response = await fetch(`${API_URL}/api/players/random-players?position=RB&count=1&slot=${slot}`)
+              const response = await fetch(`${API_URL}/api/players/random-players?position=RB&count=1&slot=${slot}${excludeParam()}`)
               const result = await response.json()
               if (result.status === "Success" && result.data) {
                 const player = result.data[0]
-                players.push({ position: "RB", name: player.full_name || player.first_name + " " + player.last_name, nfl_team: player.nfl_team })
+                addPlayer({ position: "RB", name: player.full_name || player.first_name + " " + player.last_name, nfl_team: player.nfl_team })
               }
             }
           } else if (position == "OT" || position == "G" || position == "DE" || position == "CB") {
-            const response = await fetch(`${API_URL}/api/players/random-players?position=${position}&count=2${fetchSlot(position)}`)
+            const response = await fetch(`${API_URL}/api/players/random-players?position=${position}&count=2${fetchSlot(position)}${excludeParam()}`)
             const result = await response.json()
             if (result.status === "Success" && result.data) {
               for (const player of result.data) {
-                players.push({
+                addPlayer({
                   position: position,
                   name: player.full_name || player.first_name + " " + player.last_name,
                   nfl_team: player.nfl_team
@@ -349,11 +358,11 @@ const GenerateTeam = () => {
               console.log("No data found for position: " + position)
             }
           } else if (position == "WR") {
-            const response = await fetch(`${API_URL}/api/players/random-players?position=WR&count=3${fetchSlot(position)}`)
+            const response = await fetch(`${API_URL}/api/players/random-players?position=WR&count=3${fetchSlot(position)}${excludeParam()}`)
             const result = await response.json()
             if (result.status === "Success" && result.data) {
               for (const player of result.data) {
-                players.push({
+                addPlayer({
                   position: position,
                   name: player.full_name || player.first_name + " " + player.last_name,
                   nfl_team: player.nfl_team
@@ -363,11 +372,11 @@ const GenerateTeam = () => {
               console.log("No data found for position: " + position)
             }
           } else if (position == "LB") {
-            const response = await fetch(`${API_URL}/api/players/random-players?position=LB&count=4${fetchSlot(position)}`)
+            const response = await fetch(`${API_URL}/api/players/random-players?position=LB&count=4${fetchSlot(position)}${excludeParam()}`)
             const result = await response.json()
             if (result.status === "Success" && result.data) {
               for (const player of result.data) {
-                players.push({
+                addPlayer({
                   position: position,
                   name: player.full_name || player.first_name + " " + player.last_name,
                   nfl_team: player.nfl_team
@@ -377,10 +386,10 @@ const GenerateTeam = () => {
               console.log("No data found for position: " + position)
             }
           } else if (position == "Nickel" || position == "Dime") {
-            const response = await fetch(`${API_URL}/api/players/one-from-many-positions?positions=CB,SS,DB,S`)
+            const response = await fetch(`${API_URL}/api/players/one-from-many-positions?positions=CB,SS,DB,S${excludeParam()}`)
             const result = await response.json()
             if (result.status === "Success" && result.data) {
-              players.push({
+              addPlayer({
                 position: position,
                 name: result.data.full_name || result.data.first_name + " " + result.data.last_name,
                 nfl_team: result.data.nfl_team
@@ -389,10 +398,10 @@ const GenerateTeam = () => {
               console.log("No data found for position: " + position)
             }
           } else if (position == "FS") {
-            const response = await fetch(`${API_URL}/api/players/random-player?position=S`)
+            const response = await fetch(`${API_URL}/api/players/random-player?position=S${excludeParam()}`)
             const result = await response.json()
             if (result.status === "Success" && result.data) {
-              players.push({
+              addPlayer({
                 position: position,
                 name: result.data.full_name || result.data.first_name + " " + result.data.last_name,
                 nfl_team: result.data.nfl_team
@@ -402,10 +411,10 @@ const GenerateTeam = () => {
             }
           } else {
             const slotParam = fetchSlot(position);
-            const response = await fetch(`${API_URL}/api/players/random-player?position=${position}${slotParam}`)
+            const response = await fetch(`${API_URL}/api/players/random-player?position=${position}${slotParam}${excludeParam()}`)
             const result = await response.json()
             if (result.status === "Success" && result.data) {
-              players.push({
+              addPlayer({
                 position: position,
                 name: result.data.full_name || result.data.first_name + " " + result.data.last_name,
                 nfl_team: result.data.nfl_team
@@ -419,19 +428,19 @@ const GenerateTeam = () => {
         for (const position of positions) {
           if (position == "RB") {
             for (const slot of [1, 2]) {
-              const response = await fetch(`${API_URL}/api/players/random-players?position=RB&count=1&slot=${slot}`)
+              const response = await fetch(`${API_URL}/api/players/random-players?position=RB&count=1&slot=${slot}${excludeParam()}`)
               const result = await response.json()
               if (result.status === "Success" && result.data) {
                 const player = result.data[0]
-                players.push({ position: "RB", name: player.full_name || player.first_name + " " + player.last_name, nfl_team: player.nfl_team })
+                addPlayer({ position: "RB", name: player.full_name || player.first_name + " " + player.last_name, nfl_team: player.nfl_team })
               }
             }
           } else if (position == "WR" || position == "TE" || position == "OT" || position == "G" || position == "DE" || position == "CB") {
-            const response = await fetch(`${API_URL}/api/players/random-players?position=${position}&count=2${fetchSlot(position)}`)
+            const response = await fetch(`${API_URL}/api/players/random-players?position=${position}&count=2${fetchSlot(position)}${excludeParam()}`)
             const result = await response.json()
             if (result.status === "Success" && result.data) {
               for (const player of result.data) {
-                players.push({
+                addPlayer({
                   position: position,
                   name: player.full_name || player.first_name + " " + player.last_name,
                   nfl_team: player.nfl_team
@@ -441,11 +450,11 @@ const GenerateTeam = () => {
               console.log("No data found for position: " + position)
             }
           } else if (position == "LB") {
-            const response = await fetch(`${API_URL}/api/players/random-players?position=LB&count=4${fetchSlot(position)}`)
+            const response = await fetch(`${API_URL}/api/players/random-players?position=LB&count=4${fetchSlot(position)}${excludeParam()}`)
             const result = await response.json()
             if (result.status === "Success" && result.data) {
               for (const player of result.data) {
-                players.push({
+                addPlayer({
                   position: position,
                   name: player.full_name || player.first_name + " " + player.last_name,
                   nfl_team: player.nfl_team
@@ -455,10 +464,10 @@ const GenerateTeam = () => {
               console.log("No data found for position: " + position)
             }
           } else if (position == "Nickel" || position == "Dime") {
-            const response = await fetch(`${API_URL}/api/players/one-from-many-positions?positions=CB,SS,DB,S`)
+            const response = await fetch(`${API_URL}/api/players/one-from-many-positions?positions=CB,SS,DB,S${excludeParam()}`)
             const result = await response.json()
             if (result.status === "Success" && result.data) {
-              players.push({
+              addPlayer({
                 position: position,
                 name: result.data.full_name || result.data.first_name + " " + result.data.last_name,
                 nfl_team: result.data.nfl_team
@@ -467,10 +476,10 @@ const GenerateTeam = () => {
               console.log("No data found for position: " + position)
             }
           } else if (position == "FS") {
-            const response = await fetch(`${API_URL}/api/players/random-player?position=S`)
+            const response = await fetch(`${API_URL}/api/players/random-player?position=S${excludeParam()}`)
             const result = await response.json()
             if (result.status === "Success" && result.data) {
-              players.push({
+              addPlayer({
                 position: position,
                 name: result.data.full_name || result.data.first_name + " " + result.data.last_name,
                 nfl_team: result.data.nfl_team
@@ -480,10 +489,10 @@ const GenerateTeam = () => {
             }
           } else {
             const slotParam = fetchSlot(position);
-            const response = await fetch(`${API_URL}/api/players/random-player?position=${position}${slotParam}`)
+            const response = await fetch(`${API_URL}/api/players/random-player?position=${position}${slotParam}${excludeParam()}`)
             const result = await response.json()
             if (result.status === "Success" && result.data) {
-              players.push({
+              addPlayer({
                 position: position,
                 name: result.data.full_name || result.data.first_name + " " + result.data.last_name,
                 nfl_team: result.data.nfl_team

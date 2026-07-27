@@ -1,4 +1,4 @@
-import { NFL_TEAM_COLORS, NFL_TEAM_COLORS_DARK } from "@/utils/nflTeamColors";
+import { NFL_TEAM_COLORS, NFL_TEAM_COLORS_DARK, toTeamAbbr } from "@/utils/nflTeamColors";
 import {
   ScrollView,
   StyleSheet,
@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useState } from "react";
 import Ionicons from "react-native-vector-icons/Ionicons";
+import PickerModal, { PickerTrigger } from "@/components/PickerModal";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -57,9 +58,12 @@ const POS_COLORS_LIGHT: Record<string, { bg: string; text: string }> = {
   FS: { bg: "#004c75", text: "#ffffff" },
   SS: { bg: "#004c75", text: "#ffffff" },
   SAF: { bg: "#004c75", text: "#ffffff" },
+  Nickel: { bg: "#0e7490", text: "#ffffff" },
+  Dime: { bg: "#155e75", text: "#ffffff" },
   K: { bg: "#1ec95d", text: "#ffffff" },
   P: { bg: "#21ccb2", text: "#ffffff" },
   RS: { bg: "#4d2325", text: "#ffffff" },
+  LS: { bg: "#6b7280", text: "#ffffff" },
 };
 
 const POS_COLORS_DARK: Record<string, { bg: string; text: string }> = {
@@ -84,9 +88,12 @@ const POS_COLORS_DARK: Record<string, { bg: string; text: string }> = {
   FS: { bg: "#38bdf8", text: "#000000" },
   SS: { bg: "#38bdf8", text: "#000000" },
   SAF: { bg: "#38bdf8", text: "#000000" },
+  Nickel: { bg: "#22d3ee", text: "#000000" },
+  Dime: { bg: "#67e8f9", text: "#000000" },
   K: { bg: "#4ade80", text: "#000000" },
   P: { bg: "#2dd4bf", text: "#000000" },
   RS: { bg: "#a16207", text: "#000000" },
+  LS: { bg: "#9ca3af", text: "#000000" },
 };
 
 const POS_ORDER = [
@@ -95,7 +102,8 @@ const POS_ORDER = [
   "DE", "DT", "NT", "DL",
   "LB", "OLB", "ILB", "MLB", "SLB", "WLB",
   "CB", "FS", "SS", "S", "SAF",
-  "K", "P", "RS",
+  "Nickel", "Dime",
+  "K", "P", "RS", "LS",
 ];
 
 function formatSalary(n: number): string {
@@ -118,6 +126,10 @@ export default function OptimizeTeam() {
   const [result, setResult] = useState<OptimizeResult | null>(null);
   const [error, setError] = useState("");
   const [infoVisible, setInfoVisible] = useState(false);
+  const [offenseType, setOffenseType] = useState("3 WR 1 TE");
+  const [defenseType, setDefenseType] = useState("4-3 Defense");
+  const [offensePickerOpen, setOffensePickerOpen] = useState(false);
+  const [defensePickerOpen, setDefensePickerOpen] = useState(false);
 
   const posColors = isDark ? POS_COLORS_DARK : POS_COLORS_LIGHT;
 
@@ -144,7 +156,7 @@ export default function OptimizeTeam() {
       const resp = await fetch(`${API_URL}/api/optimize/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ offense_type: offenseType, defense_type: defenseType }),
       });
       const data = await resp.json();
       if (!resp.ok) {
@@ -165,13 +177,14 @@ export default function OptimizeTeam() {
   const offense = result?.roster.filter(p => ["QB", "RB", "FB", "WR", "TE"].includes(p.position)) ?? [];
   const oline = result?.roster.filter(p => ["OT", "G", "C"].includes(p.position)) ?? [];
   const defense = result?.roster.filter(p =>
-    ["DE", "DT", "NT", "DL", "LB", "OLB", "ILB", "MLB", "SLB", "WLB", "CB", "FS", "SS", "S", "SAF"].includes(p.position)
+    ["DE", "DT", "NT", "DL", "LB", "OLB", "ILB", "MLB", "SLB", "WLB", "CB", "FS", "SS", "S", "SAF", "Nickel", "Dime"].includes(p.position)
   ) ?? [];
-  const special = result?.roster.filter(p => ["K", "P", "RS"].includes(p.position)) ?? [];
+  const special = result?.roster.filter(p => ["K", "P", "RS", "LS"].includes(p.position)) ?? [];
 
   const renderPlayer = (player: RosterPlayer, i: number) => {
     const posColor = posColors[player.position] ?? { bg: "#334155", text: "#ffffff" };
-    const teamColor = (isDark ? NFL_TEAM_COLORS_DARK : NFL_TEAM_COLORS)[player.nfl_team] ?? (isDark ? { bg: "#4a5568", text: "#000000" } : { bg: "#334155", text: "#ffffff" });
+    const teamAbbr = toTeamAbbr(player.nfl_team);
+    const teamColor = (isDark ? NFL_TEAM_COLORS_DARK : NFL_TEAM_COLORS)[teamAbbr] ?? (isDark ? { bg: "#4a5568", text: "#000000" } : { bg: "#334155", text: "#ffffff" });
     return (
       <View key={i} style={[styles.playerRow, { borderBottomColor: c.border }]}>
         <View style={styles.playerLeft}>
@@ -180,9 +193,9 @@ export default function OptimizeTeam() {
           </View>
           <View style={styles.playerInfo}>
             <Text style={[styles.playerName, { color: c.text }]}>{player.name}</Text>
-            {player.nfl_team ? (
+            {teamAbbr ? (
               <View style={[styles.teamBadge, { backgroundColor: teamColor.bg }]}>
-                <Text style={[styles.teamText, { color: teamColor.text }]}>{player.nfl_team}</Text>
+                <Text style={[styles.teamText, { color: teamColor.text }]}>{teamAbbr}</Text>
               </View>
             ) : null}
           </View>
@@ -237,9 +250,9 @@ export default function OptimizeTeam() {
             <View style={[styles.modalDivider, { backgroundColor: c.border }]} />
 
             <View style={styles.modalItem}>
-              <Text style={[styles.modalItemTitle, { color: c.text }]}>29-Player Roster</Text>
+              <Text style={[styles.modalItemTitle, { color: c.text }]}>Tracked Roster Slots</Text>
               <Text style={[styles.modalItemBody, { color: c.subtext }]}>
-                The active NFL roster has 53 players, but most don't see the field. We will use 29: the 11 starters on offense and 11 on defense. So, every pick actually matters to the simulation.
+                The active NFL roster has 53 players, but most don't see the field. We optimize the skill positions and specialists that actually produce stats. Every pick matters to the simulation.
               </Text>
             </View>
 
@@ -267,8 +280,33 @@ export default function OptimizeTeam() {
             <Text style={[styles.paramLabel, { color: c.subtext }]}>Salary Cap</Text>
           </View>
           <View style={styles.paramItem}>
-            <Text style={[styles.paramValue, { color: c.accent }]}>29</Text>
-            <Text style={[styles.paramLabel, { color: c.subtext }]}>Roster Size</Text>
+            <Text style={[styles.paramValue, { color: c.accent }]}>22</Text>
+            <Text style={[styles.paramLabel, { color: c.subtext }]}>Roster Slots</Text>
+          </View>
+        </View>
+
+        <View style={styles.dropdownRow}>
+          <View style={styles.dropdownItem}>
+            <Text style={[styles.dropdownLabel, { color: c.subtext }]}>Offensive Scheme</Text>
+            <PickerTrigger
+              value={offenseType}
+              placeholder="Select offense"
+              onPress={() => setOffensePickerOpen(true)}
+              borderColor={c.border}
+              textColor={c.text}
+              placeholderColor={c.subtext}
+            />
+          </View>
+          <View style={styles.dropdownItem}>
+            <Text style={[styles.dropdownLabel, { color: c.subtext }]}>Defensive Scheme</Text>
+            <PickerTrigger
+              value={defenseType}
+              placeholder="Select defense"
+              onPress={() => setDefensePickerOpen(true)}
+              borderColor={c.border}
+              textColor={c.text}
+              placeholderColor={c.subtext}
+            />
           </View>
         </View>
 
@@ -291,7 +329,7 @@ export default function OptimizeTeam() {
 
         {loading && (
           <Text style={[styles.loadingHint, { color: c.subtext }]}>
-            Evolving 40 rosters across 60 generations... 15-30s
+            Evolving 40 rosters across 60 generations... (15 - 30s)
           </Text>
         )}
       </View>
@@ -414,6 +452,28 @@ export default function OptimizeTeam() {
           )}
         </>
       )}
+      <PickerModal
+        visible={offensePickerOpen}
+        onClose={() => setOffensePickerOpen(false)}
+        title="Type of Offense"
+        items={[
+          { label: "3 WR 1 TE", value: "3 WR 1 TE" },
+          { label: "2 WR 2 TE", value: "2 WR 2 TE" },
+        ]}
+        selectedValue={offenseType}
+        onSelect={(value) => setOffenseType(value)}
+      />
+      <PickerModal
+        visible={defensePickerOpen}
+        onClose={() => setDefensePickerOpen(false)}
+        title="Type of Defense"
+        items={[
+          { label: "4-3 Defense", value: "4-3 Defense" },
+          { label: "3-4 Defense", value: "3-4 Defense" },
+        ]}
+        selectedValue={defenseType}
+        onSelect={(value) => setDefenseType(value)}
+      />
     </ScrollView>
   );
 }
@@ -657,6 +717,20 @@ const styles = StyleSheet.create({
     fontFamily: "Montserrat_700Bold",
     fontSize: 12,
     color: "#ffffff",
+  },
+  dropdownRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  dropdownItem: {
+    flex: 1,
+    gap: 4,
+  },
+  dropdownLabel: {
+    fontFamily: "Montserrat_700Bold",
+    fontSize: 11,
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
   },
   cardHeader: {
     flexDirection: "row",

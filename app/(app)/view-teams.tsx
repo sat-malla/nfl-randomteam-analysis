@@ -345,8 +345,8 @@ function SpecialTeamsField({
           gap: 6,
           paddingHorizontal: 8,
         }}>
-          {stPlayers.map((player) => (
-            <PlayerCard key={player.name} player={player} posColors={posColors} />
+          {stPlayers.map((player, i) => (
+            <PlayerCard key={`${player.name}-${i}`} player={player} posColors={posColors} />
           ))}
         </View>
       </View>
@@ -415,8 +415,8 @@ function FieldView({
                 paddingHorizontal: 4,
               }}
             >
-              {sortedRow.map((player) => (
-                <PlayerCard key={player.name} player={player} posColors={posColors} />
+              {sortedRow.map((player, pi) => (
+                <PlayerCard key={`${player.name}-${pi}`} player={player} posColors={posColors} />
               ))}
             </View>
           );
@@ -441,8 +441,8 @@ function FieldView({
                 gap: 4,
               }}
             >
-              {sortedOffRow.map((player) => (
-                <PlayerCard key={player.name} player={player} posColors={posColors} />
+              {sortedOffRow.map((player, pi) => (
+                <PlayerCard key={`${player.name}-${pi}`} player={player} posColors={posColors} />
               ))}
             </View>
           );
