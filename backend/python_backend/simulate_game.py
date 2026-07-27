@@ -160,7 +160,7 @@ _POS_STAT_CAPS_PER_GAME = {
     "RB": {"carries": 30, "rushing_yards": 250, "rushing_tds": 4, "receptions": 10, "targets": 12, "receiving_yards": 120, "receiving_tds": 2},
     "FB": {"carries": 15, "rushing_yards": 100, "rushing_tds": 2, "receptions": 6, "targets": 8, "receiving_yards": 60, "receiving_tds": 1},
     "WR": {"receptions": 14, "receiving_yards": 250, "receiving_tds": 3, "targets": 16, "carries": 5, "rushing_yards": 60, "rushing_tds": 1},
-    "TE": {"receptions": 12, "receiving_yards": 180, "receiving_tds": 3, "targets": 14},
+    "TE": {"receptions": 12, "receiving_yards": 220, "receiving_tds": 3, "targets": 14},
     "DE": {"def_sacks": 3, "def_tackles_solo": 10, "def_pass_defended": 4},
     "DT": {"def_sacks": 2, "def_tackles_solo": 8, "def_pass_defended": 3},
     "LB": {"def_tackles_solo": 18, "def_sacks": 2, "def_interceptions": 1, "def_pass_defended": 3},
@@ -180,8 +180,8 @@ DEPTH_SLOT_SCALE = {1: 1.35, 2: 0.50, 3: 0.30}
 _STARTER_BOOST: dict[str, float] = {
     "RB": 1.25,
     "FB": 1.10,
-    "WR": 1.15,
-    "TE": 1.10,
+    "WR": 1.30,
+    "TE": 1.20,
 }
 
 _POS_STATS_CACHE: dict = {}
@@ -342,39 +342,61 @@ def _player_ypc(name: str, player_df: pd.DataFrame, default: float = 4.2) -> flo
     return float(np.clip(rush_yds / carries, 2.5, 8.0))
 
 
-def _player_ypr(name: str, player_df: pd.DataFrame, default: float = 10.0) -> float:
+_YPR_FALLBACK_BY_POS = {"WR": 12.5, "TE": 9.5, "RB": 7.0, "FB": 6.5}
+
+def _player_ypr(name: str, player_df: pd.DataFrame, pos: str = "WR") -> float:
+    fallback = _YPR_FALLBACK_BY_POS.get(pos, 9.5)
     if player_df.empty:
-        return 6.0
+        return fallback
     rows = player_df[player_df["player_display_name"] == name]
     if rows.empty:
-        return 6.0
+        return fallback
     recs = pd.to_numeric(rows.get("receptions", pd.Series()), errors="coerce").sum()
     rec_yds = pd.to_numeric(rows.get("receiving_yards", pd.Series()), errors="coerce").sum()
     if recs < 5:
-        return 6.0
+        return fallback
     return float(np.clip(rec_yds / recs, 4.0, 22.0))
 
 
+_TARGET_SHARE_CAP = {"WR": 10.0, "TE": 5.5, "RB": 4.0, "FB": 2.0}
+_TARGET_SHARE_DEFAULT = {"WR": 4.0, "TE": 2.0, "RB": 2.5, "FB": 1.0}
+
 def _player_target_share(name: str, player_df: pd.DataFrame, pos: str) -> float:
-    # Rookies/unknown players get a tiny weight so real starters dominate target share
-    ROOKIE_DEFAULT = {"WR": 3.0, "TE": 2.0, "RB": 4.0, "FB": 1.0}
+    default = _TARGET_SHARE_DEFAULT.get(pos, 3.0)
+    cap = _TARGET_SHARE_CAP.get(pos, 8.0)
     if player_df.empty:
-        return ROOKIE_DEFAULT.get(pos, 2.0)
+        return default
     rows = player_df[player_df["player_display_name"] == name]
     if rows.empty:
-        return ROOKIE_DEFAULT.get(pos, 2.0)
-    tgts = pd.to_numeric(rows.get("targets", pd.Series()), errors="coerce").sum()
-    return float(tgts) if tgts >= 5 else ROOKIE_DEFAULT.get(pos, 2.0)
+        return default
+    season_col = "season" if "season" in rows.columns else None
+    tgts = pd.to_numeric(rows.get("targets", pd.Series(dtype=float)), errors="coerce")
+    if season_col:
+        n_seasons = rows[season_col].nunique()
+        avg = float(tgts.sum()) / max(n_seasons, 1) / N_GAMES
+    else:
+        avg = float(tgts.mean())
+    if avg < 0.5:
+        return default
+    return float(np.clip(avg, default, cap))
 
 
 def _player_rush_share(name: str, player_df: pd.DataFrame) -> float:
     if player_df.empty:
-        return 5.0  # rookie/unknown: minimal carry share
+        return 3.0
     rows = player_df[player_df["player_display_name"] == name]
     if rows.empty:
-        return 5.0
-    carries = pd.to_numeric(rows.get("carries", pd.Series()), errors="coerce").sum()
-    return float(carries) if carries >= 10 else 5.0
+        return 3.0
+    season_col = "season" if "season" in rows.columns else None
+    carries = pd.to_numeric(rows.get("carries", pd.Series(dtype=float)), errors="coerce")
+    if season_col:
+        n_seasons = rows[season_col].nunique()
+        avg = float(carries.sum()) / max(n_seasons, 1) / N_GAMES
+    else:
+        avg = float(carries.mean())
+    if avg < 0.5:
+        return 3.0
+    return float(np.clip(avg, 3.0, 22.0))
 
 _RUN_PROB = {
     (1, "short"): 0.48,
@@ -391,17 +413,17 @@ _RUN_PROB = {
     (4, "long"): 0.10,
 }
 
-_SACK_PROB = 0.055
-_INT_PROB = 0.025
-_INCOMP_PROB = 0.30
-_FUMBLE_PROB = 0.008
+_SACK_PROB = 0.028
+_INT_PROB = 0.020
+_INCOMP_PROB = 0.28
+_FUMBLE_PROB = 0.006
 
 _RUN_YARDS_MEAN = 4.2
-_RUN_YARDS_STD = 4.5
+_RUN_YARDS_STD = 3.5
 _PASS_YARDS_MEAN = 9.5
-_PASS_YARDS_STD = 8.0
+_PASS_YARDS_STD = 6.0
 
-_FG_ATTEMPT_DIST = 0.55
+_FG_ATTEMPT_DIST = 0.35
 _FG_MAKE_PROB_BASE = 0.87
 
 _SACK_WEIGHT = {"DE": 5, "DT": 4, "NT": 3, "OLB": 3, "LB": 1, "ILB": 1, "MLB": 1}
@@ -632,21 +654,22 @@ def simulate_game_drives(
     (opp_sack_pool, opp_int_pool, opp_fumble_pool,
      opp_pd_pool, opp_run_tkl_pool, opp_pass_tkl_pool) = _build_def_pools(opp_roster)
 
-    _user_ypc = {n: _player_ypc(n, user_player_df) for n, _ in user_rushers}
-    _user_ypr = {n: _player_ypr(n, user_player_df)
-                 for n, _ in user_receivers}
-    _opp_ypc = {n: _player_ypc(n, opp_player_df)  for n, _ in opp_rushers}
-    _opp_ypr = {n: _player_ypr(n, opp_player_df)
-                 for n, _ in opp_receivers}
-    _user_wr_te_names = {p["name"] for p in user_players if p["position"] in ("WR", "TE")}
-    _opp_wr_te_names  = {p["name"] for p in opp_roster  if p["position"] in ("WR", "TE")}
-    _user_wr_names    = {p["name"] for p in user_players if p["position"] == "WR"}
-    _opp_wr_names     = {p["name"] for p in opp_roster  if p["position"] == "WR"}
-    _user_te_names    = {p["name"] for p in user_players if p["position"] == "TE"}
-    _opp_te_names     = {p["name"] for p in opp_roster  if p["position"] == "TE"}
+    _user_pos_map = {p["name"]: p["position"] for p in user_players}
+    _opp_pos_map = {p["name"]: p["position"] for p in opp_roster}
 
-    _TARGET_SHARE_BY_POS = {"WR": 0.67, "TE": 0.22, "RB": 0.10, "FB": 0.01}
-    _MIN_WEIGHT_FLOOR = {"WR": 0.5, "TE": 0.4, "RB": 0.2, "FB": 0.05}
+    _user_ypc = {n: _player_ypc(n, user_player_df) for n, _ in user_rushers}
+    _user_ypr = {n: _player_ypr(n, user_player_df, _user_pos_map.get(n, "WR")) for n, _ in user_receivers}
+    _opp_ypc = {n: _player_ypc(n, opp_player_df)  for n, _ in opp_rushers}
+    _opp_ypr = {n: _player_ypr(n, opp_player_df,  _opp_pos_map.get(n, "WR"))  for n, _ in opp_receivers}
+    _user_wr_te_names = {p["name"] for p in user_players if p["position"] in ("WR", "TE")}
+    _opp_wr_te_names = {p["name"] for p in opp_roster  if p["position"] in ("WR", "TE")}
+    _user_wr_names = {p["name"] for p in user_players if p["position"] == "WR"}
+    _opp_wr_names = {p["name"] for p in opp_roster  if p["position"] == "WR"}
+    _user_te_names = {p["name"] for p in user_players if p["position"] == "TE"}
+    _opp_te_names = {p["name"] for p in opp_roster  if p["position"] == "TE"}
+
+    _TARGET_SHARE_BY_POS = {"WR": 0.74, "TE": 0.18, "RB": 0.07, "FB": 0.01}
+    _MIN_WEIGHT_FLOOR = {"WR": 0.3, "TE": 0.2, "RB": 0.1, "FB": 0.05}
 
     def _normalize_receiver_pool(pool, wr_names: set, te_names: set) -> dict:
         """Build per-pos-group normalized pools keyed by group name.
@@ -701,9 +724,9 @@ def simulate_game_drives(
             te_p = _TARGET_SHARE_BY_POS["TE"]
             rb_p = _TARGET_SHARE_BY_POS["RB"]
 
-        wr_p = max(wr_p, 0.30) if group_pools["WR"] else 0.0
-        te_p = max(te_p, 0.10) if group_pools["TE"] else 0.0
-        rb_p = max(rb_p, 0.08) if group_pools["RB"] else 0.0
+        wr_p = float(np.clip(wr_p, 0.58, 0.85)) if group_pools["WR"] else 0.0
+        te_p = float(np.clip(te_p, 0.08, 0.22)) if group_pools["TE"] else 0.0
+        rb_p = float(np.clip(rb_p, 0.04, 0.10)) if group_pools["RB"] else 0.0
 
         total = wr_p + te_p + rb_p
         if total <= 0:
@@ -834,7 +857,7 @@ def simulate_game_drives(
             run_prob *= 0.55
         if score_diff > 10 and quarter >= 4:
             run_prob *= 1.35
-        run_prob = float(np.clip(run_prob, 0.05, 0.85))
+        run_prob = float(np.clip(run_prob, 0.05, 0.52))
 
         is_run = random.random() < run_prob
         is_highlight = False
@@ -854,13 +877,14 @@ def simulate_game_drives(
                 def_sack_tier=facing_def["def_sack_tier"],
                 def_coverage_tier=facing_def["def_coverage_tier"],
             )
+            ypc_sample = np.random.normal(ypc, _RUN_YARDS_STD)
             if ml_out is not None:
                 run_td_prob = float(ml_out["td_prob"])
-                raw_yards = ml_out["yards"]
+                raw_yards = 0.35 * ml_out["yards"] + 0.65 * ypc_sample
                 fumble_prob = float(np.clip(ml_out["turnover_prob"], 0.005, 0.015))
             else:
                 run_td_prob = 0.0
-                raw_yards = np.random.normal(ypc, _RUN_YARDS_STD)
+                raw_yards = ypc_sample
                 fumble_prob = _FUMBLE_PROB
 
             yards = int(np.clip(round(raw_yards), -3, 35))
@@ -983,10 +1007,12 @@ def simulate_game_drives(
                 return 0, "", False
 
             receiver = intended_receiver
+            ypr_sample = np.random.normal(ypr, _PASS_YARDS_STD)
             if pass_yards is not None:
-                yards = int(np.clip(round(pass_yards), 1, 55))
+                blended = 0.35 * pass_yards + 0.65 * ypr_sample
             else:
-                yards = int(np.clip(round(np.random.normal(ypr, _PASS_YARDS_STD)), 1, 55))
+                blended = ypr_sample
+            yards = int(np.clip(round(blended), 1, 55))
 
             in_red_zone = yardline_100 <= 20
             if in_red_zone and raw_td_prob > 0:
@@ -1367,7 +1393,7 @@ def build_box_score(user_game: dict, team_players: list) -> list[dict]:
         "receptions": "Rec", "targets": "Tgt", "receiving_yards": "Rec Yds", "receiving_tds": "Rec TD",
         "def_sacks": "Sacks", "def_tackles_solo": "Tackles", "def_interceptions": "INT",
         "def_pass_defended": "PD",
-        "fg_made": "FG", "fg_att": "FGA", "xp_made": "XP", "xp_att": "XPA",
+        "fg_made": "FG", "fg_att": "FGA", "fg_pct": "FG%", "xp_made": "XP", "xp_att": "XPA", "xp_pct": "XP%",
         "punts": "Punts", "punt_yards": "Punt Yds",
         "kickoff_returns": "KR", "kickoff_return_yards": "KR Yds", "kickoff_return_tds": "KR TD",
         "punt_returns": "PR", "punt_return_yards": "PR Yds", "punt_return_tds": "PR TD",
@@ -1440,11 +1466,16 @@ def build_box_score(user_game: dict, team_players: list) -> list[dict]:
                 label = STAT_DISPLAY.get(k, k)
                 stat_lines[label] = round(v) if k in INT_STATS else round(v, 1)
         elif pos == "K":
-            k_order = ["fg_made", "fg_att", "xp_made", "xp_att"]
-            for k in k_order:
-                v = raw.get(k, 0)
-                label = STAT_DISPLAY.get(k, k)
-                stat_lines[label] = round(v) if k in INT_STATS else round(v, 1)
+            fg_made = round(raw.get("fg_made", 0))
+            fg_att = round(raw.get("fg_att", 0))
+            xp_made = round(raw.get("xp_made", 0))
+            xp_att = round(raw.get("xp_att", 0))
+            stat_lines["FG"] = fg_made
+            stat_lines["FGA"] = fg_att
+            stat_lines["FG%"] = round(fg_made / fg_att * 100, 1) if fg_att > 0 else 0.0
+            stat_lines["XP"] = xp_made
+            stat_lines["XPA"] = xp_att
+            stat_lines["XP%"] = round(xp_made / xp_att * 100, 1) if xp_att > 0 else 0.0
         elif pos == "P":
             p_order = ["punts", "punt_yards"]
             for k in p_order:
@@ -1530,10 +1561,13 @@ def simulate_overtime_period(
     opp_pd_pool = [(p["name"], _PD_WEIGHT.get(p["position"], 1))
                    for p in opp_roster if p["position"] in _PD_WEIGHT]
 
+    _ot_user_pos_map = {p["name"]: p["position"] for p in user_players}
+    _ot_opp_pos_map = {p["name"]: p["position"] for p in opp_roster}
+
     _user_ypc = {n: _player_ypc(n, user_player_df) for n, _ in user_rushers}
-    _user_ypr = {n: _player_ypr(n, user_player_df) for n, _ in user_receivers}
-    _opp_ypc = {n: _player_ypc(n, opp_player_df)  for n, _ in opp_rushers}
-    _opp_ypr = {n: _player_ypr(n, opp_player_df)  for n, _ in opp_receivers}
+    _user_ypr = {n: _player_ypr(n, user_player_df, _ot_user_pos_map.get(n, "WR")) for n, _ in user_receivers}
+    _opp_ypc = {n: _player_ypc(n, opp_player_df) for n, _ in opp_rushers}
+    _opp_ypr = {n: _player_ypr(n, opp_player_df, _ot_opp_pos_map.get(n, "WR")) for n, _ in opp_receivers}
     user_name = user_team.get("team_name", "Your Team")
 
     _ot_user_wr = {p["name"] for p in user_players if p["position"] == "WR"}
@@ -1588,9 +1622,9 @@ def simulate_overtime_period(
         wr_p = 0.57 if group_pools["WR"] else 0.0
         te_p = 0.22 if group_pools["TE"] else 0.0
         rb_p = 0.21 if group_pools["RB"] else 0.0
-        wr_p = max(wr_p, 0.30) if group_pools["WR"] else 0.0
-        te_p = max(te_p, 0.10) if group_pools["TE"] else 0.0
-        rb_p = max(rb_p, 0.08) if group_pools["RB"] else 0.0
+        wr_p = float(np.clip(wr_p, 0.58, 0.85)) if group_pools["WR"] else 0.0
+        te_p = float(np.clip(te_p, 0.08, 0.22)) if group_pools["TE"] else 0.0
+        rb_p = float(np.clip(rb_p, 0.04, 0.10)) if group_pools["RB"] else 0.0
         total = wr_p + te_p + rb_p
         if total <= 0 or not pool:
             return ("WR", 9.5)

@@ -6,7 +6,7 @@
   "n_features": 10,
   "inference_temperature": 0.8,
   "pass_boost": 2.0,
-  "best_val_acc": 0.7384268641471863,
+  "best_val_acc": 0.7379717230796814,
   "training_seasons": [
     2015,
     2016,

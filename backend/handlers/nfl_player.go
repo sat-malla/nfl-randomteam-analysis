@@ -135,10 +135,25 @@ func (h *NFLPlayerHandler) GetManyRandomByPosition(c *fiber.Ctx) error {
 	case 2:
 		matchFilter["depth_chart_order"] = bson.M{"$gte": 2}
 	}
-
+	
 	pipeline := mongo.Pipeline{
 		{{Key: "$match", Value: matchFilter}},
-		{{Key: "$sample", Value: bson.M{"size": count * 8}}},
+		{{Key: "$addFields", Value: bson.M{
+			"_copies": bson.M{"$range": []any{
+				0,
+				bson.M{"$max": []any{
+					1,
+					bson.M{"$toInt": bson.M{"$ifNull": []any{"$selection_weight", 1}}},
+				}},
+			}},
+		}}},
+		{{Key: "$unwind", Value: "$_copies"}},
+		{{Key: "$sample", Value: bson.M{"size": count * 4}}},
+		{{Key: "$group", Value: bson.M{
+			"_id": "$_id",
+			"doc": bson.M{"$first": "$$ROOT"},
+		}}},
+		{{Key: "$replaceRoot", Value: bson.M{"newRoot": "$doc"}}},
 		{{Key: "$sort", Value: bson.D{{Key: "depth_chart_order", Value: 1}}}},
 		{{Key: "$limit", Value: count}},
 	}

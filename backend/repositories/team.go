@@ -14,14 +14,14 @@ type TeamRepository struct {
 }
 
 func (r *TeamRepository) GetMany(ctx context.Context) ([]*models.Team, error) {
-	cursor, err := r.collection.Find(ctx, bson.M{}) // cursor is an iterator MongoDB returns
+	cursor, err := r.collection.Find(ctx, bson.M{})
 	if err != nil {
 		return nil, err
 	}
 	defer cursor.Close(ctx)
 
 	var teams []*models.Team
-	if err := cursor.All(ctx, &teams); err != nil { // reads all documents from the cursor into the teams slice
+	if err := cursor.All(ctx, &teams); err != nil {
 		return nil, err
 	}
 
