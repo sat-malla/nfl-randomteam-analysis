@@ -9,7 +9,7 @@ import (
 )
 
 func ConnectToDatabase(uri string) *mongo.Client {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // creates context and cancels after 10 seconds if MongoDB is unreachable
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
@@ -17,7 +17,7 @@ func ConnectToDatabase(uri string) *mongo.Client {
 		panic(err)
 	}
 
-	err = client.Ping(ctx, nil) // quick ping to database to make sure connection work
+	err = client.Ping(ctx, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -26,5 +26,5 @@ func ConnectToDatabase(uri string) *mongo.Client {
 }
 
 func GetCollection(client *mongo.Client, dbName string, collectionName string) *mongo.Collection {
-	return client.Database(dbName).Collection(collectionName) // collections in MongoDB are like tables in SQL
+	return client.Database(dbName).Collection(collectionName)
 }

@@ -32,7 +32,6 @@ type OptimizeResult = {
   cap_space_remaining: number;
   roster_size: number;
   position_breakdown: Record<string, number>;
-  fitness_history: number[];
   roster: RosterPlayer[];
 };
 
@@ -318,7 +317,7 @@ export default function OptimizeTeam() {
           {loading ? (
             <View style={styles.loadingRow}>
               <ActivityIndicator color={c.buttonText} style={{ marginRight: 8 }} />
-              <Text style={[styles.optimizeBtnText, { color: "#fff" }]}>Running GA...</Text>
+              <Text style={[styles.optimizeBtnText, { color: "#fff" }]}>Building team...</Text>
             </View>
           ) : (
             <Text style={[styles.optimizeBtnText, { color: c.buttonText }]}>
@@ -329,7 +328,7 @@ export default function OptimizeTeam() {
 
         {loading && (
           <Text style={[styles.loadingHint, { color: c.subtext }]}>
-            Evolving 40 rosters across 60 generations... (15 - 30s)
+            Analyzing players and building your team... (15 - 30s)
           </Text>
         )}
       </View>
@@ -382,74 +381,14 @@ export default function OptimizeTeam() {
                 {formatSalary(result.cap_space_remaining)} remaining
               </Text>
             </View>
-            <Text style={[styles.breakdownTitle, { color: c.subtext }]}>Position Breakdown</Text>
-            <View style={styles.breakdownGrid}>
-              {POS_ORDER.filter(pos => result.position_breakdown[pos])
-                .map(pos => {
-                  const posColor = posColors[pos] ?? { bg: "#334155", text: "#ffffff" };
-                  return (
-                    <View key={pos} style={styles.breakdownItem}>
-                      <View style={[styles.posBadge, { backgroundColor: posColor.bg }]}>
-                        <Text style={[styles.posText, { color: posColor.text }]}>{pos}</Text>
-                      </View>
-                      <Text style={[styles.breakdownCount, { color: c.text }]}>
-                        ×{result.position_breakdown[pos]}
-                      </Text>
-                    </View>
-                  );
-                })}
-            </View>
           </View>
           <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow }]}>
-            <Text style={[styles.sectionTitle, { color: c.text }]}>Roster ({result.roster_size} players)</Text>
+            <Text style={[styles.sectionTitle, { color: c.text }]}>Roster - {result.roster_size} players</Text>
             {renderGroup("Offense", offense)}
             {renderGroup("O-Line", oline)}
             {renderGroup("Defense", defense)}
             {renderGroup("Special Teams", special)}
           </View>
-          {result.fitness_history.length > 0 && (
-            <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow }]}>
-              <Text style={[styles.sectionTitle, { color: c.text }]}>GA Convergence</Text>
-              <Text style={[styles.convergenceSubtitle, { color: c.subtext }]}>
-                Best Super Bowl probability per generation
-              </Text>
-              <View style={styles.sparklineContainer}>
-                {result.fitness_history.map((val, i) => {
-                  const max = Math.max(...result.fitness_history);
-                  const min = Math.min(...result.fitness_history);
-                  const range = max - min || 1;
-                  const heightPct = ((val - min) / range) * 100;
-                  return (
-                    <View
-                      key={i}
-                      style={[
-                        styles.sparkBar,
-                        {
-                          height: Math.max(4, (heightPct / 100) * 80),
-                          backgroundColor: i === result.fitness_history.length - 1 ? c.green : c.accent,
-                          opacity: 0.4 + (i / result.fitness_history.length) * 0.6,
-                        },
-                      ]}
-                    />
-                  );
-                })}
-              </View>
-              <View style={styles.convergenceStats}>
-                <View style={styles.convergenceStat}>
-                  <Text style={[styles.convergenceVal, { color: c.text }]}>
-                    {result.fitness_history[0].toFixed(2)}%
-                  </Text>
-                  <Text style={[styles.convergenceLabel, { color: c.subtext }]}>Gen 1</Text>
-                </View>
-                <View style={styles.convergenceStat}>
-                  <Text style={[styles.convergenceVal, { color: c.green }]}>
-                    {result.fitness_history[result.fitness_history.length - 1].toFixed(2)}%
-                  </Text>
-                  <Text style={[styles.convergenceLabel, { color: c.subtext }]}>Final</Text>
-                </View>
-              </View>
-            </View>
-          )}
         </>
       )}
       <PickerModal
@@ -667,39 +606,6 @@ const styles = StyleSheet.create({
     fontFamily: "Montserrat_700Bold",
     fontSize: 13,
     marginLeft: 8,
-  },
-  sparklineContainer: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    height: 80,
-    gap: 2,
-    paddingVertical: 4,
-  },
-  sparkBar: {
-    flex: 1,
-    borderRadius: 2,
-  },
-  convergenceSubtitle: {
-    fontFamily: "Montserrat_400Regular",
-    fontSize: 12,
-    textAlign: "center",
-    marginTop: -8,
-  },
-  convergenceStats: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  convergenceStat: {
-    alignItems: "center",
-    gap: 2,
-  },
-  convergenceVal: {
-    fontFamily: "Montserrat_700Bold",
-    fontSize: 16,
-  },
-  convergenceLabel: {
-    fontFamily: "Montserrat_400Regular",
-    fontSize: 11,
   },
   formationRow: {
     flexDirection: "row",

@@ -29,20 +29,21 @@ func main() {
 	})
 
 	// repositories
-	eventRepo := repositories.NewEventRepository(db.Collection("events")) // creates repo with "events" collection to work with
-	teamRepo := repositories.NewTeamRepository(db.Collection("teams"))    // creates repo with "teams" collection to work with
+	eventRepo := repositories.NewEventRepository(db.Collection("events"))
+	teamRepo := repositories.NewTeamRepository(db.Collection("teams"))
 
 	// routing
 	server := app.Group("/api")
 
 	// handlers
-	handlers.NewEventHandler(server.Group("/event"), eventRepo) // connects HTTP routes /api/event to handler, which uses repo
-	handlers.NewTeamHandler(server.Group("/team"), teamRepo)    // connects HTTP routes /api/team to handler, which uses repo
+	handlers.NewEventHandler(server.Group("/event"), eventRepo)
+	handlers.NewTeamHandler(server.Group("/team"), teamRepo)
 	handlers.NewNFLPlayerHandler(server.Group("/players"), db.Collection("nfl_players"))
 	handlers.NewCoachHandler(server.Group("/coaches"))
 	handlers.NewAnalysisHandler(server.Group("/analysis"), db.Collection("analyses"))
 	handlers.NewSimulateHandler(server.Group("/simulate"))
 	handlers.NewOptimizeHandler(server.Group("/optimize"))
+	handlers.NewDonateHandler(server.Group("/donate"))
 
 	sleeperService := services.NewSleeperService(db.Collection("nfl_players"))
 	go func() {

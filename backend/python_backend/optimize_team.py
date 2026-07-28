@@ -17,9 +17,35 @@ import pandas as pd
 import scipy.stats as stats_dist
 import random
 import os
+import requests
 import nflreadpy as nfl
 
 load_dotenv()
+
+_MONGO_PLAYERS_CACHE: dict | None = None
+_GO_API_URL = os.getenv("GO_API_URL", "http://localhost:8000")
+
+def _load_mongo_players() -> dict:
+    global _MONGO_PLAYERS_CACHE
+    if _MONGO_PLAYERS_CACHE is not None:
+        return _MONGO_PLAYERS_CACHE
+    try:
+        resp = requests.get(f"{_GO_API_URL}/api/players", timeout=15)
+        resp.raise_for_status()
+        data = resp.json().get("data", [])
+        result = {}
+        for p in data:
+            name = str(p.get("full_name", "")).strip().lower()
+            if not name:
+                continue
+            result[name] = {
+                "team": p.get("nfl_team", ""),
+                "depth_chart_order": p.get("depth_chart_order") or 99,
+            }
+        _MONGO_PLAYERS_CACHE = result
+    except Exception:
+        _MONGO_PLAYERS_CACHE = {}
+    return _MONGO_PLAYERS_CACHE
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
@@ -57,7 +83,6 @@ _POS_SALARY_RANGE = {
     "LS": (LEAGUE_MIN, 1_500_000),
 }
 _DEFAULT_SALARY_RANGE = (LEAGUE_MIN, 5_000_000)
-
 
 FORMATION_ROSTERS: dict[tuple[str, str], dict[str, int]] = {
     ("3 WR 1 TE", "4-3 Defense"): {
@@ -185,27 +210,81 @@ _CONTRACT_POS_MAP = {
 }
 
 def _load_contracts() -> pd.DataFrame:
+    """
+    Load nflverse contracts deduplicated to the latest contract per gsis_id.
+    """
     global _CONTRACTS_CACHE
     if _CONTRACTS_CACHE is not None:
         return _CONTRACTS_CACHE
     try:
         df = nfl.load_contracts().to_pandas()
-        df = df[df["year_signed"] >= 2018].copy()
         df["pos_key"] = df["position"].map(_CONTRACT_POS_MAP)
         df = df.dropna(subset=["pos_key", "apy"])
-        df["apy"] = pd.to_numeric(df["apy"], errors="coerce").fillna(0) * 1000000
+        df["apy"] = pd.to_numeric(df["apy"], errors="coerce").fillna(0) * 1_000_000
+        df["year_signed"] = pd.to_numeric(df["year_signed"], errors="coerce").fillna(0)
+        if "gsis_id" in df.columns:
+            df = df.dropna(subset=["gsis_id"])
+            df = (df.sort_values("year_signed", ascending=False)
+                    .drop_duplicates(subset=["gsis_id"], keep="first"))
+        else:
+            df = (df.sort_values("year_signed", ascending=False)
+                    .drop_duplicates(subset=["player", "pos_key"], keep="first"))
         _CONTRACTS_CACHE = df
     except Exception:
         _CONTRACTS_CACHE = pd.DataFrame()
     return _CONTRACTS_CACHE
 
-def _talent_percentile(player_name: str, position: str, stats_df: pd.DataFrame) -> float:
-    """
-    Compute talent percentile z ∈ [0.01, 0.99] via composite Z-score -> Gaussian CDF.
-    Uses per-season per-game normalized stats to eliminate multi-year volume bias.
-    stats_df may or may not have a 'position' column. If absent, all rows are treated
-    as peers (used for position-specific tables like punt_stats, return_stats).
-    """
+_DECAY_LAMBDA = 0.5
+
+
+def _age_multiplier(position: str, age: int) -> float:
+    """Empirical biological age-curve multiplier. Boosts prime players, penalizes aging vets."""
+    if position in ("WR", "RB"):
+        if 22 <= age <= 26:
+            return 1.05
+        elif 27 <= age <= 29:
+            return 1.00
+        elif 30 <= age <= 32:
+            return 0.85
+        else:
+            return 0.70
+    elif position in ("TE", "QB", "OT", "G", "C"):
+        if 24 <= age <= 30:
+            return 1.05
+        elif 31 <= age <= 34:
+            return 0.95
+        else:
+            return 0.80
+    return 1.0
+
+def _time_decay_weights(seasons: list[int]) -> dict[int, float]:
+    """e^(-λ*t) where t = max_season - season."""
+    if not seasons:
+        return {}
+    max_s = max(seasons)
+    return {s: float(np.exp(-_DECAY_LAMBDA * (max_s - s))) for s in seasons}
+
+
+def _supabase_fetch_all(table: str, select: str, filters: list[tuple] | None = None) -> list[dict]:
+    PAGE = 1000
+    offset = 0
+    all_rows: list[dict] = []
+    while True:
+        q = supabase.table(table).select(select)
+        if filters:
+            for method, *args in filters:
+                q = getattr(q, method)(*args)
+        batch = q.range(offset, offset + PAGE - 1).execute()
+        if not batch.data:
+            break
+        all_rows.extend(batch.data)
+        if len(batch.data) < PAGE:
+            break
+        offset += PAGE
+    return all_rows
+
+
+def _talent_percentile(player_name: str, position: str, stats_df: pd.DataFrame, age: int = 28) -> float:
     metrics = _TALENT_METRICS.get(position, [])
     if not metrics or stats_df.empty:
         return 0.5
@@ -215,14 +294,32 @@ def _talent_percentile(player_name: str, position: str, stats_df: pd.DataFrame) 
         return 0.2
 
     has_season = "season" in stats_df.columns
-    n_seasons = max(player_rows["season"].nunique(), 1) if has_season else 1
-    player_pg: dict[str, float] = {}
-    for col, _ in metrics:
-        if col in player_rows.columns:
-            total = pd.to_numeric(player_rows[col], errors="coerce").fillna(0).sum()
-            player_pg[col] = float(total) / (n_seasons * 17.0)
+
+    def _decay_agg(rows: pd.DataFrame) -> dict[str, float]:
+        if has_season:
+            seasons = [int(s) for s in rows["season"].unique()]
+            dw = _time_decay_weights(seasons)
+            total_w = sum(dw.values()) or 1.0
+            result = {}
+            for col, _ in metrics:
+                if col not in rows.columns:
+                    result[col] = 0.0
+                    continue
+                wsum = 0.0
+                for s, w in dw.items():
+                    val = pd.to_numeric(rows.loc[rows["season"] == s, col], errors="coerce").fillna(0).sum()
+                    wsum += w * (float(val) / 17.0)
+                result[col] = wsum / total_w
         else:
-            player_pg[col] = 0.0
+            result = {}
+            for col, _ in metrics:
+                if col in rows.columns:
+                    result[col] = float(pd.to_numeric(rows[col], errors="coerce").fillna(0).sum()) / 17.0
+                else:
+                    result[col] = 0.0
+        return result
+
+    player_pg = _decay_agg(player_rows)
 
     if "position" in stats_df.columns:
         pos_rows = stats_df[stats_df["position"] == position]
@@ -234,11 +331,9 @@ def _talent_percentile(player_name: str, position: str, stats_df: pd.DataFrame) 
 
     peer_pg: dict[str, list[float]] = {col: [] for col, _ in metrics}
     for _, grp in pos_rows.groupby("player_display_name"):
-        ns = max(grp["season"].nunique(), 1) if has_season else 1
+        agg = _decay_agg(grp)
         for col, _ in metrics:
-            if col in grp.columns:
-                total = pd.to_numeric(grp[col], errors="coerce").fillna(0).sum()
-                peer_pg[col].append(float(total) / (ns * 17.0))
+            peer_pg[col].append(agg.get(col, 0.0))
 
     composite_z = 0.0
     for col, weight in metrics:
@@ -251,11 +346,11 @@ def _talent_percentile(player_name: str, position: str, stats_df: pd.DataFrame) 
         z_i = (player_pg.get(col, 0.0) - mu) / sigma
         composite_z += weight * z_i
 
-    return float(np.clip(stats_dist.norm.cdf(composite_z), 0.01, 0.99))
+    raw_pct = float(np.clip(stats_dist.norm.cdf(composite_z), 0.01, 0.99))
+    return float(np.clip(raw_pct * _age_multiplier(position, age), 0.01, 0.99))
 
 
 def _salary_from_contracts(player_name: str, position: str, contracts: pd.DataFrame) -> int | None:
-    """Try to find a real APY contract for this player. Returns None if not found."""
     if contracts.empty:
         return None
     pos_key = position
@@ -289,12 +384,12 @@ def _salary_from_percentile(z: float, position: str) -> int:
 
 
 def _assign_salary(player_name: str, position: str, stats_df: pd.DataFrame,
-                   contracts: pd.DataFrame | None = None) -> int:
+                   contracts: pd.DataFrame | None = None, age: int = 28) -> int:
     if contracts is not None:
         real = _salary_from_contracts(player_name, position, contracts)
         if real is not None:
             return real
-    z = _talent_percentile(player_name, position, stats_df)
+    z = _talent_percentile(player_name, position, stats_df, age=age)
     return _salary_from_percentile(z, position)
 
 def _build_player_pool(n_players: int = 300) -> list[dict]:
@@ -303,30 +398,35 @@ def _build_player_pool(n_players: int = 300) -> list[dict]:
         return _PLAYER_POOL_CACHE
 
     contracts = _load_contracts()
+    mongo_players = _load_mongo_players()
 
     _DEF_POSITIONS = {"DE", "DT", "NT", "DL", "LB", "OLB", "ILB", "MLB", "SLB", "WLB",
                       "CB", "FS", "SS", "S", "SAF", "DB"}
-    response = supabase.table("player_stats").select(
+    MIN_SEASON = 2022
+
+    rows = _supabase_fetch_all(
+        "player_stats",
         "player_display_name, position, team, season, "
         "passing_yards, passing_tds, passing_interceptions, carries, rushing_yards, rushing_tds, "
         "receptions, targets, receiving_yards, receiving_tds, "
         "def_sacks, def_tackles_solo, def_interceptions, def_pass_defended, "
-        "fg_made, fg_att"
-    ).gte("season", 2022).limit(5000).execute()
-
-    if not response.data:
+        "fg_made, fg_att",
+        filters=[("gte", "season", MIN_SEASON)],
+    )
+    if not rows:
         raise RuntimeError("Failed to fetch player pool from Supabase")
 
-    df = pd.DataFrame(response.data)
+    df = pd.DataFrame(rows)
     numeric_cols = [c for c in df.columns if c not in ("player_display_name", "position", "team", "season")]
     for c in numeric_cols:
         df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0)
 
+    seasons_per_player = df.groupby(["player_display_name", "position"])["season"].nunique().reset_index().rename(columns={"season": "n_seasons"})
     agg = df.groupby(["player_display_name", "position", "team"])[numeric_cols].sum().reset_index()
+    agg = agg.merge(seasons_per_player, on=["player_display_name", "position"], how="left")
+    agg["n_seasons"] = agg["n_seasons"].fillna(1).astype(int)
     agg["total_yards"] = agg.get("passing_yards", 0) + agg.get("rushing_yards", 0) + agg.get("receiving_yards", 0)
     agg["total_def"] = agg.get("def_tackles_solo", 0) + agg.get("def_sacks", 0) * 5
-    # Keep all defensive players (DBs have low counting stats but are still valid starters)
-    # and all skill/ST players who meet the yardage threshold
     agg = agg[
         (agg["total_yards"] > 50) |
         (agg["total_def"] > 0) |
@@ -337,31 +437,48 @@ def _build_player_pool(n_players: int = 300) -> list[dict]:
         (agg["position"].isin(_DEF_POSITIONS))
     ]
 
-    if len(agg) > n_players:
-        agg["score"] = agg["total_yards"] + agg["total_def"] * 10
-        top_half = agg.nlargest(n_players // 2, "score")
-        rest = agg.drop(top_half.index).sample(min(n_players // 2, len(agg) - len(top_half)))
-        agg = pd.concat([top_half, rest])
-
     players = []
     for _, row in agg.iterrows():
+        name = row["player_display_name"]
         pos = row["position"]
-        salary = _assign_salary(row["player_display_name"], pos, df, contracts)
+
+        mongo_entry = mongo_players.get(name.lower())
+        if mongo_entry is not None:
+            current_team = mongo_entry["team"]
+            depth_order = mongo_entry["depth_chart_order"]
+        else:
+            current_team = None
+            depth_order = 99
+
         stats = {c: float(row[c]) for c in numeric_cols if c in row}
+        if pos in ("WR", "TE") and depth_order > 2:
+            max_target_share = 0.12
+            max_targets = max_target_share * 170
+            if stats.get("targets", 0) > max_targets:
+                scale = max_targets / stats["targets"]
+                stats["targets"] = max_targets
+                stats["receiving_yards"] = stats.get("receiving_yards", 0) * scale
+                stats["receiving_tds"] = stats.get("receiving_tds", 0) * scale
+
+        n_seasons = int(row.get("n_seasons", 1))
+        salary = _assign_salary(name, pos, df, contracts)
         players.append({
-            "name": row["player_display_name"],
+            "name": name,
             "position": pos,
-            "nfl_team": row.get("team", ""),
+            "nfl_team": current_team or row.get("team", ""),
             "salary": salary,
             "stats": stats,
+            "n_seasons": n_seasons,
         })
 
     try:
-        punt_resp = supabase.table("punt_stats").select(
-            "player_display_name, team, season, punt_yards_season, punt_attempts_season"
-        ).gte("season", 2022).execute()
-        if punt_resp.data:
-            punt_df = pd.DataFrame(punt_resp.data)
+        punt_rows = _supabase_fetch_all(
+            "punt_stats",
+            "player_display_name, team, season, punt_yards_season, punt_attempts_season",
+            filters=[("gte", "season", MIN_SEASON)],
+        )
+        if punt_rows:
+            punt_df = pd.DataFrame(punt_rows)
             for c in ["punt_yards_season", "punt_attempts_season"]:
                 if c in punt_df.columns:
                     punt_df[c] = pd.to_numeric(punt_df[c], errors="coerce").fillna(0)
@@ -369,12 +486,18 @@ def _build_player_pool(n_players: int = 300) -> list[dict]:
                 ["punt_yards_season", "punt_attempts_season"]
             ].sum().reset_index()
             punt_agg = punt_agg[punt_agg["punt_attempts_season"] > 0]
+            existing_names = {p["name"] for p in players}
             for _, row in punt_agg.iterrows():
-                salary = _assign_salary(row["player_display_name"], "P", punt_df, contracts)
+                pname = row["player_display_name"]
+                if pname in existing_names:
+                    continue
+                mongo_entry = mongo_players.get(pname.lower())
+                current_team = mongo_entry["team"] if mongo_entry else row.get("team", "")
+                salary = _assign_salary(pname, "P", punt_df, contracts)
                 players.append({
-                    "name": row["player_display_name"],
+                    "name": pname,
                     "position": "P",
-                    "nfl_team": row.get("team", ""),
+                    "nfl_team": current_team,
                     "salary": salary,
                     "stats": {"punt_yards_season": float(row.get("punt_yards_season", 0)),
                               "punt_attempts_season": float(row.get("punt_attempts_season", 0))},
@@ -383,35 +506,40 @@ def _build_player_pool(n_players: int = 300) -> list[dict]:
         pass
 
     try:
-        rs_resp = supabase.table("return_stats").select(
-            "player_display_name, team, season, kickoff_return_yards, kickoff_returns, punt_return_yards, punt_returns"
-        ).gte("season", 2022).execute()
-        if rs_resp.data:
-            rs_df = pd.DataFrame(rs_resp.data)
+        rs_rows = _supabase_fetch_all(
+            "return_stats",
+            "player_display_name, team, season, kickoff_return_yards, kickoff_returns, punt_return_yards, punt_returns",
+            filters=[("gte", "season", MIN_SEASON)],
+        )
+        if rs_rows:
+            rs_df = pd.DataFrame(rs_rows)
             rs_num_cols = ["kickoff_return_yards", "kickoff_returns", "punt_return_yards", "punt_returns"]
             for c in rs_num_cols:
                 if c in rs_df.columns:
                     rs_df[c] = pd.to_numeric(rs_df[c], errors="coerce").fillna(0)
             rs_agg = rs_df.groupby(["player_display_name", "team"])[rs_num_cols].sum().reset_index()
             rs_agg = rs_agg[(rs_agg["kickoff_returns"] + rs_agg["punt_returns"]) >= 10]
+            existing_names = {p["name"] for p in players}
             for _, row in rs_agg.iterrows():
-                salary = _assign_salary(row["player_display_name"], "RS", rs_df, contracts)
+                pname = row["player_display_name"]
+                if pname in existing_names:
+                    continue
+                mongo_entry = mongo_players.get(pname.lower())
+                current_team = mongo_entry["team"] if mongo_entry else row.get("team", "")
+                salary = _assign_salary(pname, "RS", rs_df, contracts)
                 players.append({
-                    "name": row["player_display_name"],
+                    "name": pname,
                     "position": "RS",
-                    "nfl_team": row.get("team", ""),
+                    "nfl_team": current_team,
                     "salary": salary,
                     "stats": {c: float(row.get(c, 0)) for c in rs_num_cols},
                 })
     except Exception:
         pass
 
-    # nflreadpy uses coarse positions: "OL" for all linemen, "LS" for long snappers.
-    # depth_chart_position has "T", "G", "C" which we use to split OL into OT/G/C.
     _DCP_MAP = {"T": "OT", "LT": "OT", "RT": "OT", "G": "G", "LG": "G", "RG": "G", "C": "C"}
     try:
-        import polars as pl
-        roster_pl = nfl.load_rosters(seasons=[2022, 2023, 2024])
+        roster_pl = nfl.load_rosters(seasons=[2024, 2023])
         roster_pd = roster_pl.to_pandas()
         ol_ls_raw = roster_pd[roster_pd["position"].isin(["OL", "LS"])].copy()
         ol_ls_raw = ol_ls_raw.dropna(subset=["full_name"])
@@ -432,14 +560,15 @@ def _build_player_pool(n_players: int = 300) -> list[dict]:
             pos = str(row["pos_key"])
             if name in existing_names:
                 continue
-            # Tier 1: real contract APY; Tier 2: percentile curve at UDFA/fringe level
+            mongo_entry = mongo_players.get(name.lower())
+            current_team = mongo_entry["team"] if mongo_entry else str(row.get("team", ""))
             salary = _salary_from_contracts(name, pos, contracts)
             if salary is None:
                 salary = _salary_from_percentile(0.2, pos)
             players.append({
                 "name": name,
                 "position": pos,
-                "nfl_team": str(row.get("team", "")),
+                "nfl_team": current_team,
                 "salary": salary,
                 "stats": {},
             })
@@ -451,32 +580,19 @@ def _build_player_pool(n_players: int = 300) -> list[dict]:
     return players
 
 
-def _per_game_stats(stats: dict) -> dict:
-    """Normalize cumulative stats to per-game by dividing by estimated seasons * 17 games."""
+def _per_game_stats(stats: dict, n_seasons: int = 1) -> dict:
     if not stats:
         return stats
-    sample = max(
-        float(stats.get("passing_yards", 0)),
-        float(stats.get("rushing_yards", 0)),
-        float(stats.get("receiving_yards", 0)),
-        float(stats.get("def_tackles_solo", 0)),
-        1.0,
-    )
-    if sample >= 8000:
-        divisor = 4.0 * _N_GAMES
-    elif sample >= 5000:
-        divisor = 3.0 * _N_GAMES
-    elif sample >= 2500:
-        divisor = 2.0 * _N_GAMES
-    else:
-        divisor = 1.0 * _N_GAMES
-    return {k: float(v) / divisor for k, v in stats.items()}
+    divisor = max(n_seasons, 1) * _N_GAMES
+    return {k: float(v) / divisor for k, v in stats.items() if isinstance(v, (int, float))}
 
 
 def _score_roster(players: list[dict]) -> float:
-    """Returns estimated Super Bowl probability in [0, 100] for a given roster."""
+    """
+    Returns estimated Super Bowl probability in [0, 100].
+    """
     off_score = 0.0
-    def_pts_allowed_delta = 0.0
+    def_score = 0.0
     fg_pts = 0.0
 
     pos_slot_counter: dict[str, int] = {}
@@ -484,47 +600,43 @@ def _score_roster(players: list[dict]) -> float:
         pos = p["position"]
         pos_slot_counter[pos] = pos_slot_counter.get(pos, 0) + 1
         depth = pos_slot_counter[pos]
-        depth_scale = {1: 1.0, 2: 0.50, 3: 0.30}.get(depth, 0.20)
+        depth_scale = {1: 1.0, 2: 0.45, 3: 0.25}.get(depth, 0.15)
 
-        pg = _per_game_stats(p["stats"])
+        n_seasons = p.get("n_seasons", 1)
+        pg = _per_game_stats(p["stats"], n_seasons)
 
         if pos in OFFENSE_POS:
             for stat, w in _OFF_WEIGHTS.items():
-                if stat in pg:
-                    off_score += float(pg[stat]) * w * depth_scale
+                val = max(0.0, float(pg.get(stat, 0)))
+                off_score += val * w * depth_scale
 
         elif pos in DEFENSE_POS or p.get("slot_label") in ("Nickel", "Dime"):
-            sacks = float(pg.get("def_sacks", 0))
-            tackles = float(pg.get("def_tackles_solo", 0))
-            ints = float(pg.get("def_interceptions", 0))
-            pass_def = float(pg.get("def_pass_defended", 0))
+            sacks = max(0.0, float(pg.get("def_sacks", 0)))
+            tackles = max(0.0, float(pg.get("def_tackles_solo", 0)))
+            ints = max(0.0, float(pg.get("def_interceptions", 0)))
+            pass_def = max(0.0, float(pg.get("def_pass_defended", 0)))
             unit = (sacks * _DEF_WEIGHTS["def_sacks"]
-                    + tackles * _DEF_WEIGHTS["def_tackles_solo"]
-                    + ints * _DEF_WEIGHTS["def_interceptions"]
-                    + pass_def * _DEF_WEIGHTS["def_pass_defended"])
-            def_pts_allowed_delta += unit * depth_scale
+                  + tackles * _DEF_WEIGHTS["def_tackles_solo"]
+                  + ints * _DEF_WEIGHTS["def_interceptions"]
+                  + pass_def * _DEF_WEIGHTS["def_pass_defended"])
+            def_score += unit * depth_scale
 
         elif pos == "K":
-            fg_per_game = float(pg.get("fg_made", 0))
-            fg_pts += fg_per_game * _FG_WEIGHT
+            fg_pts += max(0.0, float(pg.get("fg_made", 0))) * _FG_WEIGHT
 
-    ppg = float(np.clip(off_score + fg_pts + 10.0, 12.0, 45.0))
-
-    NFL_AVG_PPG = 23.0
-    opp_ppg = float(np.clip(NFL_AVG_PPG - def_pts_allowed_delta, 10.0, 35.0))
-
+    ppg = float(np.clip(off_score * 0.72 + 14.0 + fg_pts * 1.2, 14.0, 40.0))
+    opp_ppg = float(np.clip(29.0 - def_score * 2.2, 13.0, 30.0))
     margin = ppg - opp_ppg
-    win_prob = 1 / (1 + np.exp(-0.12 * margin))
-    expected_wins = win_prob * 17
+    win_prob_per_game = 1.0 / (1.0 + np.exp(-0.12 * margin))
+    expected_wins = win_prob_per_game * 17.0
+    playoff_prob = float(1.0 / (1.0 + np.exp(-0.9 * (expected_wins - 9.5))))
+    round_win_prob = float(np.clip(win_prob_per_game * 0.92, 0.28, 0.60))
+    sb_given_playoff = round_win_prob ** 4
+    sb_prob = playoff_prob * sb_given_playoff * 100.0
 
-    playoff_prob = float(1 / (1 + np.exp(-0.7 * (expected_wins - 9.5))))
-    win_quality = float(np.clip((expected_wins - 7) / 6, 0.3, 1.5))
-    sb_prob = playoff_prob * (1 / 14) * win_quality * 100
-
-    return float(np.clip(sb_prob, 0.0, 25.0))
+    return float(np.clip(sb_prob, 0.0, 15.0))
 
 def _is_valid_roster(players: list[dict], formation: tuple[str, str]) -> bool:
-    """Check that a roster meets the exact formation slot counts and salary cap."""
     total_salary = sum(p["salary"] for p in players)
     if total_salary > SALARY_CAP:
         return False
@@ -551,10 +663,6 @@ def _is_valid_roster(players: list[dict], formation: tuple[str, str]) -> bool:
 
 
 def _random_roster(pool: list[dict], formation_pool: list[tuple[str, str]] | None = None) -> tuple[list[dict], tuple[str, str]]:
-    """
-    Generate a random valid roster from the pool for a randomly chosen formation.
-    Fills exact slot counts per the formation, position by position.
-    """
     pool_by_pos: dict[str, list[dict]] = {}
     for p in pool:
         pool_by_pos.setdefault(p["position"], []).append(p)
@@ -596,7 +704,6 @@ def _random_roster(pool: list[dict], formation_pool: list[tuple[str, str]] | Non
 
 
 def _slot_key(p: dict) -> str:
-    """Returns the slot identifier used in FORMATION_ROSTERS for a given player."""
     lbl = p.get("slot_label")
     return lbl if lbl in ("Nickel", "Dime") else p["position"]
 
@@ -638,9 +745,8 @@ def _crossover(
 
 
 def _mutate(
-    roster: list[dict], pool: list[dict], formation: tuple[str, str], mutation_rate: float = 0.15
+    roster: list[dict], pool: list[dict], mutation_rate: float = 0.15
 ) -> list[dict]:
-    """Randomly replace some players with pool alternatives of the same slot."""
     nd_pool = [p for p in pool if p["position"] in _NICKEL_DIME_POSITIONS]
     mutated = roster[:]
     for i in range(len(mutated)):

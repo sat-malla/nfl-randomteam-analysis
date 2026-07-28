@@ -1,17 +1,21 @@
+import { useState } from "react";
 import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
   useColorScheme,
   Linking,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import FontAwesome5 from "react-native-vector-icons/FontAwesome5";
 
-// Replace with your Stripe payment link once created at dashboard.stripe.com/payment-links
-const STRIPE_URL = "https://buy.stripe.com/your_payment_link";
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000";
+const PRESET_AMOUNTS = [1, 3, 5, 10];
 
 const USES = [
   {
@@ -39,6 +43,58 @@ const USES = [
 export default function Donate() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
+  const [customAmount, setCustomAmount] = useState("");
+  const [selectedPreset, setSelectedPreset] = useState<number | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const trimmed = customAmount.trim();
+  const customError =
+    trimmed === ""
+      ? null
+      : !/^\d+(\.\d{1,2})?$/.test(trimmed)
+      ? "Please enter a valid amount (e.g. 2.50)."
+      : parseFloat(trimmed) < 0.5
+      ? "Minimum donation is $0.50."
+      : null;
+  const isCustomValid = trimmed !== "" && customError === null;
+  const canDonate = selectedPreset !== null || isCustomValid;
+
+  const handleDonate = async () => {
+    let dollars: number;
+    if (selectedPreset !== null) {
+      dollars = selectedPreset;
+    } else {
+      const trimmed = customAmount.trim();
+      const parsed = parseFloat(trimmed);
+      if (!trimmed || isNaN(parsed) || !/^\d+(\.\d{1,2})?$/.test(trimmed)) {
+        Alert.alert("Invalid Amount", "Please enter a valid dollar amount (e.g. 2.50).");
+        return;
+      }
+      dollars = parsed;
+    }
+    if (dollars < 0.5) {
+      Alert.alert("Invalid Amount", "Please enter at least $0.50 to make a considerable donation. Thanks!");
+      return;
+    }
+    setLoading(true);
+    try {
+      const resp = await fetch(`${API_URL}/api/donate/checkout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount_cents: Math.round(dollars * 100) }),
+      });
+      const data = await resp.json();
+      if (data.url) {
+        Linking.openURL(data.url);
+      } else {
+        Alert.alert("Error", "Could not create checkout session.");
+      }
+    } catch {
+      Alert.alert("Error", "Failed to connect to server.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const c = {
     bg: isDark ? "#132130" : "#edf5ff",
@@ -129,23 +185,84 @@ export default function Donate() {
           </Text>
         </View>
         <Text style={[styles.platformHint, { color: c.subtext }]}>
-          Any amount, even $1, helps a lot. Secure checkout powered by Stripe. And no, don't worry, it's not a scam. 
+          Any amount, even $0.50, helps a lot. Secure checkout powered by Stripe. And no, don't worry, it's not a scam. Minimum donation is $0.50.
         </Text>
+        <View style={styles.presetRow}>
+          {PRESET_AMOUNTS.map((amt) => (
+            <TouchableOpacity
+              key={amt}
+              style={[
+                styles.presetBtn,
+                {
+                  backgroundColor: selectedPreset === amt ? "#635BFF" : c.inputBg,
+                  borderColor: selectedPreset === amt ? "#635BFF" : c.border,
+                },
+              ]}
+              onPress={() => {
+                setSelectedPreset(amt);
+                setCustomAmount("");
+              }}
+              activeOpacity={0.75}
+            >
+              <Text
+                style={[
+                  styles.presetBtnText,
+                  { color: selectedPreset === amt ? "#ffffff" : c.text },
+                ]}
+              >
+                ${amt}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <View style={styles.customRow}>
+          <Text style={[styles.customLabel, { color: c.subtext }]}>$ </Text>
+          <TextInput
+            style={[
+              styles.customInput,
+              {
+                backgroundColor: c.inputBg,
+                borderColor: customError ? "#f43f5e" : isCustomValid ? "#635BFF" : c.border,
+                color: c.text,
+              },
+            ]}
+            placeholder="Custom amount"
+            placeholderTextColor={c.subtext}
+            keyboardType="decimal-pad"
+            value={customAmount}
+            onChangeText={(val) => {
+              setCustomAmount(val);
+              setSelectedPreset(null);
+            }}
+          />
+        </View>
+        {customError && (
+          <Text style={styles.errorText}>{customError}</Text>
+        )}
+
         <TouchableOpacity
-          style={[styles.donateBtn, { backgroundColor: "#635BFF" }]}
-          onPress={() => Linking.openURL(STRIPE_URL)}
+          style={[styles.donateBtn, { backgroundColor: "#635BFF", opacity: !canDonate || loading ? 0.4 : 1 }]}
+          onPress={handleDonate}
           activeOpacity={0.85}
+          disabled={!canDonate || loading}
         >
           <View style={styles.donateBtnLeft}>
-            <FontAwesome5 name="stripe-s" size={22} color="#ffffff" />
+            {loading ? (
+              <ActivityIndicator color="#ffffff" size="small" />
+            ) : (
+              <FontAwesome5 name="stripe-s" size={22} color="#ffffff" />
+            )}
             <View>
-              <Text style={[styles.donateBtnLabel, { color: "#ffffff" }]}>Donate with Stripe</Text>
+              <Text style={[styles.donateBtnLabel, { color: "#ffffff" }]}>
+                {loading ? "Opening checkout..." : "Donate with Stripe"}
+              </Text>
               <Text style={[styles.donateBtnHandle, { color: "#ffffff", opacity: 0.75 }]}>
-                Debit, credit, or Apple Pay
+                Debit, Credit, or Apple Pay
               </Text>
             </View>
           </View>
-          <Ionicons name="arrow-forward" size={18} color="#ffffff" />
+          {!loading && <Ionicons name="arrow-forward" size={18} color="#ffffff" />}
         </TouchableOpacity>
       </View>
 
@@ -238,6 +355,44 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 20,
     marginBottom: 2,
+  },
+  presetRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  presetBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  presetBtnText: {
+    fontFamily: "Montserrat_700Bold",
+    fontSize: 14,
+  },
+  customRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  customLabel: {
+    fontFamily: "Montserrat_700Bold",
+    fontSize: 16,
+  },
+  customInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontFamily: "Montserrat_400Regular",
+    fontSize: 14,
+  },
+  errorText: {
+    fontFamily: "Montserrat_400Regular",
+    fontSize: 12,
+    color: "#f43f5e",
+    marginTop: -4,
   },
   donateBtn: {
     flexDirection: "row",
