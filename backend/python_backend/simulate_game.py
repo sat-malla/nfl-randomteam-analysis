@@ -866,7 +866,6 @@ def simulate_game_drives(
         is_run = random.random() < run_prob
         is_highlight = False
 
-        # Pick whose defense we're facing — determines matchup tier inputs
         facing_def = opp_def_tiers if side == "user" else user_def_tiers
 
         if is_run:

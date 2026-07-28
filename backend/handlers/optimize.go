@@ -13,11 +13,13 @@ import (
 )
 
 type OptimizeTeamRequest struct {
-	SalaryCap      int      `json:"salary_cap"`
-	LockedPlayers  []string `json:"locked_players"`
+	SalaryCap       int      `json:"salary_cap"`
+	LockedPlayers   []string `json:"locked_players"`
 	ExcludedPlayers []string `json:"excluded_players"`
-	PopulationSize int      `json:"population_size"`
-	NGenerations   int      `json:"n_generations"`
+	PopulationSize  int      `json:"population_size"`
+	NGenerations    int      `json:"n_generations"`
+	OffenseType     string   `json:"offense_type"`
+	DefenseType     string   `json:"defense_type"`
 }
 
 func OptimizeTeam(c *fiber.Ctx) error {
@@ -30,7 +32,7 @@ func OptimizeTeam(c *fiber.Ctx) error {
 	}
 
 	if body.SalaryCap <= 0 {
-		body.SalaryCap = 200_000_000
+		body.SalaryCap = 301_200_000
 	}
 	if body.PopulationSize <= 0 {
 		body.PopulationSize = 40

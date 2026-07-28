@@ -123,14 +123,14 @@ def encode_features(
 app = FastAPI(title="Play Call Predictor", version="1.0")
 
 class GameState(BaseModel):
-    down: int                        # 1-4
-    ydstogo: float                   # yards to first down
-    yardline_100: float              # yards to opponent end zone (1-99)
-    score_differential: float        # offense score minus defense score
-    qtr: int                         # 1-5 (5=OT)
-    game_seconds_remaining: float    # seconds left in game
-    shotgun: int = 0                 # 1 if shotgun formation
-    goal_to_go: int = 0             # 1 if goal-to-go situation
+    down: int
+    ydstogo: float 
+    yardline_100: float
+    score_differential: float
+    qtr: int
+    game_seconds_remaining: float
+    shotgun: int = 0
+    goal_to_go: int = 0
 
 
 class PredictRequest(BaseModel):

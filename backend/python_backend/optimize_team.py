@@ -17,7 +17,7 @@ import pandas as pd
 import scipy.stats as stats_dist
 import random
 import os
-import nfl_data_py as nfl
+import nflreadpy as nfl
 
 load_dotenv()
 
@@ -58,8 +58,6 @@ _POS_SALARY_RANGE = {
 }
 _DEFAULT_SALARY_RANGE = (LEAGUE_MIN, 5_000_000)
 
-_OL_MAX_AV = {"OT": 16.0, "G": 14.0, "C": 13.0, "LS": 8.0}
-_OL_AV_GAMMA = 2.2
 
 FORMATION_ROSTERS: dict[tuple[str, str], dict[str, int]] = {
     ("3 WR 1 TE", "4-3 Defense"): {
@@ -153,27 +151,27 @@ _CONTRACTS_CACHE: pd.DataFrame | None = None
 
 
 _TALENT_METRICS: dict[str, list[tuple[str, float]]] = {
-    "QB":  [("passing_yards", 0.4), ("passing_tds", 0.4), ("passing_interceptions", -0.2)],
-    "RB":  [("rushing_yards", 0.5), ("rushing_tds", 0.3), ("receiving_yards", 0.2)],
-    "FB":  [("rushing_yards", 0.6), ("receiving_yards", 0.4)],
-    "WR":  [("targets", 0.3), ("receiving_yards", 0.4), ("receiving_tds", 0.3)],
-    "TE":  [("targets", 0.3), ("receiving_yards", 0.4), ("receiving_tds", 0.3)],
-    "DE":  [("def_sacks", 0.6), ("def_tackles_solo", 0.3), ("def_pass_defended", 0.1)],
-    "DT":  [("def_sacks", 0.4), ("def_tackles_solo", 0.4), ("def_pass_defended", 0.2)],
-    "NT":  [("def_tackles_solo", 0.7), ("def_sacks", 0.3)],
+    "QB": [("passing_yards", 0.4), ("passing_tds", 0.4), ("passing_interceptions", -0.2)],
+    "RB": [("rushing_yards", 0.5), ("rushing_tds", 0.3), ("receiving_yards", 0.2)],
+    "FB": [("rushing_yards", 0.6), ("receiving_yards", 0.4)],
+    "WR": [("targets", 0.3), ("receiving_yards", 0.4), ("receiving_tds", 0.3)],
+    "TE": [("targets", 0.3), ("receiving_yards", 0.4), ("receiving_tds", 0.3)],
+    "DE": [("def_sacks", 0.6), ("def_tackles_solo", 0.3), ("def_pass_defended", 0.1)],
+    "DT": [("def_sacks", 0.4), ("def_tackles_solo", 0.4), ("def_pass_defended", 0.2)],
+    "NT": [("def_tackles_solo", 0.7), ("def_sacks", 0.3)],
     "MLB": [("def_tackles_solo", 0.5), ("def_interceptions", 0.3), ("def_sacks", 0.2)],
     "ILB": [("def_tackles_solo", 0.5), ("def_sacks", 0.3), ("def_interceptions", 0.2)],
     "OLB": [("def_sacks", 0.5), ("def_tackles_solo", 0.3), ("def_interceptions", 0.2)],
-    "LB":  [("def_tackles_solo", 0.4), ("def_sacks", 0.3), ("def_interceptions", 0.3)],
-    "CB":  [("def_pass_defended", 0.4), ("def_interceptions", 0.3), ("def_tackles_solo", 0.3)],
-    "FS":  [("def_interceptions", 0.6), ("def_pass_defended", 0.25), ("def_tackles_solo", 0.15)],
-    "SS":  [("def_tackles_solo", 0.5), ("def_interceptions", 0.3), ("def_pass_defended", 0.2)],
+    "LB": [("def_tackles_solo", 0.4), ("def_sacks", 0.3), ("def_interceptions", 0.3)],
+    "CB": [("def_pass_defended", 0.4), ("def_interceptions", 0.3), ("def_tackles_solo", 0.3)],
+    "FS": [("def_interceptions", 0.6), ("def_pass_defended", 0.25), ("def_tackles_solo", 0.15)],
+    "SS": [("def_tackles_solo", 0.5), ("def_interceptions", 0.3), ("def_pass_defended", 0.2)],
     "SAF": [("def_tackles_solo", 0.5), ("def_interceptions", 0.3), ("def_pass_defended", 0.2)],
-    "S":   [("def_interceptions", 0.6), ("def_pass_defended", 0.25), ("def_tackles_solo", 0.15)],
+    "S": [("def_interceptions", 0.6), ("def_pass_defended", 0.25), ("def_tackles_solo", 0.15)],
     "Nickel": [("def_pass_defended", 0.4), ("def_interceptions", 0.3), ("def_tackles_solo", 0.3)],
-    "Dime":   [("def_pass_defended", 0.34), ("def_interceptions", 0.33), ("def_tackles_solo", 0.33)],
-    "K":  [("fg_made", 0.7), ("fg_att", 0.3)],
-    "P":  [("punt_yards_season", 0.6), ("punt_attempts_season", 0.4)],
+    "Dime": [("def_pass_defended", 0.34), ("def_interceptions", 0.33), ("def_tackles_solo", 0.33)],
+    "K": [("fg_made", 0.7), ("fg_att", 0.3)],
+    "P": [("punt_yards_season", 0.6), ("punt_attempts_season", 0.4)],
     "RS": [("kickoff_return_yards", 0.5), ("punt_return_yards", 0.5)],
 }
 
@@ -191,29 +189,15 @@ def _load_contracts() -> pd.DataFrame:
     if _CONTRACTS_CACHE is not None:
         return _CONTRACTS_CACHE
     try:
-        df = nfl.import_contracts()
+        df = nfl.load_contracts().to_pandas()
         df = df[df["year_signed"] >= 2018].copy()
         df["pos_key"] = df["position"].map(_CONTRACT_POS_MAP)
         df = df.dropna(subset=["pos_key", "apy"])
-        df["apy"] = pd.to_numeric(df["apy"], errors="coerce").fillna(0)
+        df["apy"] = pd.to_numeric(df["apy"], errors="coerce").fillna(0) * 1000000
         _CONTRACTS_CACHE = df
     except Exception:
         _CONTRACTS_CACHE = pd.DataFrame()
     return _CONTRACTS_CACHE
-
-
-def _salary_from_av(av_score: float, position: str) -> int:
-    """
-    AV-based salary for OL/LS per spec:
-    Salary = LeagueMin + (MaxPosSalary - LeagueMin) * (min(av/max_av, 1.0)) ** gamma
-    """
-    lo = LEAGUE_MIN
-    hi = _POS_SALARY_RANGE.get(position, _DEFAULT_SALARY_RANGE)[1]
-    max_av = _OL_MAX_AV.get(position, 12.0)
-    talent_factor = min(av_score / max_av, 1.0)
-    scaled = talent_factor ** _OL_AV_GAMMA
-    return int(np.clip(lo + (hi - lo) * scaled, lo, hi))
-
 
 def _talent_percentile(player_name: str, position: str, stats_df: pd.DataFrame) -> float:
     """
@@ -320,13 +304,15 @@ def _build_player_pool(n_players: int = 300) -> list[dict]:
 
     contracts = _load_contracts()
 
+    _DEF_POSITIONS = {"DE", "DT", "NT", "DL", "LB", "OLB", "ILB", "MLB", "SLB", "WLB",
+                      "CB", "FS", "SS", "S", "SAF", "DB"}
     response = supabase.table("player_stats").select(
         "player_display_name, position, team, season, "
         "passing_yards, passing_tds, passing_interceptions, carries, rushing_yards, rushing_tds, "
         "receptions, targets, receiving_yards, receiving_tds, "
         "def_sacks, def_tackles_solo, def_interceptions, def_pass_defended, "
         "fg_made, fg_att"
-    ).gte("season", 2022).execute()
+    ).gte("season", 2022).limit(5000).execute()
 
     if not response.data:
         raise RuntimeError("Failed to fetch player pool from Supabase")
@@ -339,8 +325,17 @@ def _build_player_pool(n_players: int = 300) -> list[dict]:
     agg = df.groupby(["player_display_name", "position", "team"])[numeric_cols].sum().reset_index()
     agg["total_yards"] = agg.get("passing_yards", 0) + agg.get("rushing_yards", 0) + agg.get("receiving_yards", 0)
     agg["total_def"] = agg.get("def_tackles_solo", 0) + agg.get("def_sacks", 0) * 5
-    agg = agg[(agg["total_yards"] > 50) | (agg["total_def"] > 5) |
-              (agg["fg_made"] > 0) | (agg["position"].isin(["K", "P"]))]
+    # Keep all defensive players (DBs have low counting stats but are still valid starters)
+    # and all skill/ST players who meet the yardage threshold
+    agg = agg[
+        (agg["total_yards"] > 50) |
+        (agg["total_def"] > 0) |
+        (agg["def_interceptions"] > 0) |
+        (agg["def_pass_defended"] > 0) |
+        (agg["fg_made"] > 0) |
+        (agg["position"].isin(["K", "P"])) |
+        (agg["position"].isin(_DEF_POSITIONS))
+    ]
 
     if len(agg) > n_players:
         agg["score"] = agg["total_yards"] + agg["total_def"] * 10
@@ -411,45 +406,36 @@ def _build_player_pool(n_players: int = 300) -> list[dict]:
     except Exception:
         pass
 
-    _OL_RAW_POS = {"T", "OT", "LT", "RT", "G", "OG", "LG", "RG", "C", "LS"}
-    _OL_POS_MAP = {
-        "T": "OT", "OT": "OT", "LT": "OT", "RT": "OT",
-        "G": "G",  "OG": "G",  "LG": "G",  "RG": "G",
-        "C": "C",
-        "LS": "LS",
-    }
+    # nflreadpy uses coarse positions: "OL" for all linemen, "LS" for long snappers.
+    # depth_chart_position has "T", "G", "C" which we use to split OL into OT/G/C.
+    _DCP_MAP = {"T": "OT", "LT": "OT", "RT": "OT", "G": "G", "LG": "G", "RG": "G", "C": "C"}
     try:
-        roster_df = nfl.import_rosters(list(range(2022, 2025)))
-        ol_ls = roster_df[roster_df["position"].isin(_OL_RAW_POS)].copy()
-        ol_ls = ol_ls.dropna(subset=["player_name"])
-        ol_ls["pos_key"] = ol_ls["position"].map(_OL_POS_MAP)
-        ol_ls = ol_ls.dropna(subset=["pos_key"])
-        ol_ls = ol_ls.sort_values("season", ascending=False).drop_duplicates(subset=["player_name", "pos_key"])
+        import polars as pl
+        roster_pl = nfl.load_rosters(seasons=[2022, 2023, 2024])
+        roster_pd = roster_pl.to_pandas()
+        ol_ls_raw = roster_pd[roster_pd["position"].isin(["OL", "LS"])].copy()
+        ol_ls_raw = ol_ls_raw.dropna(subset=["full_name"])
 
-        av_lookup: dict[str, float] = {}
-        try:
-            pfr_df = nfl.import_pfr("pass", range(2020, 2025))
-            if "player" in pfr_df.columns and "av" in pfr_df.columns:
-                pfr_df["av"] = pd.to_numeric(pfr_df["av"], errors="coerce").fillna(0)
-                for name_val, grp in pfr_df.groupby("player"):
-                    av_lookup[str(name_val).lower()] = float(grp["av"].max())
-        except Exception:
-            pass
+        def _map_ol_pos(row):
+            if row["position"] == "LS":
+                return "LS"
+            dcp = str(row.get("depth_chart_position", "")).strip()
+            return _DCP_MAP.get(dcp)
+
+        ol_ls_raw["pos_key"] = ol_ls_raw.apply(_map_ol_pos, axis=1)
+        ol_ls = ol_ls_raw.dropna(subset=["pos_key"])
+        ol_ls = ol_ls.sort_values("season", ascending=False).drop_duplicates(subset=["full_name", "pos_key"])
 
         existing_names = {p["name"] for p in players}
         for _, row in ol_ls.iterrows():
-            name = str(row["player_name"])
+            name = str(row["full_name"])
             pos = str(row["pos_key"])
             if name in existing_names:
                 continue
+            # Tier 1: real contract APY; Tier 2: percentile curve at UDFA/fringe level
             salary = _salary_from_contracts(name, pos, contracts)
             if salary is None:
-                av = av_lookup.get(name.lower(), 0.0)
-                if av > 0:
-                    salary = _salary_from_av(av, pos)
-                else:
-                    salary = _salary_from_percentile(0.2, pos)
-
+                salary = _salary_from_percentile(0.2, pos)
             players.append({
                 "name": name,
                 "position": pos,
@@ -865,7 +851,6 @@ async def get_player_pool():
             for p in pool
         ],
     }
-
 
 if __name__ == "__main__":
     import uvicorn

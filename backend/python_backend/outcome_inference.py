@@ -138,7 +138,6 @@ def encode_features(
         min(1, max(0, goal_to_go)),
         _air_yards_bucket(air_yards),
         _kick_dist_bucket(kick_distance),
-        # Matchup tiers (0=elite defense, 4=bad defense)
         min(4, max(0, def_pass_tier)),
         min(4, max(0, def_rush_tier)),
         min(4, max(0, def_sack_tier)),
@@ -149,17 +148,16 @@ def encode_features(
 app = FastAPI(title="Outcome Predictor", version="1.0")
 
 class PlayRequest(BaseModel):
-    play_type: str               # "run" | "pass" | "punt" | "field_goal"
-    down: int                    # 1-4
+    play_type: str
+    down: int
     ydstogo: float
-    yardline_100: float          # yards to opponent end zone
-    score_differential: float    # offense - defense
-    qtr: int                     # 1-5
+    yardline_100: float
+    score_differential: float
+    qtr: int
     shotgun: int = 0
     goal_to_go: int = 0
-    air_yards: float = 0.0       # pass plays: intended air yards
-    kick_distance: float = 0.0   # FG/punt: distance of kick
-    # Matchup tier features (0=elite defense, 4=bad defense) — defaults to average
+    air_yards: float = 0.0
+    kick_distance: float = 0.0
     def_pass_tier: int = 2
     def_rush_tier: int = 2
     def_sack_tier: int = 2

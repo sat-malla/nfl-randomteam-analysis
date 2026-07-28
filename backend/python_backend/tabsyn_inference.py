@@ -1,11 +1,9 @@
 """
-tabsyn_inference.py  —  TabSyn Inference Microservice  (port 8002)
+tabsyn_inference.py  —  TabSyn Inference Microservice
 
 Loads trained VAE + diffusion weights on startup and exposes:
-  POST /generate   { n_samples: int }  →  list of team-season stat dicts
-  GET  /health     →  { status: "ok" }
-
-team_analysis.py calls /generate to replace the old Gaussian copula sampler.
+  POST /generate { n_samples: int } -> list of team-season stat dicts
+  GET  /health -> { status: "ok" }
 """
 
 import json
@@ -175,7 +173,6 @@ def latents_to_rows(z_samples: torch.Tensor) -> list[dict]:
     cont_np = recon_cont.cpu().numpy()
     cont_np = QT.inverse_transform(cont_np)
 
-    # Rescale to match training distribution (VAE compresses variance on small datasets)
     gen_mean = cont_np.mean(axis=0)
     gen_std = cont_np.std(axis=0).clip(min=1e-6)
     qt_range = (QT.references_[-1] - QT.references_[0]) if hasattr(QT, "references_") else None
