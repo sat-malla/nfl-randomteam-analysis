@@ -31,38 +31,53 @@ type SleeperService struct {
 	collection *mongo.Collection
 }
 
-func selectionWeight(searchRank, yearsExp int) int {
+func selectionWeight(searchRank, yearsExp, depthChartOrder int) int {
 	const noRank = 999
 	const sentinel = 9999999
-
+	
+	var base int
 	if searchRank <= 0 || searchRank >= sentinel {
 		if yearsExp <= 0 {
-			return 1
+			base = 1
+		} else if yearsExp >= 3 {
+			base = 3
+		} else {
+			base = 2
 		}
-		if yearsExp >= 3 {
-			return 3
-		}
-		return 2
-	}
-
-	if searchRank < noRank {
+	} else if searchRank < noRank {
 		switch {
 		case searchRank <= 100:
-			return 20
+			base = 20
 		case searchRank <= 300:
-			return 15
+			base = 15
 		default:
-			return 10
+			base = 10
+		}
+	} else {
+		if yearsExp <= 0 {
+			base = 1
+		} else if yearsExp >= 5 {
+			base = 8
+		} else {
+			base = 2 + yearsExp
 		}
 	}
 
-	if yearsExp <= 0 {
-		return 1
+	switch {
+	case depthChartOrder <= 0:
+		base = base * 2 / 5
+	case depthChartOrder == 1:
+		// None - Starter: full weight (no change)
+	case depthChartOrder == 2:
+		base = base / 2
+	default:
+		base = base / 5
 	}
-	if yearsExp >= 5 {
-		return 8
+
+	if base < 1 {
+		base = 1
 	}
-	return 2 + yearsExp
+	return base
 }
 
 func NewSleeperService(collection *mongo.Collection) *SleeperService {
@@ -134,7 +149,7 @@ func (s *SleeperService) SyncPlayers(ctx context.Context) error {
 			"depth_chart_order": player.DepthChartOrder,
 			"years_exp": player.YearsExp,
 			"search_rank": player.SearchRank,
-			"selection_weight": selectionWeight(player.SearchRank, player.YearsExp),
+			"selection_weight": selectionWeight(player.SearchRank, player.YearsExp, player.DepthChartOrder),
 			"active": player.Active,
 			"injury_status": player.InjuryStatus,
 			"updated_at": time.Now(),
@@ -151,7 +166,7 @@ func (s *SleeperService) SyncPlayers(ctx context.Context) error {
 	for i := 0; i < len(operations); i += batchSize {
 		end := min(i+batchSize, len(operations))
 		batch := operations[i:end]
-		opts := options.BulkWrite().SetOrdered(false) // unordered for better performance
+		opts := options.BulkWrite().SetOrdered(false)
 		result, err := s.collection.BulkWrite(ctx, batch, opts)
 		if err != nil {
 			log.Printf("Error in bulk write batch %d-%d: %v", i, end, err)
@@ -160,7 +175,7 @@ func (s *SleeperService) SyncPlayers(ctx context.Context) error {
 		totalUpserted += int(result.UpsertedCount) + int(result.ModifiedCount)
 		log.Printf("Processed batch %d-%d", i, end)
 
-		time.Sleep(100 * time.Millisecond) // Small delay between batches to avoid overwhelming the database
+		time.Sleep(100 * time.Millisecond)
 	}
 	log.Printf("Synced %d active NFL players to database", totalUpserted)
 	return nil
