@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/toast';
 import { VStack } from "@/components/ui/vstack";
 import * as Application from 'expo-application';
+import Ionicons from "react-native-vector-icons/Ionicons";
 import { useState } from "react";
 import {
   Platform,
@@ -581,17 +582,27 @@ const GenerateTeam = () => {
             <FormControlLabel style={{ marginTop: 15 }}>
               <FormControlLabelText style={{ fontFamily: "Montserrat_400Regular" }}>Team Name</FormControlLabelText>
             </FormControlLabel>
-            <TextInput
-              placeholder="Team Name"
-              placeholderTextColor={colorScheme === "dark" ? "#a0b4c8" : "#4a5568"}
-              value={formData.teamName}
-              onChangeText={(text) => setFormData({ ...formData, teamName: text })}
-              style={[styles.teamNameInput, {
-                backgroundColor: colorScheme === "dark" ? "#0d1f2d" : "#f0f7ff",
-                borderColor: colorScheme === "dark" ? "#1e3a52" : "#bfdbfe",
-                color: colorScheme === "dark" ? "#edf5ff" : "#02080f",
-              }]}
-            />
+            <View style={styles.teamNameWrapper}>
+              <TextInput
+                placeholder="Team Name"
+                placeholderTextColor={colorScheme === "dark" ? "#a0b4c8" : "#4a5568"}
+                value={formData.teamName}
+                onChangeText={(text) => setFormData({ ...formData, teamName: text })}
+                style={[styles.teamNameInput, {
+                  backgroundColor: colorScheme === "dark" ? "#0d1f2d" : "#f0f7ff",
+                  borderColor: colorScheme === "dark" ? "#1e3a52" : "#bfdbfe",
+                  color: colorScheme === "dark" ? "#edf5ff" : "#02080f",
+                }]}
+              />
+              {formData.teamName.length > 0 && (
+                <TouchableOpacity
+                  style={styles.teamNameClearBtn}
+                  onPress={() => setFormData({ ...formData, teamName: "" })}
+                >
+                  <Ionicons name="close-circle" size={20} color={colorScheme === "dark" ? "#a0b4c8" : "#4a5568"} />
+                </TouchableOpacity>
+              )}
+            </View>
             <FormControlLabel style={{ marginTop: 15 }}>
               <FormControlLabelText style={{ fontFamily: "Montserrat_400Regular" }}>Type of Offense</FormControlLabelText>
             </FormControlLabel>
@@ -785,13 +796,23 @@ const styles = StyleSheet.create({
     color: "#edf5ff",
     width: "100%",
   },
+  teamNameWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
   teamNameInput: {
+    flex: 1,
     borderWidth: 1,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 13,
+    paddingRight: 36,
     fontFamily: "Montserrat_400Regular",
     fontSize: 17,
+  },
+  teamNameClearBtn: {
+    position: "absolute",
+    right: 10,
   },
   lightGenerateButton: {
     backgroundColor: "#02080f",

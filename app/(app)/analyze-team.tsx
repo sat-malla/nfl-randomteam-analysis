@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { useColorScheme } from "react-native";
 import { StyleSheet } from "react-native";
+import Ionicons from "react-native-vector-icons/Ionicons";
 import PickerModal, { PickerTrigger } from "@/components/PickerModal";
 import {
   FormControl,
@@ -475,16 +476,23 @@ function AIChatPanel({ visible, onClose, teamId, analysis, c, isDark }: AIChatPa
             )}
 
             <View style={[aiStyles.inputRow, { borderTopColor: c.border, backgroundColor: panelBg }]}>
-              <TextInput
-                style={[aiStyles.textInput, { backgroundColor: inputBg, color: c.text }]}
-                placeholder="Ask about your team..."
-                placeholderTextColor={c.subtext}
-                value={input}
-                onChangeText={setInput}
-                returnKeyType="send"
-                onSubmitEditing={() => { if (input.trim()) sendToAI(input.trim()); }}
-                editable={!aiLoading}
-              />
+              <View style={aiStyles.textInputWrapper}>
+                <TextInput
+                  style={[aiStyles.textInput, { backgroundColor: inputBg, color: c.text }]}
+                  placeholder="Ask about your team..."
+                  placeholderTextColor={c.subtext}
+                  value={input}
+                  onChangeText={setInput}
+                  returnKeyType="send"
+                  onSubmitEditing={() => { if (input.trim()) sendToAI(input.trim()); }}
+                  editable={!aiLoading}
+                />
+                {input.length > 0 && (
+                  <TouchableOpacity style={aiStyles.clearBtn} onPress={() => setInput("")}>
+                    <Ionicons name="close-circle" size={18} color={c.subtext} />
+                  </TouchableOpacity>
+                )}
+              </View>
               <TouchableOpacity
                 style={[aiStyles.sendBtn, { backgroundColor: input.trim() && !aiLoading ? "#1d4ed8" : "#9ca3af" }]}
                 onPress={() => { if (input.trim() && !aiLoading) sendToAI(input.trim()); }}
@@ -1383,13 +1391,23 @@ const aiStyles = StyleSheet.create({
     borderTopWidth: 1,
     gap: 8,
   },
+  textInputWrapper: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+  },
   textInput: {
     flex: 1,
     borderRadius: 20,
     paddingHorizontal: 14,
     paddingVertical: 11,
+    paddingRight: 36,
     fontSize: 15,
     fontFamily: "Montserrat_400Regular",
+  },
+  clearBtn: {
+    position: "absolute",
+    right: 10,
   },
   sendBtn: {
     width: 38,

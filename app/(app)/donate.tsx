@@ -218,24 +218,34 @@ export default function Donate() {
 
         <View style={styles.customRow}>
           <Text style={[styles.customLabel, { color: c.subtext }]}>$ </Text>
-          <TextInput
-            style={[
-              styles.customInput,
-              {
-                backgroundColor: c.inputBg,
-                borderColor: customError ? "#f43f5e" : isCustomValid ? "#635BFF" : c.border,
-                color: c.text,
-              },
-            ]}
-            placeholder="Custom amount"
-            placeholderTextColor={c.subtext}
-            keyboardType="decimal-pad"
-            value={customAmount}
-            onChangeText={(val) => {
-              setCustomAmount(val);
-              setSelectedPreset(null);
-            }}
-          />
+          <View style={styles.customInputWrapper}>
+            <TextInput
+              style={[
+                styles.customInput,
+                {
+                  backgroundColor: c.inputBg,
+                  borderColor: customError ? "#f43f5e" : isCustomValid ? "#635BFF" : c.border,
+                  color: c.text,
+                },
+              ]}
+              placeholder="Custom amount"
+              placeholderTextColor={c.subtext}
+              keyboardType="decimal-pad"
+              value={customAmount}
+              onChangeText={(val) => {
+                setCustomAmount(val);
+                setSelectedPreset(null);
+              }}
+            />
+            {customAmount.length > 0 && (
+              <TouchableOpacity
+                style={styles.customClearBtn}
+                onPress={() => { setCustomAmount(""); setSelectedPreset(null); }}
+              >
+                <Ionicons name="close-circle" size={18} color={c.subtext} />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
         {customError && (
           <Text style={styles.errorText}>{customError}</Text>
@@ -379,14 +389,24 @@ const styles = StyleSheet.create({
     fontFamily: "Montserrat_700Bold",
     fontSize: 16,
   },
+  customInputWrapper: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+  },
   customInput: {
     flex: 1,
     borderWidth: 1,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
+    paddingRight: 36,
     fontFamily: "Montserrat_400Regular",
     fontSize: 14,
+  },
+  customClearBtn: {
+    position: "absolute",
+    right: 10,
   },
   errorText: {
     fontFamily: "Montserrat_400Regular",

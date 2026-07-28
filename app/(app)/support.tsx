@@ -122,26 +122,40 @@ export default function Support() {
           )}
 
           <Text style={labelStyle}>Name</Text>
-          <TextInput
-            style={inputStyle}
-            placeholder="Your name"
-            placeholderTextColor={c.subtext}
-            value={name}
-            onChangeText={setName}
-            autoCapitalize="words"
-          />
+          <View style={styles.inputWrapper}>
+            <TextInput
+              style={[inputStyle, styles.inputFlex]}
+              placeholder="Your name"
+              placeholderTextColor={c.subtext}
+              value={name}
+              onChangeText={setName}
+              autoCapitalize="words"
+            />
+            {name.length > 0 && (
+              <TouchableOpacity style={styles.clearBtn} onPress={() => setName("")}>
+                <Ionicons name="close-circle" size={18} color={c.subtext} />
+              </TouchableOpacity>
+            )}
+          </View>
 
           <Text style={labelStyle}>Email</Text>
-          <TextInput
-            style={inputStyle}
-            placeholder="your@email.com"
-            placeholderTextColor={c.subtext}
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
+          <View style={styles.inputWrapper}>
+            <TextInput
+              style={[inputStyle, styles.inputFlex]}
+              placeholder="your@email.com"
+              placeholderTextColor={c.subtext}
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            {email.length > 0 && (
+              <TouchableOpacity style={styles.clearBtn} onPress={() => setEmail("")}>
+                <Ionicons name="close-circle" size={18} color={c.subtext} />
+              </TouchableOpacity>
+            )}
+          </View>
 
           <Text style={labelStyle}>Subject</Text>
           <View style={styles.subjectRow}>
@@ -165,16 +179,23 @@ export default function Support() {
           </View>
 
           <Text style={labelStyle}>Message</Text>
-          <TextInput
-            style={[inputStyle, styles.messageInput]}
-            placeholder="Describe your issue or feedback..."
-            placeholderTextColor={c.subtext}
-            value={message}
-            onChangeText={setMessage}
-            multiline
-            numberOfLines={5}
-            textAlignVertical="top"
-          />
+          <View style={styles.inputWrapper}>
+            <TextInput
+              style={[inputStyle, styles.inputFlex, styles.messageInput]}
+              placeholder="Describe your issue or feedback..."
+              placeholderTextColor={c.subtext}
+              value={message}
+              onChangeText={setMessage}
+              multiline
+              numberOfLines={5}
+              textAlignVertical="top"
+            />
+            {message.length > 0 && (
+              <TouchableOpacity style={[styles.clearBtn, styles.clearBtnTop]} onPress={() => setMessage("")}>
+                <Ionicons name="close-circle" size={18} color={c.subtext} />
+              </TouchableOpacity>
+            )}
+          </View>
 
           <TouchableOpacity
             style={[styles.sendBtn, { backgroundColor: canSend ? c.button : "#9ca3af" }]}
@@ -263,13 +284,31 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 8,
     paddingHorizontal: 12,
+    paddingRight: 36,
     paddingVertical: 10,
     fontFamily: "Montserrat_400Regular",
     fontSize: 14,
   },
+  inputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  inputFlex: {
+    flex: 1,
+  },
+  clearBtn: {
+    position: "absolute",
+    right: 10,
+    alignSelf: "center",
+  },
+  clearBtnTop: {
+    alignSelf: "flex-start",
+    top: 10,
+  },
   messageInput: {
     minHeight: 110,
     paddingTop: 10,
+    paddingRight: 32,
   },
   subjectRow: {
     flexDirection: "row",
