@@ -30,5 +30,5 @@ type TeamRepository interface {
 	GetManyByDeviceUuid(ctx context.Context, deviceUuid string) ([]*Team, error)
 	CreateOne(ctx context.Context, team Team) (*Team, error)
 	UpdateOne(ctx context.Context, teamId uint, team Team) (*Team, error)
-	DeleteOne(ctx context.Context, teamId uint) error
+	DeleteOne(ctx context.Context, teamId string) error
 }

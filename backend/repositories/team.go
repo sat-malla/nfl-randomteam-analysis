@@ -59,8 +59,12 @@ func (r *TeamRepository) CreateOne(ctx context.Context, team models.Team) (*mode
 	return &team, nil
 }
 
-func (r *TeamRepository) DeleteOne(ctx context.Context, teamId uint) error {
-	_, err := r.collection.DeleteOne(ctx, bson.M{"_id": teamId})
+func (r *TeamRepository) DeleteOne(ctx context.Context, teamId string) error {
+	oid, err := primitive.ObjectIDFromHex(teamId)
+	if err != nil {
+		return err
+	}
+	_, err = r.collection.DeleteOne(ctx, bson.M{"_id": oid})
 	return err
 }
 

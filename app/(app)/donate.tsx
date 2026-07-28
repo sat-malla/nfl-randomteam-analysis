@@ -274,6 +274,12 @@ export default function Donate() {
           </View>
           {!loading && <Ionicons name="arrow-forward" size={18} color="#ffffff" />}
         </TouchableOpacity>
+
+        <View style={styles.privacyNote}>
+          <Text style={[styles.privacyText, { color: c.subtext }]}>
+            *Note: This app never sees or stores your card, bank, Apple Pay, or any personal payment information. Please read the Terms & Conditions and Privacy Policy for more details.
+          </Text>
+        </View>
       </View>
 
       <View
@@ -413,6 +419,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#f43f5e",
     marginTop: -4,
+  },
+  privacyNote: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6,
+    marginTop: 4,
+  },
+  privacyText: {
+    fontFamily: "Montserrat_400Regular",
+    fontSize: 11,
+    lineHeight: 17,
+    flex: 1,
   },
   donateBtn: {
     flexDirection: "row",

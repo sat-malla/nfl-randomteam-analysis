@@ -90,12 +90,12 @@ func (h *teamHandler) CreateOne(c *fiber.Ctx) error {
 }
 
 func (h *teamHandler) DeleteOne(c *fiber.Ctx) error {
-	teamId, _ := strconv.Atoi(c.Params("teamId"))
+	teamId := c.Params("teamId")
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(5*time.Second))
 	defer cancel()
 
-	err := h.repository.DeleteOne(ctx, uint(teamId))
+	err := h.repository.DeleteOne(ctx, teamId)
 
 	if err != nil {
 		return c.Status(fiber.StatusBadGateway).JSON(&fiber.Map{

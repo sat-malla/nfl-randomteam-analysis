@@ -10,6 +10,7 @@ import {
   StyleSheet,
   Dimensions,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import Svg, {
   Rect,
@@ -466,6 +467,9 @@ export default function ViewTeams() {
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
   const [loading, setLoading] = useState(false);
   const [teamPickerOpen, setTeamPickerOpen] = useState(false);
+  const [deleteTeamName, setDeleteTeamName] = useState<string>("");
+  const [deletePickerOpen, setDeletePickerOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const c = {
     bg: isDark ? "#132130" : "#edf5ff",
@@ -510,11 +514,49 @@ export default function ViewTeams() {
     setSelectedTeam(null);
   };
 
+  const handleDeleteTeam = () => {
+    const summary = teamSummaries.find((t) => t.team_name === deleteTeamName);
+    if (!summary) return;
+    Alert.alert(
+      "Delete Team",
+      `Are you sure you want to permanently delete "${deleteTeamName}"? This cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            setDeleting(true);
+            try {
+              const res = await fetch(`${API_URL}/api/team/${summary.id}`, { method: "DELETE" });
+              const result = await res.json();
+              if (result.status === "Success") {
+                setTeamSummaries((prev) => prev.filter((t) => t.id !== summary.id));
+                if (selectedTeamName === deleteTeamName) {
+                  setSelectedTeamName("");
+                  setSelectedTeam(null);
+                }
+                setDeleteTeamName("");
+              } else {
+                Alert.alert("Error", "Failed to delete team. Please try again.");
+              }
+            } catch {
+              Alert.alert("Error", "Could not connect to server.");
+            } finally {
+              setDeleting(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleViewTeam = async () => {
     const summary = teamSummaries.find((t) => t.team_name === selectedTeamName);
     if (!summary) return;
     setLoading(true);
     setSelectedTeam(null);
+    setDeleteTeamName(selectedTeamName);
     try {
       const res = await fetch(`${API_URL}/api/team/${summary.id}`);
       const result = await res.json();
@@ -634,8 +676,50 @@ export default function ViewTeams() {
               </View>
             ))}
           </View>
+
         </>
       )}
+
+      <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow }]}>
+        <FormControl size="lg">
+          <VStack space="md">
+            <FormControlLabel>
+              <FormControlLabelText style={{ color: c.text, fontFamily: "Montserrat_700Bold" }}>
+                Delete Team
+              </FormControlLabelText>
+            </FormControlLabel>
+            <PickerTrigger
+              value={deleteTeamName}
+              placeholder="Select a team to delete"
+              onPress={() => teamSummaries.length > 0 ? setDeletePickerOpen(true) : undefined}
+              borderColor={deleteTeamName ? "#ef4444" : c.border}
+              textColor={teamSummaries.length > 0 ? c.text : c.subtext}
+              placeholderColor={c.subtext}
+            />
+            {teamSummaries.length === 0 && (
+              <Text style={{ color: "red", fontSize: 12, fontFamily: "Montserrat_400Regular", marginTop: 4 }}>
+                You must have at least one team generated to delete one! You can't delete nothing!
+              </Text>
+            )}
+          </VStack>
+        </FormControl>
+        <TouchableOpacity
+          style={[
+            styles.viewButton,
+            { backgroundColor: deleteTeamName && !deleting ? "#ef4444" : "#9ca3af" },
+          ]}
+          disabled={!deleteTeamName || deleting}
+          onPress={handleDeleteTeam}
+        >
+          {deleting ? (
+            <ActivityIndicator color="#ffffff" />
+          ) : (
+            <Text style={[styles.viewButtonText, { color: "#ffffff" }]}>
+              Delete Team
+            </Text>
+          )}
+        </TouchableOpacity>
+      </View>
     </ScrollView>
     <PickerModal
       visible={teamPickerOpen}
@@ -644,6 +728,14 @@ export default function ViewTeams() {
       items={teamSummaries.map((t) => ({ label: t.team_name, value: t.team_name }))}
       selectedValue={selectedTeamName}
       onSelect={handleSelectTeam}
+    />
+    <PickerModal
+      visible={deletePickerOpen}
+      onClose={() => setDeletePickerOpen(false)}
+      title="Select Team to Delete"
+      items={teamSummaries.map((t) => ({ label: t.team_name, value: t.team_name }))}
+      selectedValue={deleteTeamName}
+      onSelect={(val) => setDeleteTeamName(val)}
     />
     </>
   );
