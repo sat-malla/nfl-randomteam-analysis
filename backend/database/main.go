@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
@@ -9,19 +10,24 @@ import (
 )
 
 func ConnectToDatabase(uri string) *mongo.Client {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
+	serverAPI := options.ServerAPI(options.ServerAPIVersion1)
+	opts := options.Client().ApplyURI(uri).SetServerAPIOptions(serverAPI).SetConnectTimeout(3 * time.Second).SetServerSelectionTimeout(3 * time.Second)
+
+	client, err := mongo.Connect(ctx, opts)
 	if err != nil {
-		panic(err)
+		log.Printf("Warning: MongoDB connection failed: %v — MongoDB-dependent routes will be unavailable", err)
+		return nil
 	}
 
-	err = client.Ping(ctx, nil)
-	if err != nil {
-		panic(err)
+	if err = client.Ping(ctx, nil); err != nil {
+		log.Printf("Warning: MongoDB ping failed: %v — MongoDB-dependent routes will be unavailable", err)
+		return nil
 	}
 
+	log.Println("Connected to MongoDB")
 	return client
 }
 
