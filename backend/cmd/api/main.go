@@ -24,7 +24,7 @@ func main() {
 	client := database.ConnectToDatabase(mongoURI)
 
 	app := fiber.New(fiber.Config{
-		AppName: "NFL Random Team Analysis",
+		AppName: "Pro Football Random Team Analysis",
 		ServerHeader: "Fiber",
 	})
 

@@ -14,7 +14,7 @@ export default function Privacy() {
     <ScrollView style={{ flex: 1, backgroundColor: c.bg }} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <Text style={[styles.heading, { color: c.text }]}>Privacy Policy</Text>
 
-      <Text style={[styles.body, { color: c.subtext }]}>This privacy policy applies to the NFL Random Team Generator &amp; Analysis app for mobile devices, together with any related services operated by Sathvik Malla (collectively, the "Application"). Sathvik Malla is hereby referred to as the "Service Provider".</Text>
+      <Text style={[styles.body, { color: c.subtext }]}>This privacy policy applies to the Pro Football Random Team Generator &amp; Analysis app for mobile devices, together with any related services operated by Sathvik Malla (collectively, the "Application"). Sathvik Malla is hereby referred to as the "Service Provider".</Text>
 
       <Text style={[styles.section, { color: c.text }]}>Information Collection and Use</Text>
       <Text style={[styles.body, { color: c.subtext }]}>The Application collects information when you download and use it. This information may include information such as</Text>
@@ -94,7 +94,7 @@ export default function Privacy() {
         {" "}page.</Text>
 
       <View style={styles.divider} />
-      <Text style={[styles.footer, { color: c.subtext }]}>© {new Date().getFullYear()} NFL RTGA. All rights reserved.</Text>
+      <Text style={[styles.footer, { color: c.subtext }]}>© {new Date().getFullYear()} Pro Football RTGA. All rights reserved.</Text>
     </ScrollView>
   );
 }

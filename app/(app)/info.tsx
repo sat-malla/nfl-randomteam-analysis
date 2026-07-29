@@ -34,7 +34,7 @@ const SECTIONS: Section[] = [
     content: [
       {
         type: "body",
-        text: "NFL Random Team Analysis (RTGA) is a passion project built for any passionate NFL fans who have wondered how a randomly generated team would do in an NFL season, analyzing stats, or making predictions. Or, optimizing a team to win a Super Bowl? We've seen those Madden NFL simulations, but only amongst actual NFL teams.",
+        text: "Pro Football Random Team Generator & Analysis (RTGA) is a passion project built for any passionate NFL fans who have wondered how a randomly generated team would do in an NFL season, analyzing stats, or making predictions. Or, optimizing a team to win a Super Bowl? We've seen those Madden NFL simulations, but only amongst actual NFL teams.",
       },
       {
         type: "body",
@@ -77,7 +77,7 @@ const SECTIONS: Section[] = [
       },
       {
         type: "body",
-        text: "A Genetic Algorithm searches thousands of roster combinations under a $200M salary cap for a 29-person roster team (all starters no backups) to find the team with the highest projected Super Bowl probability. Players are assigned synthetic salaries based on their real historical performance, so you actually have to make tradeoffs.",
+        text: "A Genetic Algorithm searches thousands of roster combinations under a $301.2M salary cap (updated to 2026) for a 29-person roster team (all starters no backups) to find the team with the highest projected Super Bowl probability. Players are assigned synthetic salaries based on their real historical performance, so you actually have to make tradeoffs.",
       },
     ],
   },
@@ -178,7 +178,7 @@ export default function Info() {
       ))}
 
       <Text style={[styles.footer, { color: c.subtext }]}>
-        © {new Date().getFullYear()} NFL RTGA. All rights reserved.
+        © {new Date().getFullYear()} Pro Football RTGA. All rights reserved.
       </Text>
     </ScrollView>
   );

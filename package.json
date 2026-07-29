@@ -1,5 +1,5 @@
 {
-  "name": "nfl-random-team-analysis",
+  "name": "pro-football-random-team-generator-and-analysis",
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {

@@ -14,7 +14,7 @@ export default function Terms() {
     <ScrollView style={{ flex: 1, backgroundColor: c.bg }} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <Text style={[styles.heading, { color: c.text }]}>Terms &amp; Conditions</Text>
 
-      <Text style={[styles.body, { color: c.subtext }]}>These terms and conditions apply to the NFL Random Team Generator &amp; Analysis app for mobile devices, together with any related services operated by Sathvik Malla (collectively, the "Application"). Sathvik Malla is hereby referred to as the "Service Provider".</Text>
+      <Text style={[styles.body, { color: c.subtext }]}>These terms and conditions apply to the Pro Football Random Team Generator &amp; Analysis app for mobile devices, together with any related services operated by Sathvik Malla (collectively, the "Application"). Sathvik Malla is hereby referred to as the "Service Provider".</Text>
 
       <Text style={[styles.body, { color: c.subtext }]}>By downloading or using the Application, you agree to these Terms and Conditions. You should read them carefully before using the Application.</Text>
 
@@ -108,7 +108,7 @@ export default function Terms() {
         {" "}page.</Text>
 
       <View style={styles.divider} />
-      <Text style={[styles.footer, { color: c.subtext }]}>© {new Date().getFullYear()} NFL RTGA. All rights reserved.</Text>
+      <Text style={[styles.footer, { color: c.subtext }]}>© {new Date().getFullYear()} Pro Football RTGA. All rights reserved.</Text>
     </ScrollView>
   );
 }

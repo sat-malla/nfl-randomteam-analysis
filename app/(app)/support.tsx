@@ -233,7 +233,7 @@ export default function Support() {
         </View>
 
         <Text style={[styles.footer, { color: c.subtext }]}>
-          © {new Date().getFullYear()} NFL RTGA. All rights reserved.
+          © {new Date().getFullYear()} Pro Football RTGA. All rights reserved.
         </Text>
       </ScrollView>
     </KeyboardAvoidingView>

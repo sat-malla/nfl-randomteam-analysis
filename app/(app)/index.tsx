@@ -43,7 +43,7 @@ export default function Index() {
           themeTextStyle,
         ]}
       >
-        Welcome to the NFL Random Team Generator & Analysis
+        Welcome to the Pro Football Random Team Generator & Analysis
       </Text>
       <Text
         style={[

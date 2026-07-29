@@ -1,15 +1,15 @@
 {
   "expo": {
-    "name": "nfl-random-team-analysis",
-    "slug": "nfl-random-team-analysis",
+    "name": "pro-football-random-team-generator-and-analysis",
+    "slug": "pro-football-random-team-g-and-a",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "nflrandomteamanalysis",
+    "scheme": "profootballrandomteamgeneratorandanalysis",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.sathvik-malla.nfl-random-team-analysis"
+      "bundleIdentifier": "com.sathvik-malla.pro-football-random-team-generator-and-analysis"
     },
     "android": {
       "adaptiveIcon": {

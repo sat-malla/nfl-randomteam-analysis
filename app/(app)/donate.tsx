@@ -133,10 +133,10 @@ export default function Donate() {
       >
         <Ionicons name="heart" size={36} color={c.rose} />
         <Text style={[styles.heroTitle, { color: c.rose }]}>
-          Support NFL RTGA
+          Support Pro Football RTGA
         </Text>
         <Text style={[styles.heroBody, { color: c.subtext }]}>
-          NFL RTGA is just a solo passion project! No company, no funding, no
+          Pro Football RTGA is just a solo passion project! No company, no funding, no
           subscriptions. An app build with entirely free services with rate
           limits. If you had fun simulating games or building rosters, any
           contribution would be much appreciated to improve the quality of the
@@ -338,7 +338,7 @@ export default function Donate() {
       </View>
 
       <Text style={[styles.footer, { color: c.subtext }]}>
-        © {new Date().getFullYear()} NFL RTGA. All rights reserved.
+        © {new Date().getFullYear()} Pro Football RTGA. All rights reserved.
       </Text>
     </ScrollView>
   );

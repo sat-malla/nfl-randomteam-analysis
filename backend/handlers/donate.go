@@ -40,8 +40,8 @@ func CreateCheckoutSession(c *fiber.Ctx) error {
 				PriceData: &stripe.CheckoutSessionLineItemPriceDataParams{
 					Currency: stripe.String(body.Currency),
 					ProductData: &stripe.CheckoutSessionLineItemPriceDataProductDataParams{
-						Name: stripe.String("Donation to NFL RTGA"),
-						Description: stripe.String("Thank you so much for supporting the NFL RTGA app!"),
+						Name: stripe.String("Donation to Pro Football RTGA"),
+						Description: stripe.String("Thank you so much for supporting the Pro Football RTGA app!"),
 					},
 					UnitAmount: stripe.Int64(body.AmountCents),
 				},

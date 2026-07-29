@@ -221,7 +221,7 @@ export default function RootLayout() {
           </DrawerBody>
           <DrawerFooter>
             <Text style={[styles.copyright, { color: isDark ? "#edf5ff" : "#02080f" }]}>
-              © {new Date().getFullYear()} NFL RTGA. All rights reserved.
+              © {new Date().getFullYear()} Pro Football RTGA. All rights reserved.
             </Text>
           </DrawerFooter>
         </DrawerContent>

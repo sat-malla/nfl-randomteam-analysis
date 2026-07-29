@@ -1,4 +1,4 @@
-NFL RTGA (NFL Random Team Generator & Analysis) is a solo-developed, non-commercial mobile app (iOS/Android) built with React Native/Expo. It is a free, passion-project app with no subscriptions or paywalls, with an optional voluntary donation feature.
+Pro Football RTGA (Pro Football Random Team Generator & Analysis) is a solo-developed, non-commercial mobile app (iOS/Android) built with React Native/Expo. It is a free, passion-project app with no subscriptions or paywalls, with an optional voluntary donation feature.
 
 Core features:
 - Random Team Generator: Users generate a custom NFL roster by drafting random players across all positions, subject to a salary cap constraint. Players are sourced from real NFL data. The team generator includes a head coach, which can influence the team's performance based on a coach's performance.
