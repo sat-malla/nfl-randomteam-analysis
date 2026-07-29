@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
+import { useRouter } from "expo-router";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import FontAwesome5 from "react-native-vector-icons/FontAwesome5";
 
@@ -43,6 +44,7 @@ const USES = [
 export default function Donate() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
+  const router = useRouter();
   const [customAmount, setCustomAmount] = useState("");
   const [selectedPreset, setSelectedPreset] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
@@ -52,10 +54,10 @@ export default function Donate() {
     trimmed === ""
       ? null
       : !/^\d+(\.\d{1,2})?$/.test(trimmed)
-      ? "Please enter a valid amount (e.g. 2.50)."
-      : parseFloat(trimmed) < 0.5
-      ? "Minimum donation is $0.50."
-      : null;
+        ? "Please enter a valid amount (e.g. 2.50)."
+        : parseFloat(trimmed) < 0.5
+          ? "Minimum donation is $0.50."
+          : null;
   const isCustomValid = trimmed !== "" && customError === null;
   const canDonate = selectedPreset !== null || isCustomValid;
 
@@ -67,13 +69,19 @@ export default function Donate() {
       const trimmed = customAmount.trim();
       const parsed = parseFloat(trimmed);
       if (!trimmed || isNaN(parsed) || !/^\d+(\.\d{1,2})?$/.test(trimmed)) {
-        Alert.alert("Invalid Amount", "Please enter a valid dollar amount (e.g. 2.50).");
+        Alert.alert(
+          "Invalid Amount",
+          "Please enter a valid dollar amount (e.g. 2.50).",
+        );
         return;
       }
       dollars = parsed;
     }
     if (dollars < 0.5) {
-      Alert.alert("Invalid Amount", "Please enter at least $0.50 to make a considerable donation. Thanks!");
+      Alert.alert(
+        "Invalid Amount",
+        "Please enter at least $0.50 to make a considerable donation. Thanks!",
+      );
       return;
     }
     setLoading(true);
@@ -185,7 +193,9 @@ export default function Donate() {
           </Text>
         </View>
         <Text style={[styles.platformHint, { color: c.subtext }]}>
-          Any amount, even $0.50, helps a lot. Secure checkout powered by Stripe. And no, don't worry, it's not a scam. Minimum donation is $0.50.
+          Any amount, even $0.50, helps a lot. Secure checkout powered by
+          Stripe. And no, don't worry, it's not a scam. Minimum donation is
+          $0.50.
         </Text>
         <View style={styles.presetRow}>
           {PRESET_AMOUNTS.map((amt) => (
@@ -194,7 +204,8 @@ export default function Donate() {
               style={[
                 styles.presetBtn,
                 {
-                  backgroundColor: selectedPreset === amt ? "#635BFF" : c.inputBg,
+                  backgroundColor:
+                    selectedPreset === amt ? "#635BFF" : c.inputBg,
                   borderColor: selectedPreset === amt ? "#635BFF" : c.border,
                 },
               ]}
@@ -224,7 +235,11 @@ export default function Donate() {
                 styles.customInput,
                 {
                   backgroundColor: c.inputBg,
-                  borderColor: customError ? "#f43f5e" : isCustomValid ? "#635BFF" : c.border,
+                  borderColor: customError
+                    ? "#f43f5e"
+                    : isCustomValid
+                      ? "#635BFF"
+                      : c.border,
                   color: c.text,
                 },
               ]}
@@ -240,19 +255,26 @@ export default function Donate() {
             {customAmount.length > 0 && (
               <TouchableOpacity
                 style={styles.customClearBtn}
-                onPress={() => { setCustomAmount(""); setSelectedPreset(null); }}
+                onPress={() => {
+                  setCustomAmount("");
+                  setSelectedPreset(null);
+                }}
               >
                 <Ionicons name="close-circle" size={18} color={c.subtext} />
               </TouchableOpacity>
             )}
           </View>
         </View>
-        {customError && (
-          <Text style={styles.errorText}>{customError}</Text>
-        )}
+        {customError && <Text style={styles.errorText}>{customError}</Text>}
 
         <TouchableOpacity
-          style={[styles.donateBtn, { backgroundColor: "#635BFF", opacity: !canDonate || loading ? 0.4 : 1 }]}
+          style={[
+            styles.donateBtn,
+            {
+              backgroundColor: "#635BFF",
+              opacity: !canDonate || loading ? 0.4 : 1,
+            },
+          ]}
           onPress={handleDonate}
           activeOpacity={0.85}
           disabled={!canDonate || loading}
@@ -267,17 +289,33 @@ export default function Donate() {
               <Text style={[styles.donateBtnLabel, { color: "#ffffff" }]}>
                 {loading ? "Opening checkout..." : "Donate with Stripe"}
               </Text>
-              <Text style={[styles.donateBtnHandle, { color: "#ffffff", opacity: 0.75 }]}>
+              <Text
+                style={[
+                  styles.donateBtnHandle,
+                  { color: "#ffffff", opacity: 0.75 },
+                ]}
+              >
                 Debit, Credit, or Apple Pay
               </Text>
             </View>
           </View>
-          {!loading && <Ionicons name="arrow-forward" size={18} color="#ffffff" />}
+          {!loading && (
+            <Ionicons name="arrow-forward" size={18} color="#ffffff" />
+          )}
         </TouchableOpacity>
 
         <View style={styles.privacyNote}>
           <Text style={[styles.privacyText, { color: c.subtext }]}>
-            *Note: This app never sees or stores your card, bank, Apple Pay, or any personal payment information. Please read the Terms & Conditions and Privacy Policy for more details.
+            *Note: This app never sees or stores your card, bank, Apple Pay, or
+            any personal payment information. Please read the{" "}
+            <Text style={styles.link} onPress={() => router.push("/terms")}>
+              Terms & Conditions
+            </Text>{" "}
+            and{" "}
+            <Text style={styles.link} onPress={() => router.push("/privacy")}>
+              Privacy Policy
+            </Text>{" "}
+            for more details.
           </Text>
         </View>
       </View>
@@ -365,6 +403,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     flex: 1,
     lineHeight: 20,
+  },
+  link: {
+    fontFamily: "Montserrat_700Bold",
+    fontSize: 11,
+    color: "#3b82f6",
+    textDecorationLine: "underline",
   },
   platformHint: {
     fontFamily: "Montserrat_400Regular",

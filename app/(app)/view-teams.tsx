@@ -574,7 +574,7 @@ export default function ViewTeams() {
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator
     >
-      <Text style={[styles.title, { color: c.text }]}>View Generated Teams</Text>
+      <Text style={[styles.title, { color: c.text }]}>View & Delete Generated Teams</Text>
       <Text style={[styles.subtitle, { color: c.subtext }]}>
         Pick one of your generated teams and see the full roster.
       </Text>

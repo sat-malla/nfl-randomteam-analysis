@@ -153,6 +153,18 @@ export default function RootLayout() {
             title: "Donate",
           }}
         />
+        <Stack.Screen
+          name="terms"
+          options={{
+            title: "Terms & Conditions",
+          }}
+        />
+        <Stack.Screen
+          name="privacy"
+          options={{
+            title: "Privacy Policy",
+          }}
+        />
       </Stack>
       <Drawer
         isOpen={showDrawer}
@@ -197,12 +209,12 @@ export default function RootLayout() {
             
             <Text style={[styles.legalLabel, { color: isDark ? "#edf5ff" : "#02080f" }]}>LEGAL</Text>
 
-            <TouchableOpacity style={styles.legalRow} onPress={() => {}}>
+            <TouchableOpacity style={styles.legalRow} onPress={() => { setShowDrawer(false); router.push("/terms"); }}>
               <Text style={styles.legalLink}>Terms & Conditions</Text>
               <Ionicons name="chevron-forward" size={16} color="#0099ff" />
             </TouchableOpacity>
             <View style={[styles.divider, { backgroundColor: isDark ? "#edf5ff" : "#02080f" }]} />
-            <TouchableOpacity style={styles.legalRow} onPress={() => {}}>
+            <TouchableOpacity style={styles.legalRow} onPress={() => { setShowDrawer(false); router.push("/privacy"); }}>
               <Text style={styles.legalLink}>Privacy Policy</Text>
               <Ionicons name="chevron-forward" size={16} color="#0099ff" />
             </TouchableOpacity>
