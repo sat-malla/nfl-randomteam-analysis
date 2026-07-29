@@ -475,6 +475,9 @@ function AIChatPanel({ visible, onClose, teamId, analysis, c, isDark }: AIChatPa
               </View>
             )}
 
+            <Text style={[aiStyles.privacyNote, { color: c.subtext }]}>
+              *Note: Your messages are not stored, viewed, or accessible by this application or anyone monitoring or hosting this application, including third party services.
+            </Text>
             <View style={[aiStyles.inputRow, { borderTopColor: c.border, backgroundColor: panelBg }]}>
               <View style={aiStyles.textInputWrapper}>
                 <TextInput
@@ -1408,6 +1411,14 @@ const aiStyles = StyleSheet.create({
   clearBtn: {
     position: "absolute",
     right: 10,
+  },
+  privacyNote: {
+    fontSize: 11,
+    fontFamily: "Montserrat_400Regular",
+    textAlign: "center",
+    opacity: 0.55,
+    paddingHorizontal: 14,
+    paddingBottom: 6,
   },
   sendBtn: {
     width: 38,
