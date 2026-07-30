@@ -142,6 +142,12 @@ export default function RootLayout() {
           }}
         />
         <Stack.Screen
+          name="app-icon"
+          options={{
+            title: "App Icon",
+          }}
+        />
+        <Stack.Screen
           name="support"
           options={{
             title: "Support",
@@ -194,6 +200,13 @@ export default function RootLayout() {
             </View>
 
             <View style={[styles.divider, { backgroundColor: isDark ? "#edf5ff" : "#02080f", marginTop: 28 }]} />
+            <TouchableOpacity style={styles.supportRow} onPress={() => { setShowDrawer(false); router.push("/app-icon"); }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Text style={styles.supportLink}>App Icon</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color="#0099ff" />
+            </TouchableOpacity>
+            <View style={[styles.divider, { backgroundColor: isDark ? "#edf5ff" : "#02080f" }]} />
             <TouchableOpacity style={styles.supportRow} onPress={() => { setShowDrawer(false); router.push("/support"); }}>
               <Text style={styles.supportLink}>Support</Text>
               <Ionicons name="chevron-forward" size={16} color="#0099ff" />

@@ -4,7 +4,7 @@
     "slug": "pro-football-random-team-g-and-a",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/official-PF-RTGA-icon.png",
     "scheme": "profootballrandomteamgeneratorandanalysis",
     "userInterfaceStyle": "automatic",
     "ios": {
@@ -13,10 +13,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundColor": "#004BA1",
+        "foregroundImage": "./assets/images/official-PF-RTGA-icon-foreground.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
@@ -38,6 +36,21 @@
             "backgroundColor": "#000000"
           }
         }
+      ],
+      [
+        "expo-alternate-app-icons",
+        [
+          { "name": "iconRed",    "ios": { "light": "./assets/images/icon-red.png" } },
+          { "name": "iconGreen",  "ios": { "light": "./assets/images/icon-green.png" } },
+          { "name": "iconAmber",  "ios": { "light": "./assets/images/icon-amber.png" } },
+          { "name": "iconOrange", "ios": { "light": "./assets/images/icon-orange.png" } },
+          { "name": "iconPink",   "ios": { "light": "./assets/images/icon-pink.png" } },
+          { "name": "iconCyan",   "ios": { "light": "./assets/images/icon-cyan.png" } },
+          { "name": "iconNavy",   "ios": { "light": "./assets/images/icon-navy.png" } },
+          { "name": "iconLime",   "ios": { "light": "./assets/images/icon-lime.png" } },
+          { "name": "iconTeal",   "ios": { "light": "./assets/images/icon-teal.png" } },
+          { "name": "iconMaroon", "ios": { "light": "./assets/images/icon-maroon.png" } }
+        ]
       ],
       "expo-web-browser",
       "expo-font"
