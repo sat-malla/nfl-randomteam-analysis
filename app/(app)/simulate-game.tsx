@@ -1,4 +1,4 @@
-import { NFL_TEAM_COLORS, NFL_TEAM_COLORS_DARK } from "@/utils/nflTeamColors";
+import { NFL_TEAM_COLORS, NFL_TEAM_COLORS_DARK, toTeamAbbr } from "@/utils/nflTeamColors";
 import {
   ScrollView,
   StyleSheet,
@@ -478,9 +478,9 @@ export default function SimulateGame() {
                       <Text style={[styles.posText, { color: posColor.text }]}>{player.position}</Text>
                     </View>
                     <Text style={[styles.boxName, { color: c.text }]}>{player.name}</Text>
-                    {player.nfl_team ? (() => { const tc = (isDark ? NFL_TEAM_COLORS_DARK : NFL_TEAM_COLORS)[player.nfl_team] ?? (isDark ? { bg: "#4a5568", text: "#000000" } : { bg: "#334155", text: "#ffffff" }); return (
-                      <View style={{ backgroundColor: tc.bg, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 6 }}>
-                        <Text style={{ color: tc.text, fontSize: 11, fontFamily: "Montserrat_700Bold" }}>{player.nfl_team}</Text>
+                    {player.nfl_team ? (() => { const abbr = toTeamAbbr(player.nfl_team); const tc = (isDark ? NFL_TEAM_COLORS_DARK : NFL_TEAM_COLORS)[abbr] ?? (isDark ? { bg: "#4a5568", text: "#000000" } : { bg: "#334155", text: "#ffffff" }); return (
+                      <View style={[styles.posBadge, { backgroundColor: tc.bg, marginLeft: 6 }]}>
+                        <Text style={[styles.posText, { color: tc.text }]}>{abbr}</Text>
                       </View>
                     ); })() : null}
                   </View>

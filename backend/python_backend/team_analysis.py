@@ -337,10 +337,15 @@ def build_player_distributions(player_stats, player_name, player_pos, depth_slot
                     mean = season_mean / N_GAMES
                     std = max(pos_std / N_GAMES, 0.01)
             else:
+                # player_stats rows are per-game already — no N_GAMES division needed
                 mean = float(values.mean())
                 pos_mean, pos_std = get_position_dist(player_stats, player_pos, sc)
-                std = float(values.std()) if len(values) > 1 else pos_std
-                if sc not in SEASON_TOTAL_STATS and sc not in SYNTHETIC_STATS:
+                if len(values) > 1:
+                    std = float(values.std())
+                else:
+                    std = max(mean * 0.30, pos_std)
+                # SEASON_TOTAL_STATS (fg_made, fg_att, etc.) are stored as season totals — divide those
+                if sc in SEASON_TOTAL_STATS:
                     mean, std = mean / N_GAMES, std / N_GAMES
 
         if depth_slot > 1 and sc in DEPTH_VOLUME_STATS:
@@ -635,10 +640,9 @@ def sample_all_games(distributions, flat_keys, flat_corr, n_season_sims, n_games
     return raw.reshape(n_season_sims, n_games, n)
 
 def yards_to_points(passing_yards, rushing_yards, fg_made):
-    base_points = (passing_yards + rushing_yards) / 10
-    td_bonus = base_points * 0.15
-    fg_points = fg_made * 3
-    return base_points + td_bonus + fg_points
+    # calibrated: avg team (~230 pass + 110 rush + 1.5 fg/game) → ~22-23 pts/game
+    # ~340 total yds -> ~20 pts from yards + ~4.5 from FG ~= 23 (NFL avg)
+    return (passing_yards + rushing_yards) / 17.0 + fg_made * 3
 
 def generate_schedule(n_games=17):
     opponents = random.sample(NFL_TEAMS, min(n_games, len(NFL_TEAMS)))
@@ -648,6 +652,8 @@ def generate_schedule(n_games=17):
     ]
 
 def get_opponent_strength(opponent, team_stats):
+    # returns opponent's OFFENSIVE strength relative to NFL average.
+    # >1 = stronger-scoring opponent (harder), <1 = weaker opponent (easier).
     opp_data = team_stats[team_stats["team"] == opponent]
     if opp_data.empty:
         return 1.0
@@ -655,9 +661,10 @@ def get_opponent_strength(opponent, team_stats):
     avg_passing = opp_data["passing_yards"].mean()
     avg_rushing = opp_data["rushing_yards"].mean()
 
-    passing_factor = 230 / max(avg_passing, 1)
-    rushing_factor = 115 / max(avg_rushing, 1)
-    return (passing_factor + rushing_factor) / 2
+    passing_factor = max(avg_passing, 1) / 230
+    rushing_factor = max(avg_rushing, 1) / 115
+    strength = (passing_factor + rushing_factor) / 2
+    return float(np.clip(strength, 0.8, 1.25))
     
 OL_POSITIONS = {"OT", "G", "C", "OL"}
 
@@ -710,19 +717,23 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300, 
                 stat_col_indices[name][stat] = key_to_idx[k]
 
     opp_strengths = np.array([get_opponent_strength(g["opponent"], team_stats) for g in schedule])
-    home_boosts = np.array([1.05 if g["home"] else 0.97 for g in schedule])
 
-    passing_idx = key_to_idx.get(next((k for k in flat_keys if k[1] == "passing_yards"), (None, None)), None)
-    rushing_idx = key_to_idx.get(next((k for k in flat_keys if k[1] == "rushing_yards"), (None, None)), None)
-    fg_idx = key_to_idx.get(next((k for k in flat_keys if k[1] == "fg_made"), (None, None)), None)
+    _QB_POSITIONS = {"QB"}
+    _RB_POSITIONS = {"RB", "FB"}
+    passing_indices = [key_to_idx[k] for k in flat_keys if k[1] == "passing_yards" and distributions[k[0]]["position"] in _QB_POSITIONS]
+    rushing_indices = [key_to_idx[k] for k in flat_keys if k[1] == "rushing_yards" and distributions[k[0]]["position"] in _RB_POSITIONS]
+    fg_indices = [key_to_idx[k] for k in flat_keys if k[1] == "fg_made"]
 
-    multipliers = opp_strengths * home_boosts * coach_multiplier
+    home_away = np.where(np.array([g["home"] for g in schedule]), 1.05, 0.97)
 
-    passing_per_game = all_samples[:, :, passing_idx] * multipliers if passing_idx is not None else np.zeros((n_season_sims, n_games))
-    rushing_per_game = all_samples[:, :, rushing_idx] * multipliers if rushing_idx is not None else np.zeros((n_season_sims, n_games))
-    fg_per_game = all_samples[:, :, fg_idx] * multipliers if fg_idx is not None else np.zeros((n_season_sims, n_games))
+    passing_per_game = np.sum(all_samples[:, :, passing_indices], axis=2) if passing_indices else np.zeros((n_season_sims, n_games))
+    rushing_per_game = np.sum(all_samples[:, :, rushing_indices], axis=2) if rushing_indices else np.zeros((n_season_sims, n_games))
+    # fg_made is stored as a SEASON TOTAL in the distributions — convert to per-game for scoring
+    fg_per_game = (np.sum(all_samples[:, :, fg_indices], axis=2) / N_GAMES) if fg_indices else np.zeros((n_season_sims, n_games))
 
-    team_points = yards_to_points(passing_per_game, rushing_per_game, fg_per_game)
+    # apply only home/away and coach boost to team scoring, not opponent strength
+    team_score_mult = home_away * coach_multiplier
+    team_points = yards_to_points(passing_per_game * team_score_mult, rushing_per_game * team_score_mult, fg_per_game)
 
     DEF_POSITIONS = {"DE", "DT", "NT", "DL", "LB", "OLB", "ILB", "MLB", "SLB", "WLB", "CB", "FS", "SS", "S", "SAF", "DB", "Nickel", "Dime"}
     def_sack_mean = 0.0
@@ -745,7 +756,7 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300, 
     opp_base = (NFL_AVG_PTS * opp_strengths) / def_quality
     opp_points = np.random.normal(
         loc=opp_base,
-        scale=10.0,
+        scale=7.0,
         size=(n_season_sims, n_games)
     )
     wins_matrix = (team_points > opp_points)
@@ -761,14 +772,16 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300, 
             if stat in SYNTHETIC_STATS or stat in SEASON_TOTAL_STATS:
                 season_totals = all_samples[:, :, col_idx].mean(axis=1)
             else:
-                stat_mult = multipliers.copy()
                 if pos in _OL_AFFECTED_POS:
                     if stat in _OL_BOOSTED_STATS:
-                        stat_mult = stat_mult * ol_multiplier
+                        season_totals = (all_samples[:, :, col_idx] * ol_multiplier).sum(axis=1)
                     elif stat in _OL_HURT_STATS:
                         int_penalty = 1.0 + (1.0 - ol_multiplier) * 1.5
-                        stat_mult = stat_mult * int_penalty
-                season_totals = (all_samples[:, :, col_idx] * stat_mult).sum(axis=1)
+                        season_totals = (all_samples[:, :, col_idx] * int_penalty).sum(axis=1)
+                    else:
+                        season_totals = all_samples[:, :, col_idx].sum(axis=1)
+                else:
+                    season_totals = all_samples[:, :, col_idx].sum(axis=1)
             all_player_stats[name][stat] = season_totals.tolist()
     
     wins_array = np.array(all_szn_wins)

@@ -1,5 +1,5 @@
 import { assignLbLabels } from "@/utils/defense-rendering";
-import { NFL_TEAM_COLORS, NFL_TEAM_COLORS_DARK } from "@/utils/nflTeamColors";
+import { NFL_TEAM_COLORS, NFL_TEAM_COLORS_DARK, toTeamAbbr } from "@/utils/nflTeamColors";
 import {
   Text,
   ScrollView,
@@ -284,11 +284,11 @@ function TeamLeadersGrid({ analysis, c, isDark }: TeamLeadersGridProps) {
                   <Text style={{ fontSize: 13, fontFamily: "Montserrat_700Bold", color: text, opacity: 0.85 }}>
                     {leader.value} {cat.unit}
                   </Text>
-                  {leader.nfl_team ? (
-                    <Text style={{ fontSize: 10, color: text, opacity: 0.8, marginTop: 4 }} numberOfLines={1}>
-                      {leader.nfl_team}
-                    </Text>
-                  ) : null}
+                  {leader.nfl_team ? (() => { const abbr = toTeamAbbr(leader.nfl_team); const tc = (isDark ? NFL_TEAM_COLORS_DARK : NFL_TEAM_COLORS)[abbr] ?? (isDark ? { bg: "#4a5568", text: "#000000" } : { bg: "#334155", text: "#ffffff" }); return (
+                    <View style={[styles.posBadge, { backgroundColor: tc.bg, marginTop: 4, alignSelf: "center" }]}>
+                      <Text style={[styles.posText, { color: tc.text }]}>{abbr}</Text>
+                    </View>
+                  ); })() : null}
                 </>
               ) : (
                 <Text style={{ fontSize: 13, color: text, opacity: 0.6 }}>—</Text>
@@ -924,37 +924,16 @@ const AnalyzeTeam = () => {
                 { borderColor: c.border, marginBottom: 4 },
               ]}
             >
-              <View style={styles.playerHeader}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.cardTitle, { color: c.text }]}>
-                    Legend
-                  </Text>
-                  <Text
-                    style={[
-                      styles.playerName,
-                      { color: c.subtext, fontStyle: "italic" },
-                    ]}
-                  >
-                    Player Name - NFL Team
-                  </Text>
+              <Text style={[styles.cardTitle, { color: c.text, marginBottom: 6 }]}>Legend</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <Text style={[styles.playerName, { color: c.subtext, fontStyle: "italic" }]}>Player Name</Text>
+                  <View style={[styles.posBadge, { backgroundColor: isDark ? "#4a5568" : "#334155" }]}>
+                    <Text style={[styles.posText, { color: "#ffffff" }]}>TEAM</Text>
+                  </View>
                 </View>
-                <View
-                  style={[
-                    styles.posBadge,
-                    {
-                      backgroundColor: isDark ? "#60a5fa" : "#1d4ed8",
-                      marginTop: 25,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.posText,
-                      { color: isDark ? "#000000" : "#ffffff" },
-                    ]}
-                  >
-                    POS
-                  </Text>
+                <View style={[styles.posBadge, { backgroundColor: isDark ? "#60a5fa" : "#1d4ed8" }]}>
+                  <Text style={[styles.posText, { color: isDark ? "#000000" : "#ffffff" }]}>POS</Text>
                 </View>
               </View>
               <View style={styles.statRow}>
@@ -1016,32 +995,17 @@ const AnalyzeTeam = () => {
                 key={proj.name}
                 style={[styles.playerCard, { borderColor: c.border }]}
               >
-                <View style={styles.playerHeader}>
-                  <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 1 }}>
                     <Text style={[styles.playerName, { color: c.text }]}>{proj.name}</Text>
-                    {proj.nfl_team ? (() => { const tc = (isDark ? NFL_TEAM_COLORS_DARK : NFL_TEAM_COLORS)[proj.nfl_team] ?? (isDark ? { bg: "#4a5568", text: "#000000" } : { bg: "#334155", text: "#ffffff" }); return (
-                      <View style={{ backgroundColor: tc.bg, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
-                        <Text style={{ color: tc.text, fontSize: 11, fontFamily: "Montserrat_700Bold" }}>{proj.nfl_team}</Text>
+                    {proj.nfl_team ? (() => { const abbr = toTeamAbbr(proj.nfl_team); const tc = (isDark ? NFL_TEAM_COLORS_DARK : NFL_TEAM_COLORS)[abbr] ?? (isDark ? { bg: "#4a5568", text: "#000000" } : { bg: "#334155", text: "#ffffff" }); return (
+                      <View style={[styles.posBadge, { backgroundColor: tc.bg }]}>
+                        <Text style={[styles.posText, { color: tc.text }]}>{abbr}</Text>
                       </View>
                     ); })() : null}
                   </View>
-                  <View
-                    style={[
-                      styles.posBadge,
-                      {
-                        backgroundColor:
-                          POS_COLORS[proj.position]?.bg ?? c.accentLight,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.posText,
-                        { color: POS_COLORS[proj.position]?.text ?? c.accent },
-                      ]}
-                    >
-                      {proj.position}
-                    </Text>
+                  <View style={[styles.posBadge, { backgroundColor: POS_COLORS[proj.position]?.bg ?? c.accentLight }]}>
+                    <Text style={[styles.posText, { color: POS_COLORS[proj.position]?.text ?? c.accent }]}>{proj.position}</Text>
                   </View>
                 </View>
                 {Object.entries(proj.stats).map(([stat, vals]) => {
@@ -1294,14 +1258,14 @@ const styles = StyleSheet.create({
   },
   playerHeader: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    flexWrap: "wrap",
+    gap: 6,
     marginBottom: 4,
   },
   playerName: {
     fontSize: 15,
     fontFamily: "Montserrat_700Bold",
-    flex: 1,
   },
   posBadge: {
     paddingHorizontal: 8,
@@ -1339,6 +1303,7 @@ const aiStyles = StyleSheet.create({
     flex: 1,
     justifyContent: "flex-end",
     alignItems: "flex-end",
+    backgroundColor: "rgba(0, 0, 0, 0.45)",
   },
   kvWrapper: {
     width: "100%",

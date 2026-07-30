@@ -1,5 +1,5 @@
 import { assignLbLabels } from "@/utils/defense-rendering";
-import { NFL_TEAM_COLORS, NFL_TEAM_COLORS_DARK } from "@/utils/nflTeamColors";
+import { NFL_TEAM_COLORS, NFL_TEAM_COLORS_DARK, toTeamAbbr } from "@/utils/nflTeamColors";
 import { Box } from "@/components/ui/box";
 import {
   FormControl,
@@ -667,16 +667,17 @@ const GenerateTeam = () => {
             </TableHeader>
             <TableBody>
               {players.map((player, index) => {
-                const teamColor = (colorScheme === "dark" ? NFL_TEAM_COLORS_DARK : NFL_TEAM_COLORS)[player.nfl_team] ?? (colorScheme === "dark" ? { bg: "#4a5568", text: "#000000" } : { bg: "#334155", text: "#ffffff" });
+                const teamAbbr = toTeamAbbr(player.nfl_team);
+                const teamColor = (colorScheme === "dark" ? NFL_TEAM_COLORS_DARK : NFL_TEAM_COLORS)[teamAbbr] ?? (colorScheme === "dark" ? { bg: "#4a5568", text: "#000000" } : { bg: "#334155", text: "#ffffff" });
                 return (
                   <TableRow key={index}>
                     <TableData>{player.position}</TableData>
                     <TableData>
                       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", flex: 1 }}>
                         <Text style={{ flex: 1 }}>{player.name}</Text>
-                        {player.nfl_team ? (
-                          <View style={{ backgroundColor: teamColor.bg, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 8 }}>
-                            <Text style={{ color: teamColor.text, fontSize: 11, fontFamily: "Montserrat_700Bold" }}>{player.nfl_team}</Text>
+                        {teamAbbr ? (
+                          <View style={[styles.teamBadge, { backgroundColor: teamColor.bg }]}>
+                            <Text style={[styles.teamBadgeText, { color: teamColor.text }]}>{teamAbbr}</Text>
                           </View>
                         ) : null}
                       </View>
@@ -880,6 +881,16 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontFamily: "Montserrat_700Bold",
     fontSize: 16,
+  },
+  teamBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginLeft: 8,
+  },
+  teamBadgeText: {
+    fontSize: 12,
+    fontFamily: "Montserrat_700Bold",
   },
 });
 

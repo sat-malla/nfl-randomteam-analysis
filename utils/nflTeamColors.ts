@@ -37,8 +37,9 @@ export const NFL_TEAM_ABBR: Record<string, string> = {
 
 export function toTeamAbbr(team: string): string {
   if (!team) return "";
-  if (team.length <= 3) return team.toUpperCase();
-  return NFL_TEAM_ABBR[team] ?? team;
+  const trimmed = team.trim();
+  if (trimmed.length <= 3) return trimmed.toUpperCase();
+  return NFL_TEAM_ABBR[trimmed] ?? "";
 }
 
 export const NFL_TEAM_COLORS: Record<string, TeamColor> = {
