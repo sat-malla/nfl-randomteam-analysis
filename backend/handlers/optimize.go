@@ -60,7 +60,7 @@ func OptimizeTeam(c *fiber.Ctx) error {
 		})
 	}
 
-	client := &http.Client{Timeout: 120 * time.Second}
+	client := &http.Client{Timeout: 300 * time.Second}
 	resp, err := client.Post(
 		fmt.Sprintf("%s/optimize-team", optimizerURL),
 		"application/json",

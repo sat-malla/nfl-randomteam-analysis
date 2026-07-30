@@ -19,6 +19,8 @@ import random
 import os
 import requests
 import nflreadpy as nfl
+import pickle
+import time as _time
 
 load_dotenv()
 
@@ -99,13 +101,13 @@ FORMATION_ROSTERS: dict[tuple[str, str], dict[str, int]] = {
     },
     ("3 WR 1 TE", "3-4 Defense"): {
         "QB": 1, "RB": 2, "WR": 3, "TE": 1, "OT": 2, "G": 2, "C": 1,
-        "DE": 2, "DT": 1, "LB": 4, "CB": 2, "SAF": 1, "FS": 1,
+        "DE": 2, "NT": 1, "OLB": 2, "ILB": 1, "MLB": 1, "CB": 2, "SAF": 1, "FS": 1,
         "Nickel": 1, "Dime": 1,
         "K": 1, "P": 1, "RS": 1, "LS": 1,
     },
     ("2 WR 2 TE", "3-4 Defense"): {
         "QB": 1, "RB": 2, "WR": 2, "TE": 2, "OT": 2, "G": 2, "C": 1,
-        "DE": 2, "DT": 1, "LB": 4, "CB": 2, "SAF": 1, "FS": 1,
+        "DE": 2, "NT": 1, "OLB": 2, "ILB": 1, "MLB": 1, "CB": 2, "SAF": 1, "FS": 1,
         "Nickel": 1, "Dime": 1,
         "K": 1, "P": 1, "RS": 1, "LS": 1,
     },
@@ -172,6 +174,8 @@ _DEF_WEIGHTS = {
 }
 _FG_WEIGHT = 0.6
 _PLAYER_POOL_CACHE: list[dict] | None = None
+_POOL_DISK_CACHE = os.path.join(os.path.dirname(__file__), ".player_pool_cache.pkl")
+_POOL_MAX_AGE_HOURS = 24
 _CONTRACTS_CACHE: pd.DataFrame | None = None
 
 
@@ -264,24 +268,6 @@ def _time_decay_weights(seasons: list[int]) -> dict[int, float]:
     max_s = max(seasons)
     return {s: float(np.exp(-_DECAY_LAMBDA * (max_s - s))) for s in seasons}
 
-
-def _supabase_fetch_all(table: str, select: str, filters: list[tuple] | None = None) -> list[dict]:
-    PAGE = 1000
-    offset = 0
-    all_rows: list[dict] = []
-    while True:
-        q = supabase.table(table).select(select)
-        if filters:
-            for method, *args in filters:
-                q = getattr(q, method)(*args)
-        batch = q.range(offset, offset + PAGE - 1).execute()
-        if not batch.data:
-            break
-        all_rows.extend(batch.data)
-        if len(batch.data) < PAGE:
-            break
-        offset += PAGE
-    return all_rows
 
 
 def _talent_percentile(player_name: str, position: str, stats_df: pd.DataFrame, age: int = 28) -> float:
@@ -397,45 +383,33 @@ def _build_player_pool(n_players: int = 300) -> list[dict]:
     if _PLAYER_POOL_CACHE is not None:
         return _PLAYER_POOL_CACHE
 
+    if os.path.exists(_POOL_DISK_CACHE):
+        cache_age_hours = (_time.time() - os.path.getmtime(_POOL_DISK_CACHE)) / 3600
+        if cache_age_hours < _POOL_MAX_AGE_HOURS:
+            try:
+                with open(_POOL_DISK_CACHE, "rb") as f:
+                    _PLAYER_POOL_CACHE = pickle.load(f)
+                print(f"[pool] loaded {len(_PLAYER_POOL_CACHE)} players from disk cache ({cache_age_hours:.1f}h old)")
+                return _PLAYER_POOL_CACHE
+            except Exception as e:
+                print(f"[pool] disk cache load failed: {e}, rebuilding")
+
     contracts = _load_contracts()
     mongo_players = _load_mongo_players()
 
-    _DEF_POSITIONS = {"DE", "DT", "NT", "DL", "LB", "OLB", "ILB", "MLB", "SLB", "WLB",
-                      "CB", "FS", "SS", "S", "SAF", "DB"}
-    MIN_SEASON = 2022
-
-    rows = _supabase_fetch_all(
-        "player_stats",
-        "player_display_name, position, team, season, "
-        "passing_yards, passing_tds, passing_interceptions, carries, rushing_yards, rushing_tds, "
-        "receptions, targets, receiving_yards, receiving_tds, "
-        "def_sacks, def_tackles_solo, def_interceptions, def_pass_defended, "
-        "fg_made, fg_att",
-        filters=[("gte", "season", MIN_SEASON)],
-    )
+    # --- main player pool from pre-aggregated view (single request, ~2k rows) ---
+    rows = supabase.table("v_player_pool").select("*").execute().data
     if not rows:
-        raise RuntimeError("Failed to fetch player pool from Supabase")
+        raise RuntimeError("Failed to fetch player pool from Supabase view v_player_pool")
 
-    df = pd.DataFrame(rows)
-    numeric_cols = [c for c in df.columns if c not in ("player_display_name", "position", "team", "season")]
+    agg = pd.DataFrame(rows)
+    numeric_cols = [c for c in agg.columns if c not in ("player_display_name", "position", "team", "n_seasons")]
     for c in numeric_cols:
-        df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0)
+        agg[c] = pd.to_numeric(agg[c], errors="coerce").fillna(0)
+    agg["n_seasons"] = pd.to_numeric(agg["n_seasons"], errors="coerce").fillna(1).astype(int)
 
-    seasons_per_player = df.groupby(["player_display_name", "position"])["season"].nunique().reset_index().rename(columns={"season": "n_seasons"})
-    agg = df.groupby(["player_display_name", "position", "team"])[numeric_cols].sum().reset_index()
-    agg = agg.merge(seasons_per_player, on=["player_display_name", "position"], how="left")
-    agg["n_seasons"] = agg["n_seasons"].fillna(1).astype(int)
-    agg["total_yards"] = agg.get("passing_yards", 0) + agg.get("rushing_yards", 0) + agg.get("receiving_yards", 0)
-    agg["total_def"] = agg.get("def_tackles_solo", 0) + agg.get("def_sacks", 0) * 5
-    agg = agg[
-        (agg["total_yards"] > 50) |
-        (agg["total_def"] > 0) |
-        (agg["def_interceptions"] > 0) |
-        (agg["def_pass_defended"] > 0) |
-        (agg["fg_made"] > 0) |
-        (agg["position"].isin(["K", "P"])) |
-        (agg["position"].isin(_DEF_POSITIONS))
-    ]
+    # keep df for _assign_salary talent percentile calculations
+    df = agg.copy()
 
     players = []
     for _, row in agg.iterrows():
@@ -452,8 +426,7 @@ def _build_player_pool(n_players: int = 300) -> list[dict]:
 
         stats = {c: float(row[c]) for c in numeric_cols if c in row}
         if pos in ("WR", "TE") and depth_order > 2:
-            max_target_share = 0.12
-            max_targets = max_target_share * 170
+            max_targets = 0.12 * 170
             if stats.get("targets", 0) > max_targets:
                 scale = max_targets / stats["targets"]
                 stats["targets"] = max_targets
@@ -471,23 +444,16 @@ def _build_player_pool(n_players: int = 300) -> list[dict]:
             "n_seasons": n_seasons,
         })
 
+    # --- punters from pre-aggregated view (single request) ---
     try:
-        punt_rows = _supabase_fetch_all(
-            "punt_stats",
-            "player_display_name, team, season, punt_yards_season, punt_attempts_season",
-            filters=[("gte", "season", MIN_SEASON)],
-        )
+        punt_rows = supabase.table("v_punt_pool").select("*").execute().data
         if punt_rows:
+            existing_names = {p["name"] for p in players}
             punt_df = pd.DataFrame(punt_rows)
             for c in ["punt_yards_season", "punt_attempts_season"]:
                 if c in punt_df.columns:
                     punt_df[c] = pd.to_numeric(punt_df[c], errors="coerce").fillna(0)
-            punt_agg = punt_df.groupby(["player_display_name", "team"])[
-                ["punt_yards_season", "punt_attempts_season"]
-            ].sum().reset_index()
-            punt_agg = punt_agg[punt_agg["punt_attempts_season"] > 0]
-            existing_names = {p["name"] for p in players}
-            for _, row in punt_agg.iterrows():
+            for _, row in punt_df.iterrows():
                 pname = row["player_display_name"]
                 if pname in existing_names:
                     continue
@@ -499,28 +465,25 @@ def _build_player_pool(n_players: int = 300) -> list[dict]:
                     "position": "P",
                     "nfl_team": current_team,
                     "salary": salary,
-                    "stats": {"punt_yards_season": float(row.get("punt_yards_season", 0)),
-                              "punt_attempts_season": float(row.get("punt_attempts_season", 0))},
+                    "stats": {
+                        "punt_yards_season": float(row.get("punt_yards_season", 0)),
+                        "punt_attempts_season": float(row.get("punt_attempts_season", 0)),
+                    },
                 })
     except Exception:
         pass
 
+    # --- return specialists from pre-aggregated view (single request) ---
     try:
-        rs_rows = _supabase_fetch_all(
-            "return_stats",
-            "player_display_name, team, season, kickoff_return_yards, kickoff_returns, punt_return_yards, punt_returns",
-            filters=[("gte", "season", MIN_SEASON)],
-        )
+        rs_rows = supabase.table("v_return_pool").select("*").execute().data
         if rs_rows:
-            rs_df = pd.DataFrame(rs_rows)
+            existing_names = {p["name"] for p in players}
             rs_num_cols = ["kickoff_return_yards", "kickoff_returns", "punt_return_yards", "punt_returns"]
+            rs_df = pd.DataFrame(rs_rows)
             for c in rs_num_cols:
                 if c in rs_df.columns:
                     rs_df[c] = pd.to_numeric(rs_df[c], errors="coerce").fillna(0)
-            rs_agg = rs_df.groupby(["player_display_name", "team"])[rs_num_cols].sum().reset_index()
-            rs_agg = rs_agg[(rs_agg["kickoff_returns"] + rs_agg["punt_returns"]) >= 10]
-            existing_names = {p["name"] for p in players}
-            for _, row in rs_agg.iterrows():
+            for _, row in rs_df.iterrows():
                 pname = row["player_display_name"]
                 if pname in existing_names:
                     continue
@@ -575,6 +538,13 @@ def _build_player_pool(n_players: int = 300) -> list[dict]:
             existing_names.add(name)
     except Exception:
         pass
+
+    try:
+        with open(_POOL_DISK_CACHE, "wb") as f:
+            pickle.dump(players, f)
+        print(f"[pool] saved {len(players)} players to disk cache")
+    except Exception as e:
+        print(f"[pool] disk cache save failed: {e}")
 
     _PLAYER_POOL_CACHE = players
     return players
@@ -662,6 +632,18 @@ def _is_valid_roster(players: list[dict], formation: tuple[str, str]) -> bool:
     return True
 
 
+# Slots that are filled from a broader position bucket.
+# Key = slot name in FORMATION_ROSTERS, value = position keys to draw from.
+_SLOT_ALIASES: dict[str, list[str]] = {
+    "NT":  ["NT", "DT"],
+    "OLB": ["OLB", "LB"],
+    "ILB": ["ILB", "LB"],
+    "MLB": ["MLB", "LB"],
+}
+# Slots whose chosen player should have their position overwritten with the slot label.
+_REMAP_SLOT_POS = {"NT", "OLB", "ILB", "MLB", "Nickel", "Dime"}
+
+
 def _random_roster(pool: list[dict], formation_pool: list[tuple[str, str]] | None = None) -> tuple[list[dict], tuple[str, str]]:
     pool_by_pos: dict[str, list[dict]] = {}
     for p in pool:
@@ -681,6 +663,12 @@ def _random_roster(pool: list[dict], formation_pool: list[tuple[str, str]] | Non
         for slot_label, count in required.items():
             if slot_label in ("Nickel", "Dime"):
                 candidates = [p for p in nd_pool if p["name"] not in used_names and p["salary"] <= budget]
+            elif slot_label in _SLOT_ALIASES:
+                candidates = [
+                    p for pos in _SLOT_ALIASES[slot_label]
+                    for p in pool_by_pos.get(pos, [])
+                    if p["name"] not in used_names and p["salary"] <= budget
+                ]
             else:
                 candidates = [p for p in pool_by_pos.get(slot_label, []) if p["name"] not in used_names and p["salary"] <= budget]
 
@@ -691,8 +679,10 @@ def _random_roster(pool: list[dict], formation_pool: list[tuple[str, str]] | Non
             chosen = random.sample(candidates, count)
             for c in chosen:
                 c = dict(c)
-                if slot_label in ("Nickel", "Dime"):
-                    c["slot_label"] = slot_label
+                if slot_label in _REMAP_SLOT_POS:
+                    c["position"] = slot_label
+                    if slot_label in ("Nickel", "Dime"):
+                        c["slot_label"] = slot_label
                 selected.append(c)
                 used_names.add(c["name"])
                 budget -= c["salary"]
@@ -818,7 +808,7 @@ def run_genetic_algorithm(
             formation = formation_a
 
             child = _crossover(parent_a, parent_b, formation)
-            child = _mutate(child, pool, formation, mutation_rate)
+            child = _mutate(child, pool, mutation_rate)
 
             if _is_valid_roster(child, formation):
                 new_population_with_formations.append((child, formation))
@@ -957,6 +947,12 @@ async def get_player_pool():
             for p in pool
         ],
     }
+
+@app.on_event("startup")
+async def _warmup():
+    import asyncio
+    loop = asyncio.get_event_loop()
+    loop.run_in_executor(None, lambda: _build_player_pool(n_players=350))
 
 if __name__ == "__main__":
     import uvicorn

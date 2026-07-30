@@ -95,7 +95,7 @@ export default function AppIcon() {
 
 
       <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow }]}>
-        <Text style={[styles.cardLabel, { color: c.subtext }]}>Choose an Icon - Colors are Based on Position Badge Colors</Text>
+        <Text style={[styles.cardLabel, { color: c.subtext }]}>Choose an Icon. Colors are based on position badge colors, so choose your favorite position's color if you would like!</Text>
         <View style={styles.grid}>
           {ICONS.map((icon) => {
             const isSelected = selected === icon.name;
