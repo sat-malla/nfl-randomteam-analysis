@@ -337,14 +337,12 @@ def build_player_distributions(player_stats, player_name, player_pos, depth_slot
                     mean = season_mean / N_GAMES
                     std = max(pos_std / N_GAMES, 0.01)
             else:
-                # player_stats rows are per-game already — no N_GAMES division needed
                 mean = float(values.mean())
                 pos_mean, pos_std = get_position_dist(player_stats, player_pos, sc)
                 if len(values) > 1:
                     std = float(values.std())
                 else:
                     std = max(mean * 0.30, pos_std)
-                # SEASON_TOTAL_STATS (fg_made, fg_att, etc.) are stored as season totals — divide those
                 if sc in SEASON_TOTAL_STATS:
                     mean, std = mean / N_GAMES, std / N_GAMES
 
@@ -640,9 +638,86 @@ def sample_all_games(distributions, flat_keys, flat_corr, n_season_sims, n_games
     return raw.reshape(n_season_sims, n_games, n)
 
 def yards_to_points(passing_yards, rushing_yards, fg_made):
-    # calibrated: avg team (~230 pass + 110 rush + 1.5 fg/game) → ~22-23 pts/game
-    # ~340 total yds -> ~20 pts from yards + ~4.5 from FG ~= 23 (NFL avg)
     return (passing_yards + rushing_yards) / 17.0 + fg_made * 3
+
+_TALENT_BASELINES = {
+    "QB":  {"passing_yards": 230.0, "rushing_yards": 15.0},
+    "RB":  {"rushing_yards": 55.0, "receiving_yards": 20.0},
+    "FB":  {"rushing_yards": 15.0, "receiving_yards": 10.0},
+    "WR":  {"receiving_yards": 55.0},
+    "TE":  {"receiving_yards": 35.0},
+}
+
+_TALENT_WEIGHTS = {"QB": 0.34, "RB": 0.22, "FB": 0.04, "WR": 0.28, "TE": 0.12}
+
+
+def compute_offense_talent(distributions):
+    """
+    Roster-wide offensive talent index (~0.80 weak .. ~1.20 elite, centered on 1.0).
+    Distinguishes equipped rosters from backup-heavy ones by comparing each skill
+    player's projected per-game production against NFL positional baselines.
+    Depth players count less (their volume is already scaled down in distributions).
+    """
+    group_scores: dict[str, list[float]] = {}
+    for name, data in distributions.items():
+        pos = data.get("position", "")
+        base = _TALENT_BASELINES.get(pos)
+        if not base:
+            continue
+        dist_map = data.get("distributions", {})
+        ratios = []
+        for stat, baseline in base.items():
+            dist = dist_map.get(stat)
+            if dist is not None and baseline > 0:
+                ratios.append(dist.mean() / baseline)
+        if ratios:
+            group_scores.setdefault(pos, []).append(float(np.mean(ratios)))
+
+    if not group_scores:
+        return 1.0
+
+    total_w = 0.0
+    weighted = 0.0
+    for pos, scores in group_scores.items():
+        w = _TALENT_WEIGHTS.get(pos, 0.0)
+        if w <= 0:
+            continue
+        scores_sorted = sorted(scores, reverse=True)
+        starter = scores_sorted[0]
+        depth = float(np.mean(scores_sorted[1:])) if len(scores_sorted) > 1 else starter
+        group_val = 0.75 * starter + 0.25 * depth
+        weighted += w * group_val
+        total_w += w
+
+    if total_w <= 0:
+        return 1.0
+    raw = weighted / total_w
+    index = 1.0 + (raw - 1.0) * 0.55
+    return float(np.clip(index, 0.80, 1.18))
+
+
+def compute_kicker_reliability(distributions):
+    """
+    Penalty-only kicker factor in (0.94 .. 1.0]. A poor FG% shaves team points
+    (missed kicks cost games); a good FG% is neutral (never boosts scoring).
+    """
+    best_pct = None
+    for data in distributions.values():
+        if data.get("position") != "K":
+            continue
+        dist_map = data.get("distributions", {})
+        made = dist_map.get("fg_made")
+        att = dist_map.get("fg_att")
+        if made is not None and att is not None and att.mean() > 0:
+            pct = made.mean() / att.mean()
+            if best_pct is None or pct > best_pct:
+                best_pct = pct
+    if best_pct is None:
+        return 1.0
+    if best_pct >= 0.84:
+        return 1.0
+    penalty = 1.0 - (0.84 - min(best_pct, 0.84)) * 0.6
+    return float(np.clip(penalty, 0.94, 1.0))
 
 def generate_schedule(n_games=17):
     opponents = random.sample(NFL_TEAMS, min(n_games, len(NFL_TEAMS)))
@@ -652,8 +727,6 @@ def generate_schedule(n_games=17):
     ]
 
 def get_opponent_strength(opponent, team_stats):
-    # returns opponent's OFFENSIVE strength relative to NFL average.
-    # >1 = stronger-scoring opponent (harder), <1 = weaker opponent (easier).
     opp_data = team_stats[team_stats["team"] == opponent]
     if opp_data.empty:
         return 1.0
@@ -728,16 +801,16 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300, 
 
     passing_per_game = np.sum(all_samples[:, :, passing_indices], axis=2) if passing_indices else np.zeros((n_season_sims, n_games))
     rushing_per_game = np.sum(all_samples[:, :, rushing_indices], axis=2) if rushing_indices else np.zeros((n_season_sims, n_games))
-    # fg_made is stored as a SEASON TOTAL in the distributions — convert to per-game for scoring
     fg_per_game = (np.sum(all_samples[:, :, fg_indices], axis=2) / N_GAMES) if fg_indices else np.zeros((n_season_sims, n_games))
-
-    # apply only home/away and coach boost to team scoring, not opponent strength
-    team_score_mult = home_away * coach_multiplier
+    offense_talent = compute_offense_talent(distributions)
+    kicker_reliability = compute_kicker_reliability(distributions)
+    team_score_mult = home_away * coach_multiplier * offense_talent * kicker_reliability
     team_points = yards_to_points(passing_per_game * team_score_mult, rushing_per_game * team_score_mult, fg_per_game)
 
     DEF_POSITIONS = {"DE", "DT", "NT", "DL", "LB", "OLB", "ILB", "MLB", "SLB", "WLB", "CB", "FS", "SS", "S", "SAF", "DB", "Nickel", "Dime"}
     def_sack_mean = 0.0
     def_tackle_mean = 0.0
+    def_int_mean = 0.0
     def_count = 0
     for name in all_player_stats:
         pos = distributions[name].get("position", "")
@@ -747,10 +820,17 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300, 
                 def_sack_mean += dist_map["def_sacks"].mean()
             if "def_tackles_solo" in dist_map:
                 def_tackle_mean += dist_map["def_tackles_solo"].mean()
+            if "def_interceptions" in dist_map:
+                def_int_mean += dist_map["def_interceptions"].mean()
             def_count += 1
-    sack_score = np.clip(def_sack_mean / max(2.5, 0.01), 0.7, 1.4)
-    tackle_score = np.clip(def_tackle_mean / max(25.0, 0.01), 0.7, 1.4)
-    def_quality = float(np.clip((sack_score + tackle_score) / 2, 0.82, 1.18))
+
+    sack_score = np.clip(def_sack_mean / 2.2, 0.7, 1.4)
+    tackle_score = np.clip(def_tackle_mean / 33.0, 0.7, 1.4)
+    turnover_score = np.clip(def_int_mean / 0.7, 0.7, 1.5)
+    def_quality = float(np.clip(
+        0.30 * sack_score + 0.25 * tackle_score + 0.45 * turnover_score,
+        0.85, 1.22
+    ))
 
     NFL_AVG_PTS = 23.0
     opp_base = (NFL_AVG_PTS * opp_strengths) / def_quality
@@ -759,7 +839,13 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300, 
         scale=7.0,
         size=(n_season_sims, n_games)
     )
+
+    takeaway_edge = np.clip(turnover_score - 1.0, 0.0, 0.5)   # 0 .. 0.5
     wins_matrix = (team_points > opp_points)
+    margin = team_points - opp_points
+    close_loss = (margin <= 0) & (margin > -7.0)
+    flip = close_loss & (np.random.random(margin.shape) < (takeaway_edge * 0.5))
+    wins_matrix = wins_matrix | flip
     all_szn_wins = wins_matrix.sum(axis=1)
 
     _OL_BOOSTED_STATS = {"rushing_yards", "carries", "rushing_tds", "passing_yards", "passing_tds"}
@@ -842,11 +928,10 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300, 
     win_vals = wins_array.astype(float)
     playoff_prob_per_sim = 1 / (1 + np.exp(-0.7 * (win_vals - 9.5)))
     playoff_probability = round(float(np.mean(playoff_prob_per_sim)) * 100, 1)
-
     avg_wins = float(np.mean(wins_array))
     win_quality = np.clip((avg_wins - 7) / 6, 0.3, 1.5)
-    superbowl_probability = round(playoff_probability * (1 / 14) * win_quality, 1)
-
+    defense_sb_bonus = 1.0 + np.clip(def_quality - 1.0, 0.0, 0.30) * 0.5
+    superbowl_probability = round(playoff_probability * (1 / 14) * win_quality * defense_sb_bonus, 1)
     avg_team_points = float(np.mean(team_points.sum(axis=1)))
     avg_opp_points = float(np.mean(opp_points.sum(axis=1)))
 
