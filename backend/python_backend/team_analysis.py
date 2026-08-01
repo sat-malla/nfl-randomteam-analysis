@@ -230,46 +230,44 @@ def build_pos_correlation_mat(team_players):
 
     for i, p1 in enumerate(team_players):
         for j, p2 in enumerate(team_players):
-            if i == j:
+            if i >= j: # iterate through upper-triangular part
                 continue
                 
             pos1, pos2 = p1["position"], p2["position"]
+            pair = {pos1, pos2}
 
-            if pos1 == "QB" and pos2 in ["WR", "TE"]:
-                corr[i][j] = 0.6
-            elif pos1 == "QB" and pos2 == "RB":
-                corr[i][j] = 0.3
-            elif pos1 in ["WR", "TE"] and pos2 in ["WR", "TE"]:
-                corr[i][j] = 0.35
+            if "QB" in pair and bool(pair & {"WR", "TE"}):
+                val = 0.55
+            elif "QB" in pair and "RB" in pair:
+                val = 0.25
+            elif pos1 in {"WR", "TE"} and pos2 in {"WR", "TE"}:
+                val = 0.30
             elif pos1 in defense_pos and pos2 in defense_pos:
-                corr[i][j] = 0.3
-            elif pos1 in offense_pos and pos2 in defense_pos:
-                corr[i][j] = -0.1
-
-            elif pos1 == "K" and pos2 in offense_pos:
-                corr[i][j] = 0.35
-            elif pos1 == "K" and pos2 == "RS":
-                corr[i][j] = 0.2 
-            elif pos1 == "K" and pos2 in defense_pos:
-                corr[i][j] = 0.15 
-
-            elif pos1 == "P" and pos2 in offense_pos:
-                corr[i][j] = -0.3
-            elif pos1 == "P" and pos2 in defense_pos:
-                corr[i][j] = 0.2   
-            elif pos1 == "P" and pos2 == "K":
-                corr[i][j] = -0.2  
-
-            elif pos1 == "RS" and pos2 in offense_pos:
-                corr[i][j] = 0.1
-            elif pos1 in ol_pos or pos2 in ol_pos:
-                corr[i][j] = 0.05
+                val = 0.25
+            elif (pos1 in offense_pos and pos2 in defense_pos) or \
+                 (pos2 in offense_pos and pos1 in defense_pos):
+                val = -0.10
+            elif "K" in pair and bool(pair & offense_pos):
+                val = 0.30
+            elif "K" in pair and "RS" in pair:
+                val = 0.15
+            elif "K" in pair and bool(pair & defense_pos):
+                val = 0.10
+            elif "P" in pair and bool(pair & offense_pos):
+                val = -0.25
+            elif "P" in pair and bool(pair & defense_pos):
+                val = 0.15
+            elif "P" in pair and "K" in pair:
+                val = -0.15
+            elif "RS" in pair and bool(pair & offense_pos):
+                val = 0.10
+            elif bool(pair & ol_pos):
+                val = 0.05
             else:
-                corr[i][j] = 0.05
-    
-    off_diag = corr.copy()
-    np.fill_diagonal(off_diag, 0)
-    assert np.max(off_diag) < 1.0, "off-diagonal 1.0 detected"
+                val = 0.05
+            
+            corr[i][j] = val
+            corr[j][i] = val
 
     return corr
 
@@ -278,76 +276,53 @@ def build_corr_matrix(team_players):
 
 # Simulation
 def simulate_game_stats(distributions, corr_mat, n_sims=500):
+    print("[simulate_game_stats] building flat_keys...")
     flat_keys = []
     for name, data in distributions.items():
         for sc in data["distributions"].keys():
             flat_keys.append((name, sc))
     
     if not flat_keys:
+        print("[simulate_game_stats] no flat_keys, returning empty")
         return pd.DataFrame()
     
-    n = len(flat_keys)
     names = list(distributions.keys())
+    n_players = len(names)
+    print(f"[simulate_game_stats] n_players={n_players}, n_flat_keys={len(flat_keys)}")
 
-    if corr_mat.shape[0] != len(names):
-        corr_mat = np.eye(len(names))
-    
-    flat_corr = np.eye(n)
-    for i, (p1, _) in enumerate(flat_keys):
-        for j, (p2, _) in enumerate(flat_keys):
-            if i == j:
-                continue
-            pi = names.index(p1)
-            pj = names.index(p2)
-            
-            if pi < corr_mat.shape[0] and pj < corr_mat.shape[1]:
-                if p1 == p2:
-                    flat_corr[i][j] = 0.7
-                else:
-                    flat_corr[i][j] = corr_mat[pi][pj] * 0.8
-            else:
-                flat_corr[i][j] = 0.0
-    
-    flat_corr = np.nan_to_num(flat_corr, nan=0.0, posinf=1.0, neginf=-1.0)
-    flat_corr = np.clip(flat_corr, -1.0, 1.0)
-    np.fill_diagonal(flat_corr, 1.0)
+    corr = corr_mat.astype(np.float64).copy()
+    np.fill_diagonal(corr, 1.0)
 
-    print("flat_corr stats:")
-    print(f"  shape: {flat_corr.shape}")
-    print(f"  min: {np.min(flat_corr)}")
-    print(f"  max: {np.max(flat_corr)}")
-    print(f"  has nan: {np.any(np.isnan(flat_corr))}")
-    print(f"  has inf: {np.any(np.isinf(flat_corr))}")
-    print(f"  diagonal: {np.diag(flat_corr)}")
-    print(flat_corr)
+    corr += np.eye(n_players) * 1e-8
 
-    # positive semidefinite (x^T A x >= 0) -> all eigenvalues are nonnegative
-    eigenvalues, eigenvectors = np.linalg.eigh(flat_corr)
-    eigenvalues = np.maximum(eigenvalues, 1e-6)
-    flat_corr = eigenvectors @ np.diag(eigenvalues) @ eigenvectors.T
+    min_eigenval = np.linalg.eigvalsh(corr).min()
+    if min_eigenval < 0:
+        corr += np.eye(n_players) * (-min_eigenval + 1e-6)
+    else:
+        corr += np.eye(n_players) * 1e-6
 
-    if not np.all(np.isfinite(flat_corr)):
-        print("WARNING: flat_corr still has non-finite values, falling back to identity")
-        flat_corr = np.eye(n)
+    print(f"[simulate_game_stats] sampling multivariate normal...")
+    player_samples = np.random.multivariate_normal(
+        mean=np.zeros(n_players),
+        cov=corr,
+        size=n_sims
+    )  # shape: (n_sims, n_players)
 
-    # gaussian copula
-    mean = np.zeros(n)
-    mv_samples = np.random.multivariate_normal(mean, flat_corr, size=n_sims)
-    uniform_samples = norm.cdf(mv_samples)
+    player_uniforms = norm.cdf(player_samples)  # shape: (n_sims, n_players)
 
-    # applying distributions
-    correlated_stats = np.zeros((n_sims, n))
-    for i, (name, sc) in enumerate(flat_keys):
-        dist = distributions[name]["distributions"][sc]
-        correlated_stats[:, i] = dist.ppf(
-            np.clip(uniform_samples[:, i], 1e-6, 1 - 1e-6)
+    correlated_stats = np.zeros((n_sims, len(flat_keys)))
+    for j, (player_name, stat_col) in enumerate(flat_keys):
+        pi = names.index(player_name)
+        dist = distributions[player_name]["distributions"][stat_col]
+        correlated_stats[:, j] = dist.ppf(
+            np.clip(player_uniforms[:, pi], 1e-6, 1 - 1e-6)
         )
 
     columns = pd.MultiIndex.from_tuples(flat_keys, names=["player", "stat"])
     return pd.DataFrame(correlated_stats, columns=columns)
 
 def simulate_single_game(distributions, corr_matrix):
-    game_sims = simulate_game_stats(distributions, corr_matrix, n_sims=500)
+    game_sims = simulate_game_stats(distributions, corr_matrix, n_sims=1)
     if game_sims.empty:
         return {}
 
@@ -359,7 +334,7 @@ def simulate_single_game(distributions, corr_matrix):
         for sc in data["distributions"].keys():
             if (name, sc) in game_sims.columns:
                 result[name][sc] = float(
-                    game_sims[(name, sc)].median()
+                    game_sims[(name, sc)].iloc[0]
                 )
     return result
 
@@ -389,7 +364,9 @@ def get_opponent_strength(opponent, team_stats):
     return (passing_factor + rushing_factor) / 2
     
 def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=1000):
+    print(f"[sim_season] starting {n_season_sims} season simulations...")
     schedule = generate_schedule(17)
+    print(f"[sim_season] schedule generated: {len(schedule)} games")
 
     all_szn_wins = []
     all_player_stats = {
@@ -442,6 +419,7 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=1000)
             for stat in all_player_stats[name]:
                 all_player_stats[name][stat].append(season_totals[name][stat])
     
+    print(f"[sim_season] all simulations done, aggregating results...")
     wins_array = np.array(all_szn_wins)
 
     player_projs = {}
@@ -459,6 +437,8 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=1000)
             }
         }
     
+    print(f"[sim_season] done. projected wins: {round(float(np.mean(wins_array)), 1)}")
+
     return {
         "schedule": schedule,
         "projected_wins": round(float(np.mean(wins_array)), 1),
@@ -485,25 +465,40 @@ def run_full_analysis(team_id):
     
     return results
 
+def compute_positional_correlations():
+    # pull all weekly player stats from supabase
+    response = supabase.table("player_stats")\
+        .select("player_display_name, position, season, passing_yards, rushing_yards, receiving_yards, def_tackles_solo, def_sacks, fg_made")\
+        .gte("season", 2019)\
+        .execute()
+    
+    df = pd.DataFrame(response.data)
+    print(df.shape)
+    print(df["position"].value_counts())
+    print(df.head())
+    return df
 
-app = FastAPI()
+compute_positional_correlations()
 
-class AnalyzeRequest(BaseModel):
-    team_id: str
 
-@app.post("/analyze-team")
-async def analyze_team(request: AnalyzeRequest):
-    try:
-        results = run_full_analysis(request.team_id)
+# app = FastAPI()
 
-        async with https.AsyncClient() as client:
-            await client.post(
-                "http://localhost:8000/api/team/analysis",
-                json={"team_id": request.team_id, **results}
-            )
+# class AnalyzeRequest(BaseModel):
+#     team_id: str
 
-        return results
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+# @app.post("/analyze-team")
+# async def analyze_team(request: AnalyzeRequest):
+#     try:
+#         results = run_full_analysis(request.team_id)
+
+#         async with httpx.AsyncClient() as client:
+#             await client.post(
+#                 "http://localhost:8000/api/team/analysis",
+#                 json={"team_id": request.team_id, **results}
+#             )
+
+#         return results
+#     except ValueError as e:
+#         raise HTTPException(status_code=404, detail=str(e))
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=str(e))
