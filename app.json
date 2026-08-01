@@ -1,0 +1,63 @@
+{
+  "expo": {
+    "name": "pro-football-random-team-generator-and-analysis",
+    "slug": "pro-football-random-team-g-and-a",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/official-PF-RTGA-icon.png",
+    "scheme": "profootballrandomteamgeneratorandanalysis",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.sathvik-malla.pro-football-random-team-generator-and-analysis"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#004BA1",
+        "foregroundImage": "./assets/images/official-PF-RTGA-icon-foreground.png"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff",
+          "dark": {
+            "backgroundColor": "#000000"
+          }
+        }
+      ],
+      [
+        "expo-alternate-app-icons",
+        [
+          { "name": "iconRed",    "ios": { "light": "./assets/images/icon-red.png" } },
+          { "name": "iconGreen",  "ios": { "light": "./assets/images/icon-green.png" } },
+          { "name": "iconAmber",  "ios": { "light": "./assets/images/icon-amber.png" } },
+          { "name": "iconOrange", "ios": { "light": "./assets/images/icon-orange.png" } },
+          { "name": "iconPink",   "ios": { "light": "./assets/images/icon-pink.png" } },
+          { "name": "iconCyan",   "ios": { "light": "./assets/images/icon-cyan.png" } },
+          { "name": "iconNavy",   "ios": { "light": "./assets/images/icon-navy.png" } },
+          { "name": "iconLime",   "ios": { "light": "./assets/images/icon-lime.png" } },
+          { "name": "iconTeal",   "ios": { "light": "./assets/images/icon-teal.png" } },
+          { "name": "iconMaroon", "ios": { "light": "./assets/images/icon-maroon.png" } }
+        ]
+      ],
+      "expo-web-browser",
+      "expo-font"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}

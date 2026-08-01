@@ -102,14 +102,17 @@ def player_stats_preprocess(df):
 
 def team_stats_preprocess(df):
     df = df.filter(pl.col("season_type") == "REG")
-    
+
     keep = [
         "team", "season", "season_type",
         "passing_yards", "passing_tds", "passing_interceptions",
-        "rushing_yards", "rushing_tds", 
+        "rushing_yards", "rushing_tds", "carries",
         "receiving_yards", "receiving_tds", "def_tackles_solo",
         "def_sacks", "def_interceptions", "def_pass_defended",
         "fg_made", "fg_att", "fg_pct",
+        "sacks_suffered", "def_qb_hits",
+        "pt_att", "pt_yards", "pt_inside_20", "pt_net_yards",
+        "pat_made", "pat_att",
     ]
     existing = [col for col in keep if col in df.columns]
     df = df.select(existing)
@@ -117,7 +120,7 @@ def team_stats_preprocess(df):
     numeric_cols = [c for c in existing if c not in ["team", "season_type"]]
     for col in numeric_cols:
         df = df.with_columns(pl.col(col).fill_null(0))
-    
+
     team_mapping = {
       "ARI": "Arizona Cardinals",
       "ARZ": "Arizona Cardinals",
@@ -165,6 +168,51 @@ def team_stats_preprocess(df):
     df = df.with_columns(pl.col("team").replace(team_mapping))
     
     return df
+
+def coaches_preprocess(df):
+    keep = ["season", "home_team", "home_coach", "away_team", "away_coach"]
+    existing = [col for col in keep if col in df.columns]
+    df = df.select(existing)
+
+    df = df.filter(
+        pl.col("home_coach").is_not_null() & pl.col("away_coach").is_not_null()
+    )
+
+    team_mapping = {
+      "ARI": "Arizona Cardinals", "ARZ": "Arizona Cardinals",
+      "ATL": "Atlanta Falcons", "BAL": "Baltimore Ravens", "BLT": "Baltimore Ravens",
+      "BUF": "Buffalo Bills", "CAR": "Carolina Panthers", "CHI": "Chicago Bears",
+      "CIN": "Cincinnati Bengals", "CLE": "Cleveland Browns", "CLV": "Cleveland Browns",
+      "DAL": "Dallas Cowboys", "DEN": "Denver Broncos", "DET": "Detroit Lions",
+      "GB": "Green Bay Packers", "HOU": "Houston Texans", "HST": "Houston Texans",
+      "IND": "Indianapolis Colts", "JAX": "Jacksonville Jaguars", "KC": "Kansas City Chiefs",
+      "LAR": "Los Angeles Rams", "LA": "Los Angeles Rams", "STL": "Los Angeles Rams", "SL": "Los Angeles Rams",
+      "LAC": "Los Angeles Chargers", "SD": "Los Angeles Chargers",
+      "LV": "Las Vegas Raiders", "OAK": "Las Vegas Raiders",
+      "MIA": "Miami Dolphins", "MIN": "Minnesota Vikings", "NE": "New England Patriots",
+      "NO": "New Orleans Saints", "NYG": "New York Giants", "NYJ": "New York Jets",
+      "PHI": "Philadelphia Eagles", "PIT": "Pittsburgh Steelers", "SF": "San Francisco 49ers",
+      "SEA": "Seattle Seahawks", "TB": "Tampa Bay Buccaneers", "TEN": "Tennessee Titans",
+      "WAS": "Washington Commanders",
+    }
+
+    home = df.select([
+        pl.col("season"),
+        pl.col("home_team").replace(team_mapping).alias("team"),
+        pl.col("home_coach").alias("head_coach"),
+    ])
+    away = df.select([
+        pl.col("season"),
+        pl.col("away_team").replace(team_mapping).alias("team"),
+        pl.col("away_coach").alias("head_coach"),
+    ])
+
+    combined = pl.concat([home, away])
+    # Keep only the most recent coach per season per team
+    combined = combined.sort("season", descending=True).unique(subset=["season", "team"], keep="first")
+
+    return combined.sort(["season", "team"])
+
 
 def schedules_preprocess(df):
     df = df.filter(pl.col("game_type") == "REG")
@@ -388,8 +436,73 @@ def depth_charts_preprocess(df):
 
     return df
 
+def snap_counts_preprocess(df):
+    df = df.filter(pl.col("game_type") == "REG")
 
-# Main execution
+    keep = ["game_id", "season", "game_type", "week", "player", "position", "team",
+            "offense_pct", "st_pct"]
+    existing = [col for col in keep if col in df.columns]
+    df = df.select(existing)
+
+    df = df.filter(pl.col("player").is_not_null() & pl.col("team").is_not_null())
+
+    for c in ["offense_pct", "st_pct"]:
+        if c in df.columns:
+            df = df.with_columns(pl.col(c).fill_null(0.0))
+
+    ol_ls_positions = ["T", "G", "C", "LS"]
+    df = df.filter(pl.col("position").is_in(ol_ls_positions))
+
+    df = (
+        df.sort("offense_pct", descending=True)
+        .unique(subset=["game_id", "player"], keep="first")
+    )
+
+    team_mapping = {
+        "ARI": "Arizona Cardinals",   "ARZ": "Arizona Cardinals",
+        "ATL": "Atlanta Falcons",     "BAL": "Baltimore Ravens",
+        "BLT": "Baltimore Ravens",    "BUF": "Buffalo Bills",
+        "CAR": "Carolina Panthers",   "CHI": "Chicago Bears",
+        "CIN": "Cincinnati Bengals",  "CLE": "Cleveland Browns",
+        "CLV": "Cleveland Browns",    "DAL": "Dallas Cowboys",
+        "DEN": "Denver Broncos",      "DET": "Detroit Lions",
+        "GB":  "Green Bay Packers",   "HOU": "Houston Texans",
+        "HST": "Houston Texans",      "IND": "Indianapolis Colts",
+        "JAX": "Jacksonville Jaguars","KC":  "Kansas City Chiefs",
+        "LAR": "Los Angeles Rams",    "LA":  "Los Angeles Rams",
+        "SL":  "Los Angeles Rams",    "STL": "Los Angeles Rams",
+        "LAC": "Los Angeles Chargers","SD":  "Los Angeles Chargers",
+        "LV":  "Las Vegas Raiders",   "OAK": "Las Vegas Raiders",
+        "MIA": "Miami Dolphins",      "MIN": "Minnesota Vikings",
+        "NE":  "New England Patriots","NO":  "New Orleans Saints",
+        "NYG": "New York Giants",     "NYJ": "New York Jets",
+        "PHI": "Philadelphia Eagles", "PIT": "Pittsburgh Steelers",
+        "SF":  "San Francisco 49ers", "SEA": "Seattle Seahawks",
+        "TB":  "Tampa Bay Buccaneers","TEN": "Tennessee Titans",
+        "WAS": "Washington Commanders",
+    }
+    df = df.with_columns(pl.col("team").replace(team_mapping))
+
+    return df
+
+
+def upsert_snap_counts(supabase, df):
+    """Upsert snap_counts in chunks — too large for wipe-reinsert."""
+    if df.is_empty():
+        return
+    records = df.to_dicts()
+    chunk_size = 1000
+    for i in range(0, len(records), chunk_size):
+        chunk = records[i:i + chunk_size]
+        seen = {}
+        for row in chunk:
+            key = (row["game_id"], row["player"])
+            if key not in seen:
+                seen[key] = row
+        chunk = list(seen.values())
+        supabase.table("snap_counts").upsert(chunk, on_conflict="game_id,player").execute()
+        time.sleep(0.2)
+
 
 supabase_client = get_client()
 
@@ -408,12 +521,23 @@ rosters = nfl.load_rosters(seasons=list(range(2015, 2026)))
 rosters = rosters_preprocess(rosters)
 store_table(supabase_client, "rosters", rosters)
 
-# Team stats
+# Team stats (now includes sacks_suffered, def_qb_hits, pt_*, pat_*)
 team_stats = nfl.load_team_stats(seasons=list(range(2015, 2026)))
 team_stats = team_stats_preprocess(team_stats)
 store_table(supabase_client, "team_stats", team_stats)
 
 # Schedules
-schedules = nfl.load_schedules(seasons=list(range(2015, 2026)))
-schedules = schedules_preprocess(schedules)
+schedules_raw = nfl.load_schedules(seasons=list(range(2015, 2026)))
+schedules = schedules_preprocess(schedules_raw)
 store_table(supabase_client, "schedules", schedules)
+
+# Coaches
+coaches = coaches_preprocess(schedules_raw)
+store_table(supabase_client, "coaches", coaches)
+
+# Snap counts
+print("Loading snap counts (OL/LS only)...")
+snap_counts_raw = nfl.load_snap_counts(seasons=list(range(2015, 2026)))
+snap_counts = snap_counts_preprocess(snap_counts_raw)
+print(f"Upserting {len(snap_counts)} snap count rows...")
+upsert_snap_counts(supabase_client, snap_counts)

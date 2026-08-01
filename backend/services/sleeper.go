@@ -21,12 +21,63 @@ type SleeperPlayer struct {
 	Position        string `json:"position"`
 	NFLTeam         string `json:"team"`
 	DepthChartOrder int    `json:"depth_chart_order"`
+	YearsExp        int    `json:"years_exp"`
+	SearchRank      int    `json:"search_rank"`
 	Active          bool   `json:"active"`
 	InjuryStatus    string `json:"injury_status"`
 }
 
 type SleeperService struct {
 	collection *mongo.Collection
+}
+
+func selectionWeight(searchRank, yearsExp, depthChartOrder int) int {
+	const noRank = 999
+	const sentinel = 9999999
+	
+	var base int
+	if searchRank <= 0 || searchRank >= sentinel {
+		if yearsExp <= 0 {
+			base = 1
+		} else if yearsExp >= 3 {
+			base = 3
+		} else {
+			base = 2
+		}
+	} else if searchRank < noRank {
+		switch {
+		case searchRank <= 100:
+			base = 20
+		case searchRank <= 300:
+			base = 15
+		default:
+			base = 10
+		}
+	} else {
+		if yearsExp <= 0 {
+			base = 1
+		} else if yearsExp >= 5 {
+			base = 8
+		} else {
+			base = 2 + yearsExp
+		}
+	}
+
+	switch {
+	case depthChartOrder <= 0:
+		base = base * 2 / 5
+	case depthChartOrder == 1:
+		// None - Starter: full weight (no change)
+	case depthChartOrder == 2:
+		base = base / 2
+	default:
+		base = base / 5
+	}
+
+	if base < 1 {
+		base = 1
+	}
+	return base
 }
 
 func NewSleeperService(collection *mongo.Collection) *SleeperService {
@@ -60,8 +111,8 @@ func (s *SleeperService) SyncPlayers(ctx context.Context) error {
 		"WR": true,
 		"TE": true,
 		"OT": true,
-		"G":  true,
-		"C":  true,
+		"G": true,
+		"C": true,
 		"DE": true,
 		"DT": true,
 		"NT": true,
@@ -69,9 +120,9 @@ func (s *SleeperService) SyncPlayers(ctx context.Context) error {
 		"CB": true,
 		"DB": true,
 		"SS": true,
-		"S":  true,
-		"K":  true,
-		"P":  true,
+		"S": true,
+		"K": true,
+		"P": true,
 		"LS": true,
 	}
 
@@ -81,11 +132,11 @@ func (s *SleeperService) SyncPlayers(ctx context.Context) error {
 			continue
 		}
 		filter := bson.M{"player_id": playerID}
-		update := bson.M{"$set": bson.M{ // only updates specified fields, preserve other existing fields
-			"player_id":  playerID,
-			"full_name":  player.FullName,
+		update := bson.M{"$set": bson.M{
+			"player_id": playerID,
+			"full_name": player.FullName,
 			"first_name": player.FirstName,
-			"last_name":  player.LastName,
+			"last_name": player.LastName,
 			"position": func() string {
 				if player.DepthChartOrder > 2 && (player.Position == "RB" || player.Position == "WR") {
 					return "RS"
@@ -94,11 +145,14 @@ func (s *SleeperService) SyncPlayers(ctx context.Context) error {
 				}
 				return player.Position
 			}(),
-			"nfl_team":          player.NFLTeam,
+			"nfl_team": player.NFLTeam,
 			"depth_chart_order": player.DepthChartOrder,
-			"active":            player.Active,
-			"injury_status":     player.InjuryStatus,
-			"updated_at":        time.Now(),
+			"years_exp": player.YearsExp,
+			"search_rank": player.SearchRank,
+			"selection_weight": selectionWeight(player.SearchRank, player.YearsExp, player.DepthChartOrder),
+			"active": player.Active,
+			"injury_status": player.InjuryStatus,
+			"updated_at": time.Now(),
 		}}
 		operation := mongo.NewUpdateOneModel().
 			SetFilter(filter).
@@ -112,7 +166,7 @@ func (s *SleeperService) SyncPlayers(ctx context.Context) error {
 	for i := 0; i < len(operations); i += batchSize {
 		end := min(i+batchSize, len(operations))
 		batch := operations[i:end]
-		opts := options.BulkWrite().SetOrdered(false) // unordered for better performance
+		opts := options.BulkWrite().SetOrdered(false)
 		result, err := s.collection.BulkWrite(ctx, batch, opts)
 		if err != nil {
 			log.Printf("Error in bulk write batch %d-%d: %v", i, end, err)
@@ -121,7 +175,7 @@ func (s *SleeperService) SyncPlayers(ctx context.Context) error {
 		totalUpserted += int(result.UpsertedCount) + int(result.ModifiedCount)
 		log.Printf("Processed batch %d-%d", i, end)
 
-		time.Sleep(100 * time.Millisecond) // Small delay between batches to avoid overwhelming the database
+		time.Sleep(100 * time.Millisecond)
 	}
 	log.Printf("Synced %d active NFL players to database", totalUpserted)
 	return nil

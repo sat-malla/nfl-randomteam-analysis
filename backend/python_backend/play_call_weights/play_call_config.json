@@ -1,0 +1,23 @@
+{
+  "emb_dim": 8,
+  "hidden": 512,
+  "dropout": 0.3,
+  "n_classes": 4,
+  "n_features": 10,
+  "inference_temperature": 0.8,
+  "pass_boost": 2.0,
+  "best_val_acc": 0.7379717230796814,
+  "training_seasons": [
+    2015,
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+  ]
+}

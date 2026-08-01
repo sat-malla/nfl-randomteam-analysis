@@ -14,14 +14,14 @@ type eventRepository struct {
 }
 
 func (r *eventRepository) GetMany(ctx context.Context) ([]*models.Event, error) {
-	cursor, err := r.collection.Find(ctx, bson.M{}) // cursor is an iterator MongoDB returns
+	cursor, err := r.collection.Find(ctx, bson.M{})
 	if err != nil {
 		return nil, err
 	}
 	defer cursor.Close(ctx)
 
 	var events []*models.Event
-	if err := cursor.All(ctx, &events); err != nil { // reads all documents from the cursor into the events slice
+	if err := cursor.All(ctx, &events); err != nil {
 		return nil, err
 	}
 
@@ -34,7 +34,7 @@ func (r *eventRepository) GetOne(ctx context.Context, eventId string) (*models.E
 		return nil, err
 	}
 	var event models.Event
-	err = r.collection.FindOne(ctx, bson.M{"_id": objectId}).Decode(&event) // finds the document with the given ID, and the Decode() populates event struct with document data
+	err = r.collection.FindOne(ctx, bson.M{"_id": objectId}).Decode(&event)
 	if err != nil {
 		return nil, err
 	}

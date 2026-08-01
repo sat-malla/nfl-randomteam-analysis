@@ -14,22 +14,27 @@ type TeamRepository struct {
 }
 
 func (r *TeamRepository) GetMany(ctx context.Context) ([]*models.Team, error) {
-	cursor, err := r.collection.Find(ctx, bson.M{}) // cursor is an iterator MongoDB returns
+	cursor, err := r.collection.Find(ctx, bson.M{})
 	if err != nil {
 		return nil, err
 	}
 	defer cursor.Close(ctx)
 
 	var teams []*models.Team
-	if err := cursor.All(ctx, &teams); err != nil { // reads all documents from the cursor into the teams slice
+	if err := cursor.All(ctx, &teams); err != nil {
 		return nil, err
 	}
 
 	return teams, nil
 }
 
-func (r *TeamRepository) GetOne(ctx context.Context, teamId uint) (*models.Team, error) {
-	teamResult := r.collection.FindOne(ctx, bson.M{"_id": teamId})
+func (r *TeamRepository) GetOne(ctx context.Context, teamId string) (*models.Team, error) {
+	oid, err := primitive.ObjectIDFromHex(teamId)
+	if err != nil {
+		return nil, err
+	}
+
+	teamResult := r.collection.FindOne(ctx, bson.M{"_id": oid})
 
 	if teamResult.Err() != nil {
 		return nil, teamResult.Err()
@@ -54,8 +59,12 @@ func (r *TeamRepository) CreateOne(ctx context.Context, team models.Team) (*mode
 	return &team, nil
 }
 
-func (r *TeamRepository) DeleteOne(ctx context.Context, teamId uint) error {
-	_, err := r.collection.DeleteOne(ctx, bson.M{"_id": teamId})
+func (r *TeamRepository) DeleteOne(ctx context.Context, teamId string) error {
+	oid, err := primitive.ObjectIDFromHex(teamId)
+	if err != nil {
+		return err
+	}
+	_, err = r.collection.DeleteOne(ctx, bson.M{"_id": oid})
 	return err
 }
 

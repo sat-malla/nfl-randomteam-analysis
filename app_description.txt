@@ -1,0 +1,20 @@
+Pro Football RTGA (Pro Football Random Team Generator & Analysis) is a solo-developed, non-commercial mobile app (iOS/Android) built with React Native/Expo. It is a free, passion-project app with no subscriptions or paywalls, with an optional voluntary donation feature.
+
+Core features:
+- Random Team Generator: Users generate a custom NFL roster by drafting random players across all positions, subject to a salary cap constraint. Players are sourced from real NFL data. The team generator includes a head coach, which can influence the team's performance based on a coach's performance.
+- Team Optimizer: Users can optimize their generated roster using an ML-based algorithm that maximizes team performance within the salary cap.
+- Game Simulation: Users simulate a game between their custom team and any real NFL team from a selectable season (2015-2025). The simulation uses machine learning models trained on real NFL play-by-play data to produce realistic game outcomes, including scores, individual player stats, and game events.
+- Team Analysis: Users can view a detailed breakdown of their custom roster including offensive/defensive personnel groupings (base, nickel, dime), positional ratings, and overall team strengths. There is an AI analysis feature for users to briefly view how their team will look to be like if they played in a real NFL season, evaluating individual statistics and team statistics.
+- Contact page: Users can contact and ask questions to me via a given form in the app, or I also have provided an email for them to contact me through their own choice of email if they wish. The app does not collect, store, or access any user data even if they enter their email or name; however, this data is "stored" in a way within email when I get email notifications through Formspree that I have received an email.
+- Donations: Users can make a one-time voluntary donation of any amount (minimum $0.50) via Stripe Checkout. All payment processing is handled entirely by Stripe; the app does not collect, store, or access any payment or personal financial information.
+
+Data & Backend: The app connects to a backend API that interfaces with NFL player data (sourced via the Sleeper API and nflverse), a MongoDB database, and Python-based ML microservices for simulation and optimization. No user accounts or personal data are collected.
+
+Third party sources:
+- Formspree: to check any contact messages that have been received
+- Brevo: send email to user confirming I, the creator, has received the email
+- Sleeper API + nflversepy: for database collection and storage for team generation and analysis
+- Supabase: To store and fetch the data for NFL team generation and analysis
+- Groq: free AI model I use for the AI analysis part of the team analysis page
+- Gluestack UI: UI component library I use, not my own component library
+- Stripe: to process and send donations to my bank account.

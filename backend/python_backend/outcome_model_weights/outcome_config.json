@@ -1,0 +1,43 @@
+{
+  "emb_dim": 8,
+  "hidden": 512,
+  "dropout": 0.3,
+  "n_features": 14,
+  "best_val_loss": 3.09278954252477,
+  "training_seasons": [
+    2015,
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+  ],
+  "loss_weights": {
+    "W_YARDS": 1.0,
+    "W_TURNOVER": 2.0,
+    "W_TD": 4.0,
+    "W_REC_POS": 2.0,
+    "W_PUNT_YARDS": 1.0,
+    "W_PUNT_BLOCK": 3.0,
+    "W_FG_RESULT": 2.0
+  },
+  "yards_clip": [
+    -10,
+    50
+  ],
+  "punt_yards_clip": [
+    0,
+    80
+  ],
+  "matchup_col_indices": {
+    "feat_def_pass_tier": 10,
+    "feat_def_rush_tier": 11,
+    "feat_def_sack_tier": 12,
+    "feat_def_coverage_tier": 13
+  }
+}

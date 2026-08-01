@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+supabase
+pydantic
+pymongo
+python-dotenv
+pandas
+numpy
+scipy
+httpx
+certifi
+nflreadpy
+polars
+torch
+scikit-learn

@@ -1,0 +1,32 @@
+{
+  "feature_cols": [
+    "feat_down",
+    "feat_dist",
+    "feat_zone",
+    "feat_score",
+    "feat_qtr",
+    "feat_time",
+    "feat_half_end",
+    "feat_trailing",
+    "feat_shotgun",
+    "feat_goal_to_go"
+  ],
+  "feat_cardinality": {
+    "feat_down": 4,
+    "feat_dist": 4,
+    "feat_zone": 6,
+    "feat_score": 5,
+    "feat_qtr": 5,
+    "feat_time": 5,
+    "feat_half_end": 2,
+    "feat_trailing": 2,
+    "feat_shotgun": 2,
+    "feat_goal_to_go": 2
+  },
+  "classes": [
+    "field_goal",
+    "pass",
+    "punt",
+    "run"
+  ]
+}
