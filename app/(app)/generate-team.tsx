@@ -50,6 +50,9 @@ const GenerateTeam = () => {
   const [savedTeam, setSavedTeam] = useState(false);
   const [offensePickerOpen, setOffensePickerOpen] = useState(false);
   const [defensePickerOpen, setDefensePickerOpen] = useState(false);
+  const [players, setPlayers] = useState([{ position: "", name: "", nfl_team: "" }]);
+  const [headCoach, setHeadCoach] = useState("");
+  const [headCoachTeam, setHeadCoachTeam] = useState("");
   const colorScheme = useColorScheme();
 
   const isFormFilled = !formData.teamName || !formData.offenseType || !formData.defenseType;
@@ -70,10 +73,6 @@ const GenerateTeam = () => {
     colorScheme === "light" ? styles.lightSaveButton : styles.darkSaveButton;
   const themeSaveButtonTextStyle =
     colorScheme === "light" ? styles.lightSaveButtonText : styles.darkSaveButtonText;
-
-  const [players, setPlayers] = useState([{ position: "", name: "", nfl_team: "" }]);
-  const [headCoach, setHeadCoach] = useState("");
-  const [headCoachTeam, setHeadCoachTeam] = useState("");
 
   const abbToTeamNames = {
       "ARI": "Arizona Cardinals",

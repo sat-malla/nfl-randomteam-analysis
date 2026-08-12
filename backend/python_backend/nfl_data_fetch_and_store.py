@@ -10,10 +10,11 @@ load_dotenv()
 YEARS = list(range(2015, 2026))
 
 def get_client():
-    return create_client(
-        os.getenv("SUPABASE_URL"),
-        os.getenv("SUPABASE_KEY")
-    )
+    url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_KEY")
+    if not url or not key:
+        raise ValueError("Missing SUPABASE_URL or SUPABASE_KEY in environment")
+    return create_client(url, key)
 
 def store_table(supabase, table_name, df):
     if df.is_empty():

@@ -190,7 +190,7 @@ export default function RootLayout() {
           </DrawerHeader>
           <DrawerBody style={{ marginTop: 30 }}>
             <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 12 }}>
-              <Text style={{ fontFamily: "Montserrat_700Bold" }} size="lg">Dark Mode</Text>
+              <Text style={{ fontFamily: "Montserrat_700Bold" }} size="md">Dark Mode</Text>
               <Switch
                 trackColor={{ false: "#ccc", true: "#3b82f6" }}
                 thumbColor="#fff"

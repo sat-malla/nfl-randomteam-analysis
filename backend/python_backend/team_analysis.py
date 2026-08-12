@@ -393,44 +393,46 @@ def build_pos_correlation_mat(team_players):
 
     for i, p1 in enumerate(team_players):
         for j, p2 in enumerate(team_players):
-            if i >= j: # iterate through upper-triangular part
+            if i == j:
                 continue
                 
             pos1, pos2 = p1["position"], p2["position"]
-            pair = {pos1, pos2}
 
-            if "QB" in pair and bool(pair & {"WR", "TE"}):
-                val = 0.55
-            elif "QB" in pair and "RB" in pair:
-                val = 0.25
-            elif pos1 in {"WR", "TE"} and pos2 in {"WR", "TE"}:
-                val = 0.30
+            if pos1 == "QB" and pos2 in ["WR", "TE"]:
+                corr[i][j] = 0.6
+            elif pos1 == "QB" and pos2 == "RB":
+                corr[i][j] = 0.3
+            elif pos1 in ["WR", "TE"] and pos2 in ["WR", "TE"]:
+                corr[i][j] = 0.35
             elif pos1 in defense_pos and pos2 in defense_pos:
-                val = 0.25
-            elif (pos1 in offense_pos and pos2 in defense_pos) or \
-                 (pos2 in offense_pos and pos1 in defense_pos):
-                val = -0.10
-            elif "K" in pair and bool(pair & offense_pos):
-                val = 0.30
-            elif "K" in pair and "RS" in pair:
-                val = 0.15
-            elif "K" in pair and bool(pair & defense_pos):
-                val = 0.10
-            elif "P" in pair and bool(pair & offense_pos):
-                val = -0.25
-            elif "P" in pair and bool(pair & defense_pos):
-                val = 0.15
-            elif "P" in pair and "K" in pair:
-                val = -0.15
-            elif "RS" in pair and bool(pair & offense_pos):
-                val = 0.10
-            elif bool(pair & ol_pos):
-                val = 0.05
+                corr[i][j] = 0.3
+            elif pos1 in offense_pos and pos2 in defense_pos:
+                corr[i][j] = -0.1
+
+            elif pos1 == "K" and pos2 in offense_pos:
+                corr[i][j] = 0.35
+            elif pos1 == "K" and pos2 == "RS":
+                corr[i][j] = 0.2 
+            elif pos1 == "K" and pos2 in defense_pos:
+                corr[i][j] = 0.15 
+
+            elif pos1 == "P" and pos2 in offense_pos:
+                corr[i][j] = -0.3
+            elif pos1 == "P" and pos2 in defense_pos:
+                corr[i][j] = 0.2   
+            elif pos1 == "P" and pos2 == "K":
+                corr[i][j] = -0.2  
+
+            elif pos1 == "RS" and pos2 in offense_pos:
+                corr[i][j] = 0.1
+            elif pos1 in ol_pos or pos2 in ol_pos:
+                corr[i][j] = 0.05
             else:
-                val = 0.05
-            
-            corr[i][j] = val
-            corr[j][i] = val
+                corr[i][j] = 0.05
+    
+    off_diag = corr.copy()
+    np.fill_diagonal(off_diag, 0)
+    assert np.max(off_diag) < 1.0, "off-diagonal 1.0 detected"
 
     return corr
 
@@ -1041,31 +1043,16 @@ def run_full_analysis(team_id):
 
     return results
 
-def compute_positional_correlations():
-    # pull all weekly player stats from supabase
-    response = supabase.table("player_stats")\
-        .select("player_display_name, position, season, passing_yards, rushing_yards, receiving_yards, def_tackles_solo, def_sacks, fg_made")\
-        .gte("season", 2019)\
-        .execute()
-    
-    df = pd.DataFrame(response.data)
-    print(df.shape)
-    print(df["position"].value_counts())
-    print(df.head())
-    return df
 
-compute_positional_correlations()
+app = FastAPI()
 
+class AnalyzeRequest(BaseModel):
+    team_id: str
 
-# app = FastAPI()
-
-# class AnalyzeRequest(BaseModel):
-#     team_id: str
-
-# @app.post("/analyze-team")
-# async def analyze_team(request: AnalyzeRequest):
-#     try:
-#         results = run_full_analysis(request.team_id)
+@app.post("/analyze-team")
+async def analyze_team(request: AnalyzeRequest):
+    try:
+        results = run_full_analysis(request.team_id)
 
         go_url = os.getenv("GO_API_URL", "http://localhost:8000")
         async with httpx.AsyncClient(timeout=10) as client:
@@ -1074,8 +1061,8 @@ compute_positional_correlations()
                 json={"team_id": request.team_id, "analysis": results},
             )
 
-#         return results
-#     except ValueError as e:
-#         raise HTTPException(status_code=404, detail=str(e))
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
+        return results
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

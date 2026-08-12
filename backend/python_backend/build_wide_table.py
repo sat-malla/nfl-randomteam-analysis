@@ -31,33 +31,35 @@ load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+if not SUPABASE_URL or not SUPABASE_KEY:
+        raise ValueError("Missing SUPABASE_URL or SUPABASE_KEY in environment")
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 START_SEASON = 2015
-END_SEASON   = 2025
-SEASON_TYPE  = "REG"
+END_SEASON = 2025
+SEASON_TYPE = "REG"
 
 TEAM_MAPPING = {
-    "ARI": "Arizona Cardinals",   "ARZ": "Arizona Cardinals",
-    "ATL": "Atlanta Falcons",     "BAL": "Baltimore Ravens",
-    "BLT": "Baltimore Ravens",    "BUF": "Buffalo Bills",
-    "CAR": "Carolina Panthers",   "CHI": "Chicago Bears",
-    "CIN": "Cincinnati Bengals",  "CLE": "Cleveland Browns",
-    "CLV": "Cleveland Browns",    "DAL": "Dallas Cowboys",
-    "DEN": "Denver Broncos",      "DET": "Detroit Lions",
-    "GB":  "Green Bay Packers",   "HOU": "Houston Texans",
-    "HST": "Houston Texans",      "IND": "Indianapolis Colts",
-    "JAX": "Jacksonville Jaguars","KC":  "Kansas City Chiefs",
-    "LAR": "Los Angeles Rams",    "LA":  "Los Angeles Rams",
-    "SL":  "Los Angeles Rams",    "STL": "Los Angeles Rams",
-    "LAC": "Los Angeles Chargers","SD":  "Los Angeles Chargers",
-    "LV":  "Las Vegas Raiders",   "OAK": "Las Vegas Raiders",
-    "MIA": "Miami Dolphins",      "MIN": "Minnesota Vikings",
-    "NE":  "New England Patriots","NO":  "New Orleans Saints",
-    "NYG": "New York Giants",     "NYJ": "New York Jets",
+    "ARI": "Arizona Cardinals", "ARZ": "Arizona Cardinals",
+    "ATL": "Atlanta Falcons", "BAL": "Baltimore Ravens",
+    "BLT": "Baltimore Ravens", "BUF": "Buffalo Bills",
+    "CAR": "Carolina Panthers", "CHI": "Chicago Bears",
+    "CIN": "Cincinnati Bengals", "CLE": "Cleveland Browns",
+    "CLV": "Cleveland Browns", "DAL": "Dallas Cowboys",
+    "DEN": "Denver Broncos", "DET": "Detroit Lions",
+    "GB":  "Green Bay Packers", "HOU": "Houston Texans",
+    "HST": "Houston Texans", "IND": "Indianapolis Colts",
+    "JAX": "Jacksonville Jaguars", "KC": "Kansas City Chiefs",
+    "LAR": "Los Angeles Rams", "LA": "Los Angeles Rams",
+    "SL":  "Los Angeles Rams", "STL": "Los Angeles Rams",
+    "LAC": "Los Angeles Chargers","SD": "Los Angeles Chargers",
+    "LV":  "Las Vegas Raiders", "OAK": "Las Vegas Raiders",
+    "MIA": "Miami Dolphins", "MIN": "Minnesota Vikings",
+    "NE":  "New England Patriots","NO": "New Orleans Saints",
+    "NYG": "New York Giants", "NYJ": "New York Jets",
     "PHI": "Philadelphia Eagles", "PIT": "Pittsburgh Steelers",
     "SF":  "San Francisco 49ers", "SEA": "Seattle Seahawks",
-    "TB":  "Tampa Bay Buccaneers","TEN": "Tennessee Titans",
+    "TB":  "Tampa Bay Buccaneers", "TEN": "Tennessee Titans",
     "WAS": "Washington Commanders",
 }
 
@@ -92,7 +94,7 @@ def rank_group(df: pd.DataFrame, rank_col: str, n: int, prefix: str, stat_cols: 
         label = f"{prefix}{slot}"
         for sc in stat_cols:
             out[f"{label}_{sc}"] = (
-                float(df.loc[slot - 1, sc])
+                float(df.loc[slot - 1, sc])  # type: ignore
                 if slot - 1 < len(df) and sc in df.columns
                 else 0.0
             )
@@ -104,7 +106,7 @@ def extract_player_stats() -> pd.DataFrame:
     ps = ps[ps["season"].between(START_SEASON, END_SEASON)].copy()
 
     if "interceptions" in ps.columns and "passing_interceptions" not in ps.columns:
-        ps = ps.rename(columns={"interceptions": "passing_interceptions"})
+        ps = ps.rename(columns={"interceptions": "passing_interceptions"}) # type: ignore
 
     numeric_cols = [
         "attempts", "completions", "passing_yards", "passing_tds", "passing_interceptions",
