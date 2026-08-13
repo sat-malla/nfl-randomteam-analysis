@@ -79,9 +79,9 @@ def _compute_user_def_tiers(players: list, player_df: pd.DataFrame) -> dict:
     (0 = elite, 4 = bad).
     """
     PASS_DEF_POS = {"CB", "FS", "SS", "S", "SAF", "Nickel", "Dime"}
-    RUSH_DEF_POS = {"DT", "NT", "DE", "ILB", "MLB", "LB"}
+    RUSH_DEF_POS = {"DT", "NT", "DE", "ILB", "MLB", "SLB", "WLB", "LB"}
     SACK_POS = {"DE", "DT", "OLB", "NT"}
-    COVERAGE_POS = {"CB", "FS", "SS", "S", "SAF", "LB", "OLB", "Nickel", "Dime"}
+    COVERAGE_POS = {"CB", "FS", "SS", "S", "SAF", "LB", "SLB", "WLB", "MLB", "OLB", "Nickel", "Dime"}
 
     def _pos_quality(pos_set: set, stat: str, default: float, good_threshold: float) -> float:
         """Average per-game stat for players in the given positions. Returns 0-1 quality score."""
@@ -142,6 +142,8 @@ POS_STAT_MAPPING = {
     "OLB": ["def_tackles_solo", "def_sacks", "def_interceptions", "def_pass_defended"],
     "ILB": ["def_tackles_solo", "def_sacks", "def_interceptions", "def_pass_defended"],
     "MLB": ["def_tackles_solo", "def_sacks", "def_interceptions", "def_pass_defended"],
+    "SLB": ["def_tackles_solo", "def_sacks", "def_interceptions", "def_pass_defended"],
+    "WLB": ["def_tackles_solo", "def_sacks", "def_interceptions", "def_pass_defended"],
     "CB": ["def_interceptions", "def_pass_defended", "def_tackles_solo"],
     "FS": ["def_interceptions", "def_pass_defended", "def_tackles_solo"],
     "SS": ["def_interceptions", "def_pass_defended", "def_tackles_solo"],
@@ -165,10 +167,12 @@ _POS_STAT_CAPS_PER_GAME = {
     "TE": {"receptions": 12, "receiving_yards": 220, "receiving_tds": 3, "targets": 14},
     "DE": {"def_sacks": 3, "def_tackles_solo": 10, "def_pass_defended": 4},
     "DT": {"def_sacks": 2, "def_tackles_solo": 8, "def_pass_defended": 3},
-    "LB": {"def_tackles_solo": 18, "def_sacks": 2, "def_interceptions": 1, "def_pass_defended": 3},
-    "OLB": {"def_tackles_solo": 15, "def_sacks": 3, "def_interceptions": 1, "def_pass_defended": 3},
-    "ILB": {"def_tackles_solo": 18, "def_sacks": 2, "def_interceptions": 1, "def_pass_defended": 3},
-    "MLB": {"def_tackles_solo": 18, "def_sacks": 2, "def_interceptions": 1, "def_pass_defended": 3},
+    "LB": {"def_tackles_solo": 18, "def_sacks": 2, "def_interceptions": 1, "def_pass_defended": 1},
+    "OLB": {"def_tackles_solo": 15, "def_sacks": 3, "def_interceptions": 1, "def_pass_defended": 1},
+    "ILB": {"def_tackles_solo": 18, "def_sacks": 2, "def_interceptions": 1, "def_pass_defended": 2},
+    "MLB": {"def_tackles_solo": 18, "def_sacks": 2, "def_interceptions": 1, "def_pass_defended": 2},
+    "SLB": {"def_tackles_solo": 18, "def_sacks": 2, "def_interceptions": 1, "def_pass_defended": 2},
+    "wLB": {"def_tackles_solo": 18, "def_sacks": 2, "def_interceptions": 1, "def_pass_defended": 1},
     "CB": {"def_interceptions": 2, "def_pass_defended": 5, "def_tackles_solo": 8},
     "FS": {"def_interceptions": 2, "def_pass_defended": 4, "def_tackles_solo": 8},
     "SS": {"def_interceptions": 2, "def_pass_defended": 4, "def_tackles_solo": 8},
@@ -267,7 +271,7 @@ def get_pos_dist_mean(position: str, stat: str) -> float:
     return mean
 
 
-DEF_POSITIONS = {"DE", "DT", "NT", "LB", "OLB", "ILB", "MLB", "CB", "FS", "SS", "S", "SAF", "Nickel", "Dime"}
+DEF_POSITIONS = {"DE", "DT", "NT", "LB", "OLB", "ILB", "MLB", "WLB", "SLB", "CB", "FS", "SS", "S", "SAF", "Nickel", "Dime"}
 
 def build_player_dist(player_df: pd.DataFrame, name: str, position: str, depth_slot: int = 1) -> dict:
     """Build per-game truncated-normal distributions for one player."""
@@ -430,12 +434,12 @@ _PASS_YARDS_STD = 6.0
 _FG_ATTEMPT_DIST = 0.35
 _FG_MAKE_PROB_BASE = 0.87
 
-_SACK_WEIGHT = {"DE": 5, "DT": 4, "NT": 3, "OLB": 3, "LB": 1, "ILB": 1, "MLB": 1}
+_SACK_WEIGHT = {"DE": 5, "OLB": 4, "DT": 3, "NT": 3, "LB": 1, "MLB": 1, "WLB": 1, "SLB": 1}
 _INT_WEIGHT = {"CB": 4, "FS": 2, "SS": 2, "S": 2, "SAF": 2, "Nickel": 3, "Dime": 3}
-_FUMBLE_WEIGHT = {"DE": 3, "DT": 2, "OLB": 3, "LB": 2, "ILB": 2, "MLB": 2, "CB": 1, "FS": 1, "SS": 1, "S": 1, "Nickel": 1, "Dime": 1}
+_FUMBLE_WEIGHT = {"DE": 3, "DT": 2, "OLB": 3, "LB": 2, "ILB": 2, "MLB": 2, "WLB": 2, "SLB": 2, "CB": 1, "FS": 1, "SS": 1, "S": 1, "Nickel": 1, "Dime": 1}
 _PD_WEIGHT = {"CB": 5, "FS": 3, "SS": 3, "S": 3, "SAF": 3, "LB": 1, "OLB": 1, "Nickel": 4, "Dime": 4}
-_RUN_TACKLE_WEIGHT = {"ILB": 6, "MLB": 6, "LB": 5, "OLB": 4, "DE": 3, "DT": 2, "NT": 2, "SS": 2, "FS": 1, "CB": 1, "Nickel": 1, "Dime": 1}
-_PASS_TACKLE_WEIGHT = {"CB": 5, "FS": 4, "SS": 4, "S": 4, "SAF": 4, "OLB": 2, "ILB": 2, "MLB": 2, "LB": 2, "DE": 1, "Nickel": 4, "Dime": 4}
+_RUN_TACKLE_WEIGHT = {"ILB": 6, "MLB": 6, "LB": 5, "SLB": 5, "WLB": 5, "OLB": 4, "DE": 3, "DT": 2, "NT": 2, "SS": 2, "FS": 1, "CB": 1, "Nickel": 1, "Dime": 1}
+_PASS_TACKLE_WEIGHT = {"CB": 5, "FS": 4, "SS": 4, "S": 4, "SAF": 4, "OLB": 2, "ILB": 3, "MLB": 3, "SLB": 3, "WLB": 3, "LB": 3, "DE": 1, "Nickel": 4, "Dime": 4}
 
 _PLAY_TEMPLATES = {
     "run": [
@@ -768,8 +772,9 @@ def simulate_game_drives(
         "WR": _WR_ZERO, "TE": _TE_ZERO,
         "K": _K_ZERO, "P": _P_ZERO, "RS": _RS_ZERO,
         "DE": _DL_ZERO, "DT": _DL_ZERO, "NT": _DL_ZERO,
-        "LB": _DEF_ZERO, "OLB": _DEF_ZERO, "ILB": _DEF_ZERO, "MLB": _DEF_ZERO,
+        "LB": _DEF_ZERO, "OLB": _DEF_ZERO, "ILB": _DEF_ZERO, "MLB": _DEF_ZERO, "SLB": _DEF_ZERO, "WLB": _DEF_ZERO,
         "CB": _DB_ZERO, "FS": _DB_ZERO, "SS": _DB_ZERO, "S": _DB_ZERO, "SAF": _DB_ZERO,
+        "Nickel": _DB_ZERO, "Dime": _DB_ZERO,
     }
     user_stats: dict[str, dict] = {}
     for p in user_team["players"]:
@@ -1320,7 +1325,7 @@ def simulate_game_drives(
 
     _TACKLE_MEAN_BY_POS = {
         "DE": 4.0, "DT": 3.0, "NT": 3.5,
-        "LB": 7.0, "OLB": 6.0, "ILB": 8.0, "MLB": 8.0,
+        "LB": 7.0, "OLB": 6.0, "ILB": 8.0, "MLB": 8.0, "SLB": 8.0, "WLB": 8.0,
         "CB": 4.5, "FS": 5.0, "SS": 5.5, "S": 5.0, "SAF": 5.0,
         "Nickel": 4.0, "Dime": 3.5,
     }
@@ -1370,7 +1375,7 @@ def _passer_rating(yards: float, tds: float, ints: float, attempts: float) -> fl
 
 def build_box_score(user_game: dict, team_players: list) -> list[dict]:
     POS_ORDER = ["QB", "RB", "FB", "WR", "TE", "K", "RS",
-                 "DE", "DT", "NT", "LB", "OLB", "ILB", "MLB", "CB", "FS", "SS", "S", "SAF", "Nickel", "Dime"]
+                 "DE", "DT", "NT", "LB", "OLB", "ILB", "MLB", "WLB", "SLB", "CB", "FS", "SS", "S", "SAF", "Nickel", "Dime"]
 
     INT_STATS = {
         "carries", "rushing_yards", "rushing_tds",
@@ -1457,7 +1462,7 @@ def build_box_score(user_game: dict, team_players: list) -> list[dict]:
                 v = raw.get(k, 0)
                 label = STAT_DISPLAY.get(k, k)
                 stat_lines[label] = round(v) if k in INT_STATS else round(v, 1)
-        elif pos in ("LB", "OLB", "ILB", "MLB"):
+        elif pos in ("LB", "OLB", "ILB", "MLB", "SLB", "WLB"):
             lb_order = ["def_tackles_solo", "def_sacks", "def_interceptions", "def_pass_defended"]
             for k in lb_order:
                 v = raw.get(k, 0)
