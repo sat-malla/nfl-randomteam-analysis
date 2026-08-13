@@ -562,6 +562,42 @@ _PLAY_TEMPLATES = {
     ],
 }
 
+XP_MAKE_PROB = 0.944
+TWO_PT_SUCCESS_PROB = 0.475
+
+def _add(stats_dict: dict, name: str, **kwargs):
+    if name not in stats_dict:
+        stats_dict[name] = {}
+    for k, v in kwargs.items():
+        stats_dict[name][k] = stats_dict[name].get(k, 0) + v
+
+def _should_go_for_two(my_score: int, their_score: int, quarter: int) -> bool:
+    diff = my_score + 6 - their_score
+    if quarter >= 4:
+        if diff in (-2, -9, 5, 12):
+            return True
+        if diff < 0 and abs(diff) > 8 and random.random() < 0.35:
+            return True
+    return random.random() < 0.03
+
+def _attempt_pat(my_score_ref: list, their_score: int, quarter: int, stats: dict, kicker: str, team_name: str, log_fn) -> None:
+    if _should_go_for_two(my_score_ref[0], their_score, quarter):
+        if random.random() < TWO_PT_SUCCESS_PROB:
+            my_score_ref[0] += 2
+            log_fn(team_name, "2-point conversion GOOD!", is_score=True)
+        else:
+            log_fn(team_name, "2-point conversion NO GOOD.")
+    else:
+        if kicker:
+            _add(stats, kicker, xp_att=1)
+        if random.random() < XP_MAKE_PROB:
+            my_score_ref[0] += 1
+            if kicker:
+                _add(stats, kicker, xp_made=1)
+            log_fn(team_name, f"{kicker or 'Kicker'} extra point is GOOD.", is_score=True)
+        else:
+            log_fn(team_name, f"{kicker or 'Kicker'} extra point is NO GOOD.")
+
 def _pick_template(key: str, **kw) -> str:
     return random.choice(_PLAY_TEMPLATES[key]).format(**kw)
 
@@ -1059,34 +1095,6 @@ def simulate_game_drives(
                 _log(quarter, name, text)
             return yards, "", is_highlight
 
-    XP_MAKE_PROB = 0.944
-    TWO_PT_SUCCESS_PROB = 0.475
-
-    def _should_go_for_two(my_score: int, their_score: int, quarter: int) -> bool:
-        diff = my_score + 6 - their_score
-        if quarter >= 4:
-            if diff in (-2, -9, 5, 12):
-                return True
-            if diff < 0 and abs(diff) > 8 and random.random() < 0.35:
-                return True
-        return random.random() < 0.03
-
-    def _attempt_pat(side: str, my_score_ref: list, their_score: int, quarter: int, stats: dict, kicker: str):
-        team_name = user_name if side == "user" else opp_name
-        if _should_go_for_two(my_score_ref[0], their_score, quarter):
-            if random.random() < TWO_PT_SUCCESS_PROB:
-                my_score_ref[0] += 2
-                _log(quarter, team_name, "2-point conversion GOOD!", is_score=True)
-            else:
-                _log(quarter, team_name, "2-point conversion NO GOOD.")
-        else:
-            if kicker:
-                _add(stats, kicker, xp_att=1)
-            if random.random() < XP_MAKE_PROB:
-                my_score_ref[0] += 1
-                if kicker:
-                    _add(stats, kicker, xp_made=1)
-
     def score_td(side: str, quarter: int, how: str, rusher_or_receiver: str = "", yards: int = 5):
         nonlocal user_score, opp_score
         if side == "user":
@@ -1100,7 +1108,14 @@ def simulate_game_drives(
                 text = _pick_template("passing_td", qb=user_qb, receiver=rusher_or_receiver, yards=yards)
             _log(quarter, user_name, text, is_score=True)
             ref = [user_score]
-            _attempt_pat("user", ref, opp_score, quarter, user_stats, user_kicker)
+            _attempt_pat(ref, opp_score, quarter, user_stats, user_kicker, user_name, lambda t, txt, is_score=False: play_log.append({
+                    "quarter": f"Q{quarter}",
+                    "team": t,
+                    "play": txt,
+                    "score": f"{ref[0]}-{opp_score}",
+                    "is_score": is_score,
+                })
+            )
             user_score = ref[0]
         else:
             opp_score += 6
@@ -1113,7 +1128,14 @@ def simulate_game_drives(
                 text = _pick_template("opp_passing_td", qb=opp_qb, receiver=rusher_or_receiver, yards=yards, team=opp_name)
             _log(quarter, opp_name, text, is_score=True)
             ref = [opp_score]
-            _attempt_pat("opp", ref, user_score, quarter, opp_stats, "")
+            _attempt_pat(ref, user_score, quarter, opp_stats, "", opp_name, lambda t, txt, is_score=False: play_log.append({
+                    "quarter": f"Q{quarter}",
+                    "team": t,
+                    "play": txt,
+                    "score": f"{user_score}-{ref[0]}",
+                    "is_score": is_score,
+                })
+            )
             opp_score = ref[0]
 
     def attempt_fg(side: str, quarter: int, distance: int, current_yardline: int = 75):
@@ -1125,7 +1147,7 @@ def simulate_game_drives(
         else:
             kicker = opp_kicker
             team = opp_name
-            sdiff  = float(opp_score - user_score)
+            sdiff = float(opp_score - user_score)
         yl100 = float(current_yardline)
 
         ml_out = _ml_outcome(
@@ -1135,10 +1157,10 @@ def simulate_game_drives(
         )
         if ml_out is not None:
             fg_probs = ml_out.get("fg_result_probs", {})
-            made_p    = fg_probs.get("made",    _fg_make_prob(distance))
+            made_p = fg_probs.get("made", _fg_make_prob(distance))
             blocked_p = fg_probs.get("blocked", 0.02)
         else:
-            made_p    = _fg_make_prob(distance)
+            made_p = _fg_make_prob(distance)
             blocked_p = 0.02
 
         roll = random.random()
@@ -1161,8 +1183,8 @@ def simulate_game_drives(
             text = _pick_template(tmpl, kicker=kicker, yards=distance, team=team)
             _log(quarter, team, text, is_score=False)
 
-    _PUNT_RET_TD_PROB  = 0.005 * 0.02
-    _KO_RET_TD_PROB    = 0.004 * 0.02
+    _PUNT_RET_TD_PROB = 0.005 * 0.02
+    _KO_RET_TD_PROB = 0.004 * 0.02
 
     def _do_punt(side: str, punt_yardline: int, quarter: int) -> int:
         nonlocal user_score
@@ -1195,7 +1217,7 @@ def simulate_game_drives(
                 _log(quarter, user_name, f"{user_returner} takes the punt return ALL THE WAY... TOUCHDOWN!", is_score=True)
                 _add(user_stats, user_returner, punt_returns=1, punt_return_yards=100, punt_return_tds=1)
                 ref = [user_score]
-                _attempt_pat("user", ref, opp_score, quarter, user_stats, user_kicker)
+                _attempt_pat(ref, opp_score, quarter, user_stats, user_kicker, user_name, lambda t, txt, is_score=False: _log(quarter, t, txt, is_score))
                 user_score = ref[0]
                 return 35
             _add(user_stats, user_returner, punt_returns=1, punt_return_yards=ret_yds)
@@ -1213,7 +1235,7 @@ def simulate_game_drives(
             _log(quarter, user_name, f"{user_returner} returns the kickoff for a TOUCHDOWN!", is_score=True)
             _add(user_stats, user_returner, kickoff_returns=1, kickoff_return_yards=100, kickoff_return_tds=1)
             ref = [user_score]
-            _attempt_pat("user", ref, opp_score, quarter, user_stats, user_kicker)
+            _attempt_pat(ref, opp_score, quarter, user_stats, user_kicker, user_name, lambda t, txt, is_score=False: _log(quarter, t, txt, is_score))
             user_score = ref[0]
         else:
             _add(user_stats, user_returner, kickoff_returns=1, kickoff_return_yards=ret_yds)
@@ -1237,12 +1259,12 @@ def simulate_game_drives(
                 if side == "user":
                     user_score += 6
                     ref = [user_score]
-                    _attempt_pat("user", ref, opp_score, quarter, user_stats, user_kicker)
+                    _attempt_pat(ref, opp_score, quarter, user_stats, user_kicker, user_name, lambda t, txt, is_score=False: _log(quarter, t, txt, is_score))
                     user_score = ref[0]
                 else:
                     opp_score += 6
                     ref = [opp_score]
-                    _attempt_pat("opp", ref, user_score, quarter, opp_stats, "")
+                    _attempt_pat(ref, user_score, quarter, opp_stats, "", opp_name, lambda t, txt, is_score=False: _log(quarter, t, txt, is_score))
                     opp_score = ref[0]
                     _do_kickoff_return(quarter)
                 return quarter, 35
@@ -1743,20 +1765,27 @@ def simulate_overtime_period(
             if yardline >= 100:
                 is_rush_td = random.random() < 0.40
                 rusher_name, _ = _pick_rusher(rushers_pool, ypc_map)
-                rec_name, _    = _pick_receiver(receivers_pool, ypr_map)
+                rec_name, _  = _pick_receiver(receivers_pool, ypr_map)
                 scorer = rusher_name if is_rush_td else rec_name
                 td_yards = max(1, min(yards, 20))
                 if side == "user":
-                    u_score += 7
+                    u_score += 6
                     text = _pick_template("rushing_td" if is_rush_td else "passing_td",
                                           **{"rusher": scorer, "yards": td_yards} if is_rush_td
                                           else {"qb": qb, "receiver": scorer, "yards": td_yards})
+                    _log_ot(team_name, text, is_score=True)
+                    ref = [u_score]
+                    _attempt_pat(ref, o_score, 4, scratch_user_stats, kicker, team_name, lambda t, txt, is_score=False: _log_ot(t, txt, is_score))
+                    u_score = ref[0]
                 else:
-                    o_score += 7
+                    o_score += 6
                     text = _pick_template("opp_rushing_td" if is_rush_td else "opp_passing_td",
                                           **{"rusher": scorer, "yards": td_yards, "team": opp_name} if is_rush_td
                                           else {"qb": qb, "receiver": scorer, "yards": td_yards, "team": opp_name})
-                _log_ot(team_name, text, is_score=True)
+                    _log_ot(team_name, text, is_score=True)
+                    ref = [o_score]
+                    _attempt_pat(ref, u_score, 4, scratch_opp_stats, kicker, team_name, lambda t, txt, is_score=False: _log_ot(t, txt, is_score))
+                    o_score = ref[0]
                 scored = True
                 return True, 35
 
