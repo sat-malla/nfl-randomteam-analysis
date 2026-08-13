@@ -169,8 +169,6 @@ def build_ol_ls_features(ts: pd.DataFrame, sc: pd.DataFrame) -> pd.DataFrame:
 
         for team in teams:
             row = {"team": team, "season": int(season)}
-
-            # ── OL unit proxies (summed from weekly team_stats rows) ───────
             ts_t = ts_s[ts_s["team"] == team]
             if not ts_t.empty:
                 row["ol_sacks_allowed"]        = float(ts_t["sacks_suffered"].sum())
@@ -185,7 +183,6 @@ def build_ol_ls_features(ts: pd.DataFrame, sc: pd.DataFrame) -> pd.DataFrame:
                 row["ol_qb_hits_allowed"]      = 0.0
                 row["ol_rush_yards_per_carry"] = 0.0
 
-            # ── OL slot snap shares ────────────────────────────────────────
             sc_t = sc_s[sc_s["team"] == team]
 
             def ol_slots(position_code: str, n_slots: int, col_prefix: str):

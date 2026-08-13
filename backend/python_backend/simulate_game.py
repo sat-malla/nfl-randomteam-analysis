@@ -531,9 +531,9 @@ _PLAY_TEMPLATES = {
     ],
     "opp_interception": [
         "{qb} fires for {receiver}... INTERCEPTED by {defender}! Huge turnover for your team!",
-        "{defender} steps in front of {receiver} and takes it... INT!",
+        "{defender} steps in front of {receiver} and takes it... INTERCEPTION!",
         "{qb} telegraphs it to {receiver}... {defender} reads it perfectly! INTERCEPTION!",
-        "{defender} picks off {qb}, intended for {receiver}! Your defense comes up huge!",
+        "{defender} picks off {qb}, intended for {receiver}! Not a great read by {qb}!",
     ],
     "opp_rushing_td": [
         "{rusher} scores from {yards} yards out! TD for {team}!",

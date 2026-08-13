@@ -629,7 +629,7 @@ export default function ViewTeams() {
             </Text>
             {selectedTeam.head_coach ? (
               <Text style={[styles.teamMeta, { color: c.subtext }]}>
-                HC: {selectedTeam.head_coach}
+                Head Coach: {selectedTeam.head_coach}
               </Text>
             ) : null}
             <View style={styles.schemeRow}>

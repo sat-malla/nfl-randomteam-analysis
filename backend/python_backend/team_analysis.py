@@ -189,6 +189,7 @@ def fetch_position_stats(position: str) -> pd.DataFrame:
     _POS_STATS_CACHE[position] = df
     return df
 
+_LB_ALIASES = {"LB", "OLB", "ILB", "MLB", "SLB", "WLB"}
 
 def get_position_dist(all_stats_df: pd.DataFrame, position: str, stat: str) -> tuple[float, float]:
     def _compute(df: pd.DataFrame) -> tuple[float, float] | None:
@@ -196,6 +197,8 @@ def get_position_dist(all_stats_df: pd.DataFrame, position: str, stat: str) -> t
             return None
         if position in ("RS", "P"):
             pos_df = df
+        elif position in _LB_ALIASES and "position" in df.columns:
+            pos_df = df[df["position"].isin(_LB_ALIASES)]
         else:
             pos_df = df[df["position"] == position] if "position" in df.columns else df
         if pos_df.empty:
@@ -228,7 +231,7 @@ def get_position_dist(all_stats_df: pd.DataFrame, position: str, stat: str) -> t
 
     result = _compute(all_stats_df)
     if result is None:
-        pos_df = fetch_position_stats(position)
+        pos_df = fetch_position_stats("LB" if position in _LB_ALIASES else position)
         result = _compute(pos_df)
     if result is None and position == "SS":
         s_df = fetch_position_stats("S")
@@ -242,7 +245,8 @@ def get_position_dist(all_stats_df: pd.DataFrame, position: str, stat: str) -> t
     if result is None:
         cap = _POS_STAT_CAPS.get(position, {}).get(stat)
         if cap is not None:
-            return (cap, cap * 0.4)
+            season_equiv = cap * N_GAMES
+            return (season_equiv, season_equiv * 0.4)
         return (0.0, 0.01)
     mean_v, std_v = result
     std_v = min(std_v, max(mean_v * 0.5, 0.01))
@@ -269,7 +273,6 @@ N_GAMES = 17
 
 SYNTHETIC_STATS = {"punt_attempts_season", "punt_yards_season"}
 
-
 _POS_STAT_CAPS = {
     "WR": {"carries": 0.25, "rushing_yards": 3.0, "rushing_tds": 0.04},
     "TE": {},
@@ -295,16 +298,34 @@ _POS_STAT_CAPS = {
     "RS": {"kickoff_return_yards": 550, "kickoff_returns": 30, "punt_return_yards": 400, "punt_returns": 35},
 }
 
+def make_truncnorm(mean: float, std: float, b: float = 5.0):
+    # custom truncnorm to prevent inflation of statistics. result dist true mean matches intended mean
+    std = max(std, 0.01)
+    loc = mean
+    for _ in range(4):
+        a = (0 - loc) / std
+        phi_a, phi_b = norm.pdf(a), norm.pdf(b)
+        Phi_a, Phi_b = norm.cdf(a), norm.cdf(b)
+        denom = max(Phi_b - Phi_a, 1e-6)
+        offset = std * (phi_a - phi_b) / denom
+        loc = mean - offset
+    a = (0 - loc) / std
+    return stats.truncnorm(a=a, b=b, loc=loc, scale=std)
 
 def build_player_distributions(player_stats, player_name, player_pos, depth_slot=1):
     stat_cols = POS_STAT_MAPPING.get(player_pos, [])
     if not stat_cols:
         return {}
 
+    _PLAYMAKING_STATS = {"def_sacks", "def_interceptions", "def_pass_defended"}
+    _UNPROVEN_PLAYMAKING_CUT = 0.45
+
     if "player_display_name" not in player_stats.columns:
         player_data = pd.DataFrame()
     else:
         player_data = player_stats[player_stats["player_display_name"] == player_name].copy()
+
+    is_unproven = player_data.empty
 
     if player_pos in ("RS", "P") and not player_data.empty and "season" in player_data.columns:
         agg_cols = [c for c in stat_cols if c in player_data.columns]
@@ -317,6 +338,9 @@ def build_player_distributions(player_stats, player_name, player_pos, depth_slot
     for sc in stat_cols:
         if player_data.empty or sc not in player_data.columns:
             pos_mean, pos_std = get_position_dist(player_stats, player_pos, sc)
+            if is_unproven and sc in _PLAYMAKING_STATS:
+                pos_mean *= _UNPROVEN_PLAYMAKING_CUT
+                pos_std *= _UNPROVEN_PLAYMAKING_CUT
             season_mean = max(0.0, float(np.random.normal(pos_mean, pos_std)))
             if sc in SEASON_TOTAL_STATS or sc in SYNTHETIC_STATS:
                 mean = season_mean
@@ -329,6 +353,9 @@ def build_player_distributions(player_stats, player_name, player_pos, depth_slot
             values = pd.to_numeric(player_data[sc], errors="coerce").dropna()
             if values.empty or (sc not in _RATE_STATS and (values == 0).all()):
                 pos_mean, pos_std = get_position_dist(player_stats, player_pos, sc)
+                if is_unproven and sc in _PLAYMAKING_STATS:
+                    pos_mean *= _UNPROVEN_PLAYMAKING_CUT
+                    pos_std *= _UNPROVEN_PLAYMAKING_CUT
                 season_mean = max(0.0, float(np.random.normal(pos_mean, pos_std)))
                 if sc in SEASON_TOTAL_STATS or sc in SYNTHETIC_STATS:
                     mean = season_mean
@@ -355,8 +382,7 @@ def build_player_distributions(player_stats, player_name, player_pos, depth_slot
             mean = min(mean, pos_caps[sc])
 
         std = max(std, 0.01)
-        a = -mean / std
-        distribution = stats.truncnorm(a=a, b=5, loc=mean, scale=std)
+        distribution = make_truncnorm(mean, std)
         distributions[sc] = distribution
 
     return distributions
@@ -833,24 +859,39 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300, 
     ))
 
     NFL_AVG_PTS = 23.0
-    opp_base = (NFL_AVG_PTS * opp_strengths) / def_quality
+    ball_control_factor = float(np.clip(1.0 - (offense_talent - 1.0) * 0.15, 0.92, 1.05))
+    opp_base = (NFL_AVG_PTS * opp_strengths) / def_quality * ball_control_factor
     opp_points = np.random.normal(
         loc=opp_base,
         scale=7.0,
         size=(n_season_sims, n_games)
     )
 
-    takeaway_edge = np.clip(turnover_score - 1.0, 0.0, 0.5)   # 0 .. 0.5
+    takeaway_edge = np.clip(turnover_score - 1.0, 0.0, 0.5)
     wins_matrix = (team_points > opp_points)
     margin = team_points - opp_points
     close_loss = (margin <= 0) & (margin > -7.0)
     flip = close_loss & (np.random.random(margin.shape) < (takeaway_edge * 0.5))
-    wins_matrix = wins_matrix | flip
+
+    if np.any(flip):
+        turnover_swing = np.abs(margin) + np.random.uniform(1.0, 4.0, size=margin.shape)
+        opp_points = np.where(flip, np.maximum(opp_points - turnover_swing, 0.0), opp_points)
+
+    wins_matrix = (team_points > opp_points)
     all_szn_wins = wins_matrix.sum(axis=1)
+    season_win_rate = all_szn_wins / n_games
+    def_stat_scale = np.clip(0.85 + 0.3 * (season_win_rate - 0.5), 0.75, 1.25)
+    def_stat_scale = def_stat_scale.reshape(-1, 1)
 
     _OL_BOOSTED_STATS = {"rushing_yards", "carries", "rushing_tds", "passing_yards", "passing_tds"}
     _OL_HURT_STATS = {"passing_interceptions"}
     _OL_AFFECTED_POS = {"RB", "FB", "QB", "WR", "TE"}
+    _DEF_PLAYMAKING_STATS = {"def_sacks", "def_interceptions", "def_pass_defended"}
+    _SEASON_STAT_CEILINGS = {
+        "def_interceptions": {"LB": 5, "CB": 8, "FS": 8, "SS": 7, "S": 8, "DE": 2, "DT": 1},
+        "def_sacks": {"DE": 17, "DT": 12, "NT": 8, "DL": 14, "LB": 12, "CB": 3, "FS": 2, "SS": 2, "S": 2},
+        "def_pass_defended": {"CB": 22, "FS": 15, "SS": 14, "S": 15, "LB": 14, "DE": 6, "DT": 4},
+    }
 
     for name in all_player_stats:
         pos = distributions[name]["position"]
@@ -866,8 +907,13 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300, 
                         season_totals = (all_samples[:, :, col_idx] * int_penalty).sum(axis=1)
                     else:
                         season_totals = all_samples[:, :, col_idx].sum(axis=1)
+                elif stat in _DEF_PLAYMAKING_STATS and pos in DEF_POSITIONS:
+                    season_totals = (all_samples[:, :, col_idx] * def_stat_scale).sum(axis=1)
                 else:
                     season_totals = all_samples[:, :, col_idx].sum(axis=1)
+            ceiling = _SEASON_STAT_CEILINGS.get(stat, {}).get(pos)
+            if ceiling is not None:
+                season_totals = np.minimum(season_totals, ceiling)
             all_player_stats[name][stat] = season_totals.tolist()
     
     wins_array = np.array(all_szn_wins)
