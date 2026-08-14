@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/form-control";
 import { VStack } from "@/components/ui/vstack";
 import PickerModal, { PickerTrigger } from "@/components/PickerModal";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import * as Application from "expo-application";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -77,6 +77,7 @@ const QUARTER_COLORS: Record<string, string> = {
   OT3: "#7c3aed",
   OT4: "#7c3aed",
   OT5: "#7c3aed",
+  FINAL: "#6b7280",
 };
 
 const POS_COLORS_LIGHT: Record<string, { bg: string; text: string }> = {
@@ -139,6 +140,42 @@ const POS_COLORS_DARK: Record<string, { bg: string; text: string }> = {
   RS: { bg: "#a16207", text: "#000000" },
 };
 
+const GAME_END_TEMPLATES = [
+  "Game has ended! {winner} has beaten {loser} with a score of {winnerScore}-{loserScore}.",
+  "Final whistle! {winner} defeats {loser}, {winnerScore}-{loserScore}.",
+  "That's the ballgame! {winner} tops {loser} by a score of {winnerScore}-{loserScore}.",
+  "Final score: {winner} wins it, {winnerScore}-{loserScore} over {loser}.",
+  "Game over! {winner} takes it, {winnerScore}-{loserScore}.",
+];
+
+const GAME_END_TIE_TEMPLATES = [
+  "Game has ended: {teamA} and {teamB} battle to a {score}-{score} tie.",
+  "Final whistle: {teamA} and {teamB} finish deadlocked at {score}-{score}.",
+  "That's the game — {teamA} and {teamB} settle for a {score}-{score} tie.",
+];
+
+function buildGameEndLine(result: SimResult): string {
+  const { user_team, opponent, final_score, winner } = result;
+  if (winner === "TIE") {
+    const template = GAME_END_TIE_TEMPLATES[Math.floor(Math.random() * GAME_END_TIE_TEMPLATES.length)];
+    return template
+      .replace("{teamA}", user_team)
+      .replace("{teamB}", opponent)
+      .replace(/{score}/g, String(final_score.user));
+  }
+  const userWon = winner === user_team;
+  const winnerName = userWon ? user_team : opponent;
+  const loserName = userWon ? opponent : user_team;
+  const winnerScore = userWon ? final_score.user : final_score.opponent;
+  const loserScore = userWon ? final_score.opponent : final_score.user;
+  const template = GAME_END_TEMPLATES[Math.floor(Math.random() * GAME_END_TEMPLATES.length)];
+  return template
+    .replace("{winner}", winnerName)
+    .replace("{loser}", loserName)
+    .replace("{winnerScore}", String(winnerScore))
+    .replace("{loserScore}", String(loserScore));
+}
+
 export default function SimulateGame() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -151,11 +188,15 @@ export default function SimulateGame() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<SimResult | null>(null);
   const [error, setError] = useState<{ message: string; status: number; raw: string } | null>(null);
-
   const [playoffMode, setPlayoffMode] = useState(false);
   const [myTeamOpen, setMyTeamOpen] = useState(false);
   const [nflPickerOpen, setNflPickerOpen] = useState(false);
   const [seasonOpen, setSeasonOpen] = useState(false);
+  const [lastSimParams, setLastSimParams] = useState<{
+    teamId: string;
+    opponent: string;
+    playoff: boolean;
+  } | null>(null);
 
   const posColors = isDark ? POS_COLORS_DARK : POS_COLORS_LIGHT;
 
@@ -199,6 +240,18 @@ export default function SimulateGame() {
     fetchTeams();
   }, []);
 
+  const displayPlayByPlay = useMemo(() => {
+    if (!result) return [];
+    const endingEntry: PlayEntry = {
+      quarter: "FINAL",
+      team: "",
+      play: buildGameEndLine(result),
+      score: `${result.final_score.user}-${result.final_score.opponent}`,
+      is_score: false,
+    };
+    return [...result.play_by_play, endingEntry];
+  }, [result]);
+
   const selectedTeam = myTeams.find((t) => t.team_name === selectedMyTeamName);
   const canSimulate = !!(selectedTeam && selectedOpponent && selectedSeason && isHome !== null && !loading);
 
@@ -230,6 +283,11 @@ export default function SimulateGame() {
       } else {
         try {
           setResult(JSON.parse(rawText));
+          setLastSimParams({
+            teamId: selectedTeam.id,
+            opponent: selectedOpponent,
+            playoff: playoffMode,
+          });
         } catch {
           setError({ message: "Received invalid response from server.", status: resp.status, raw: rawText });
         }
@@ -244,6 +302,14 @@ export default function SimulateGame() {
   const myTeamItems = myTeams.map((t) => ({ label: t.team_name, value: t.team_name }));
   const nflTeamItems = NFL_TEAMS.map((t) => ({ label: t, value: t }));
   const seasonItems = SEASONS.slice().reverse().map((s) => ({ label: s, value: s }));
+  const isSameAsLastSim =
+    !!lastSimParams &&
+    !!selectedTeam &&
+    lastSimParams.teamId === selectedTeam.id &&
+    lastSimParams.opponent === selectedOpponent &&
+    lastSimParams.playoff === playoffMode;
+
+  const simulateButtonLabel = isSameAsLastSim ? "Simulate New Game" : "Simulate Game";
 
   const winnerColor = result
     ? result.winner === "TIE"
@@ -397,7 +463,7 @@ export default function SimulateGame() {
             <ActivityIndicator color={c.buttonText} />
           ) : (
             <Text style={[styles.simulateBtnText, { color: canSimulate ? c.buttonText : "#fff" }]}>
-              Simulate Game
+              {simulateButtonLabel}
             </Text>
           )}
         </TouchableOpacity>
@@ -517,10 +583,10 @@ export default function SimulateGame() {
             );
           })()}
 
-          {result.play_by_play.length > 0 && (
+          {displayPlayByPlay.length > 0 && (
             <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow }]}>
               <Text style={[styles.sectionTitle, { color: c.text }]}>Highlights</Text>
-              {result.play_by_play.map((entry, i) => {
+              {displayPlayByPlay.map((entry, i) => {
                 const isUser = entry.team === result.user_team;
                 const qColor = QUARTER_COLORS[entry.quarter] ?? (entry.quarter.startsWith("OT") ? "#7c3aed" : c.subtext);
                 return (
