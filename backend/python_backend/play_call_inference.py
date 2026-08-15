@@ -1,21 +1,38 @@
 import json
 import os
 import pickle
-
+import sys
 import numpy as np
 import torch
 import torch.nn as nn
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from dotenv import load_dotenv
+
+load_dotenv()
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from shared.model_loader import download_production_model_dir
 
 WEIGHTS_DIR = os.path.join(os.path.dirname(__file__), "play_call_weights")
 
-with open(f"{WEIGHTS_DIR}/play_call_config.json") as f:
+def resolve_weights_dir():
+    try:
+        model_dir = download_production_model_dir("play-call-model")
+        print(f"Loaded play-call-model from WandB production artifact: {model_dir}")
+        return model_dir
+    except Exception as e:
+        print(f"WARNING: could not pull production model from WandB ({e}). Falling back to local weights.")
+        return WEIGHTS_DIR
+
+ACTIVE_WEIGHTS_DIR = resolve_weights_dir()
+
+with open(f"{ACTIVE_WEIGHTS_DIR}/play_call_config.json") as f:
     CFG = json.load(f)
-with open(f"{WEIGHTS_DIR}/play_call_feature_meta.json") as f:
+with open(f"{ACTIVE_WEIGHTS_DIR}/play_call_feature_meta.json") as f:
     META = json.load(f)
-with open(f"{WEIGHTS_DIR}/play_call_label_encoder.pkl", "rb") as f:
+with open(f"{ACTIVE_WEIGHTS_DIR}/play_call_label_encoder.pkl", "rb") as f:
     LE = pickle.load(f)
 
 FEAT_CARDINALITY: dict = META["feat_cardinality"]
@@ -25,7 +42,6 @@ HIDDEN: int = CFG["hidden"]
 N_CLASSES: int = CFG["n_classes"]
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-
 
 class PlayCallMLP(nn.Module):
     def __init__(self, feat_cardinality: dict, emb_dim: int, hidden: int, n_classes: int):
@@ -59,7 +75,7 @@ class PlayCallMLP(nn.Module):
 
 
 model = PlayCallMLP(FEAT_CARDINALITY, EMB_DIM, HIDDEN, N_CLASSES).to(DEVICE)
-model.load_state_dict(torch.load(f"{WEIGHTS_DIR}/play_call_model.pt", map_location=DEVICE))
+model.load_state_dict(torch.load(f"{ACTIVE_WEIGHTS_DIR}/play_call_model.pt", map_location=DEVICE))
 model.eval()
 print(f"Play call model loaded on {DEVICE}. Classes: {CLASSES}")
 

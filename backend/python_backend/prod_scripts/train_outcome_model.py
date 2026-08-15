@@ -34,7 +34,7 @@ LR = 3e-3
 W_YARDS, W_TURNOVER, W_TD = 1.0, 2.0, 4.0
 W_REC_POS, W_REC_POS_ENTROPY = 2.0, 0.3
 W_PUNT_YARDS, W_PUNT_BLOCK, W_FG_RESULT = 1.0, 3.0, 2.0
-PROMOTION_TOLERANCE = 1.02
+PROMOTION_TOLERANCE = 1.05
 HOLDOUT_SEASON = 2025
 
 def load_pbp_data(run) -> pd.DataFrame:
@@ -235,6 +235,7 @@ def compute_val_loss(model, t: dict) -> float:
 # Training and evaluation
 
 def train_model(train_tensors: dict) -> OutcomeMLP:
+    torch.manual_seed(42)
     model = OutcomeMLP(FEAT_CARDINALITY, EMB_DIM, HIDDEN, DROPOUT).to(DEVICE)
 
     rp_class_counts = np.bincount(train_tensors["yrp"].cpu().numpy(), minlength=3).astype(float)
@@ -342,12 +343,33 @@ def main():
     with open(def_tiers_path, "w") as f:
         json.dump(def_tiers_json, f)
 
+    config_path = "prod_scripts/train_tmp/outcome_config.json"
+    with open(config_path, "w") as f:
+        json.dump({"emb_dim": EMB_DIM, "hidden": HIDDEN}, f, indent=2)
+
+    feature_meta_path = "prod_scripts/train_tmp/outcome_feature_meta.json"
+    with open(feature_meta_path, "w") as f:
+        json.dump({
+            "feature_cols": FEATURE_COLS,
+            "feat_cardinality": FEAT_CARDINALITY,
+            "play_type_map": PLAY_TYPE_MAP,
+            "receiver_pos_classes": {"0": "WR", "1": "TE", "2": "RB"},
+            "fg_result_classes": {"0": "made", "1": "missed", "2": "blocked"},
+            "matchup_features": {
+                "feat_def_pass_tier": "Opponent pass defense tier (0=elite, 4=bad). Lower = harder for offense.",
+                "feat_def_rush_tier": "Opponent rush defense tier (0=elite, 4=bad). Lower = harder for offense.",
+                "feat_def_sack_tier": "Opponent pass rush tier (0=high pressure, 4=none). Lower = more sacks.",
+                "feat_def_coverage_tier": "Opponent coverage tier (0=elite, 4=bad). Lower = more INTs/fewer yards.",
+            },
+            "inference_note": "For user offense vs opp defense: look up opp team+season in outcome_def_tiers.json. For opp offense vs user defense: compute user team defensive tier from player ratings using position group quality scores (see simulate_game.py _compute_team_def_tiers).",
+        }, f, indent=2)
+
     model_artifact = wandb.Artifact(
         name="outcome-model",
         type="model",
         metadata={"holdout_loss": candidate_score, "current_production_loss": current_score, "promoted": promoted},
     )
-    for p in [model_path, yards_scaler_path, punt_scaler_path, def_tiers_path]:
+    for p in [model_path, yards_scaler_path, punt_scaler_path, def_tiers_path, config_path, feature_meta_path]:
         model_artifact.add_file(p)
     run.log_artifact(model_artifact)
 

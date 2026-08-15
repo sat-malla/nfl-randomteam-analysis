@@ -10,19 +10,39 @@ import json
 import os
 import pickle
 import uvicorn
-
+import sys
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from dotenv import load_dotenv
+
+load_dotenv()
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from shared.model_loader import download_production_model_dir
 
 WEIGHTS_DIR = os.path.join(os.path.dirname(__file__), "tabsyn_weights")
 
-with open(f"{WEIGHTS_DIR}/model_config.json") as f: CFG = json.load(f)
-with open(f"{WEIGHTS_DIR}/column_meta.json") as f: COL_META = json.load(f)
-with open(f"{WEIGHTS_DIR}/cat_encoders.json") as f: CAT_ENC = json.load(f)
+def resolve_weights_dir():
+    try:
+        model_dir = download_production_model_dir("tabsyn-model")
+        print(f"Loaded tabsyn-model from WandB production artifact: {model_dir}")
+        return model_dir
+    except Exception as e:
+        print(f"WARNING: could not pull production model from WandB ({e}). Falling back to local weights.")
+        return WEIGHTS_DIR
+
+ACTIVE_WEIGHTS_DIR = resolve_weights_dir()
+
+with open(f"{ACTIVE_WEIGHTS_DIR}/model_config.json") as f: 
+    CFG = json.load(f)
+with open(f"{ACTIVE_WEIGHTS_DIR}/column_meta.json") as f: 
+    COL_META = json.load(f)
+with open(f"{ACTIVE_WEIGHTS_DIR}/cat_encoders.json") as f: 
+    CAT_ENC = json.load(f)
 
 LATENT_D = CFG["latent_dim"]
 HIDDEN_D = CFG["hidden_dim"]
@@ -41,8 +61,6 @@ ALL_COLS = COL_META["all_columns"]
 DROP_COLS = COL_META["dropped_columns"]
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-
-
 class Encoder(nn.Module):
     def __init__(self, in_dim, latent_dim, hidden_dim):
         super().__init__()
@@ -60,8 +78,6 @@ class Encoder(nn.Module):
     def forward(self, x):
         h = self.net(x)
         return self.mu_head(h), self.log_head(h)
-
-
 class Decoder(nn.Module):
     def __init__(self, latent_dim, out_cont, cat_dims, hidden_dim):
         super().__init__()
@@ -81,8 +97,6 @@ class Decoder(nn.Module):
         x_cont = self.cont_head(h)
         x_cat = [head(h) for head in self.cat_heads]
         return x_cont, x_cat
-
-
 class ScoreNet(nn.Module):
     def __init__(self, latent_dim, hidden_dim):
         super().__init__()
@@ -115,19 +129,19 @@ cat_embeddings = nn.ModuleList([nn.Embedding(d, CAT_EMB_DIM) for d in CAT_DIMS])
 decoder = Decoder(LATENT_D, N_CONT, CAT_DIMS, HIDDEN_D).to(DEVICE)
 score_net = ScoreNet(LATENT_D, HIDDEN_D).to(DEVICE)
 
-ckpt = torch.load(f"{WEIGHTS_DIR}/vae_best.pt", map_location=DEVICE)
+ckpt = torch.load(f"{ACTIVE_WEIGHTS_DIR}/vae_best.pt", map_location=DEVICE)
 decoder.load_state_dict(ckpt["decoder"])
 cat_embeddings.load_state_dict(ckpt["cat_embeddings"])
 
 score_net.load_state_dict(
-    torch.load(f"{WEIGHTS_DIR}/score_net_best.pt", map_location=DEVICE)
+    torch.load(f"{ACTIVE_WEIGHTS_DIR}/score_net_best.pt", map_location=DEVICE)
 )
 
-norm_stats = torch.load(f"{WEIGHTS_DIR}/latent_norm.pt", map_location=DEVICE)
+norm_stats = torch.load(f"{ACTIVE_WEIGHTS_DIR}/latent_norm.pt", map_location=DEVICE)
 Z_MEAN = norm_stats["z_mean"].to(DEVICE)
 Z_STD = norm_stats["z_std"].to(DEVICE)
 
-with open(f"{WEIGHTS_DIR}/quantile_transformer.pkl", "rb") as f:
+with open(f"{ACTIVE_WEIGHTS_DIR}/quantile_transformer.pkl", "rb") as f:
     QT = pickle.load(f)
 
 decoder.eval()
