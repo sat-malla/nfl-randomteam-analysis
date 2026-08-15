@@ -20,9 +20,10 @@ TABLES_TO_SNAPSHOT = {
     "punt-stats": "punt_stats",
     "coaches": "coaches",
     "schedules": "schedules",
+    "snap-counts": "snap_counts",
 }
 
-OUTPUT_DIR = "scripts/snapshot_tmp"
+OUTPUT_DIR = "prod_scripts/snapshot_tmp/supabase_tables"
 
 def fetch_full_table(table_name: str, page_size: int = 1000) -> pd.DataFrame:
     all_rows = []
@@ -63,6 +64,6 @@ def main():
 
     run.finish()
 
-if __name__ == "__main___":
+if __name__ == "__main__":
     main()
 

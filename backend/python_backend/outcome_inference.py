@@ -2,11 +2,10 @@ import json
 import os
 import pickle
 import torch
-import torch.nn as nn
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from shared.outcome_model_arch import OutcomeMLP, encode_features
+from shared.outcome_model_arch import OutcomeMLP, encode_features as _encode_features
 
 WEIGHTS_DIR = os.path.join(os.path.dirname(__file__), "outcome_model_weights")
 
@@ -19,13 +18,13 @@ with open(f"{WEIGHTS_DIR}/outcome_yards_scaler.pkl", "rb") as f:
 with open(f"{WEIGHTS_DIR}/outcome_punt_yards_scaler.pkl", "rb") as f:
     PUNT_YARDS_SCALER = pickle.load(f)
 
-FEAT_CARDINALITY: dict = META["feat_cardinality"]
-PLAY_TYPE_MAP: dict = META["play_type_map"]
-RECEIVER_POS: dict = META["receiver_pos_classes"]
-FG_RESULT: dict = META["fg_result_classes"]
+FEAT_CARDINALITY = META["feat_cardinality"]
+PLAY_TYPE_MAP = META["play_type_map"]
+RECEIVER_POS = META["receiver_pos_classes"]
+FG_RESULT = META["fg_result_classes"]
 
-EMB_DIM: int = CFG["emb_dim"]
-HIDDEN: int = CFG["hidden"]
+EMB_DIM = CFG["emb_dim"]
+HIDDEN = CFG["hidden"]
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -33,6 +32,31 @@ model = OutcomeMLP(FEAT_CARDINALITY, EMB_DIM, HIDDEN).to(DEVICE)
 model.load_state_dict(torch.load(f"{WEIGHTS_DIR}/outcome_model.pt", map_location=DEVICE))
 model.eval()
 print(f"Outcome model loaded on {DEVICE}.")
+
+def encode_features(
+    play_type: str,
+    down: int,
+    ydstogo: float,
+    yardline_100: float,
+    score_differential: float,
+    qtr: int,
+    shotgun: int = 0,
+    goal_to_go: int = 0,
+    air_yards: float = 0.0,
+    kick_distance: float = 0.0,
+    def_pass_tier: int = 2,
+    def_rush_tier: int = 2,
+    def_sack_tier: int = 2,
+    def_coverage_tier: int = 2,
+) -> torch.Tensor:
+    return _encode_features(
+        play_type=play_type, down=down, ydstogo=ydstogo,
+        yardline_100=yardline_100, score_differential=score_differential, qtr=qtr,
+        shotgun=shotgun, goal_to_go=goal_to_go, air_yards=air_yards, kick_distance=kick_distance,
+        def_pass_tier=def_pass_tier, def_rush_tier=def_rush_tier,
+        def_sack_tier=def_sack_tier, def_coverage_tier=def_coverage_tier,
+        device=DEVICE,
+    )
 
 app = FastAPI(title="Outcome Predictor", version="1.0")
 class PlayRequest(BaseModel):

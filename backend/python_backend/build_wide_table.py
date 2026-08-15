@@ -6,18 +6,18 @@ Architecture note
 This file is ONLY a data pipeline. It contains zero simulation math.
 It extracts raw data from Supabase + nflreadpy, reshapes it into one
 wide row per team-season, and writes the result to:
-  - wide_team_seasons.csv   (input to TabSyn training on Colab)
-  - Supabase table `team_seasons_wide`  (optional persistence)
+  - wide_team_seasons.csv (input to TabSyn training on Colab)
+  - Supabase table `team_seasons_wide` (optional persistence)
 
 The Generative Matrix Sampling Layer (team_analysis.py) is a separate
 concern and never imports from this file. Swapping out the old
 multivariate-normal sampler for TabSyn inference requires only changes
-to team_analysis.py — this file is untouched.
+to team_analysis.py - this file is untouched.
 
 Wide row schema (one row = one complete team-season):
   Offense: QB, WR1-3, RB1-2, TE1-2 + team passing/rushing totals
   Defense: edge1-2, dt1-2, lb1-2, cb1-2, s1
-  Spec. Tm.: K (fg+pat), P (punts), RS1 (returns)
+  Special Teams: K (fg+pat), P (punts), RS1 (returns)
   OL/LS: unit-level sacks/hits/ypc proxies + per-slot snap shares from nflreadpy.load_snap_counts (Tx2, Gx2, Cx1, LS)
 """
 

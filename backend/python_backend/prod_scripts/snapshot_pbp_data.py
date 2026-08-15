@@ -1,12 +1,15 @@
 import os
 import wandb
 import nflreadpy as nfl
+from dotenv import load_dotenv
 
-WANDB_PROJECT = os.getenv("WANDB_PROJECT", "nfl-random-team")
+load_dotenv()
+
+WANDB_PROJECT = os.getenv("WANDB_PROJECT")
 WANDB_ENTITY = os.getenv("WANDB_ENTITY")
 
 SEASONS = list(range(2015, 2026))
-OUTPUT_DIR = "scripts/snapshot_tmp"
+OUTPUT_DIR = "prod_scripts/snapshot_tmp/pbp"
 
 def main():
     os.makedirs(OUTPUT_DIR, exist_ok=True)

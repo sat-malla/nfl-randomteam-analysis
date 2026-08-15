@@ -6,10 +6,16 @@ import json
 import pickle
 import warnings
 import numpy as np
+import sys
 import torch
 import torch.nn.functional as F
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import DataLoader, TensorDataset
+from dotenv import load_dotenv
+
+load_dotenv()
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from shared.outcome_model_arch import (
     OutcomeMLP, FEATURE_COLS, FEAT_CARDINALITY, PLAY_TYPE_MAP,
     EMB_DIM, HIDDEN, DROPOUT,
@@ -311,12 +317,12 @@ def main():
     current_score = evaluate_on_holdout(current_model, holdout_tensors) if current_model is not None else None
     promoted = current_score is None or candidate_score <= current_score * PROMOTION_TOLERANCE
 
-    os.makedirs("scripts/_train_tmp", exist_ok=True)
-    model_path = "scripts/_train_tmp/outcome_model.pt"
+    os.makedirs("prod_scripts/train_tmp", exist_ok=True)
+    model_path = "prod_scripts/train_tmp/outcome_model.pt"
     torch.save(candidate_model.state_dict(), model_path)
 
-    yards_scaler_path = "scripts/_train_tmp/outcome_yards_scaler.pkl"
-    punt_scaler_path = "scripts/_train_tmp/outcome_punt_yards_scaler.pkl"
+    yards_scaler_path = "prod_scripts/train_tmp/outcome_yards_scaler.pkl"
+    punt_scaler_path = "prod_scripts/train_tmp/outcome_punt_yards_scaler.pkl"
 
     with open(yards_scaler_path, "wb") as f:
         pickle.dump(yards_scaler, f)
@@ -332,7 +338,7 @@ def main():
         }
         for r in def_tiers[["defteam", "season", "def_pass_tier", "def_rush_tier", "def_sack_tier", "def_coverage_tier"]].to_dict("records")
     }
-    def_tiers_path = "scripts/train_tmp/outcome_def_tiers.json"
+    def_tiers_path = "prod_scripts/train_tmp/outcome_def_tiers.json"
     with open(def_tiers_path, "w") as f:
         json.dump(def_tiers_json, f)
 
