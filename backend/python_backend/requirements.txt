@@ -13,3 +13,4 @@ nflreadpy
 polars
 torch
 scikit-learn
+wandb
