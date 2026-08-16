@@ -504,41 +504,44 @@ def upsert_snap_counts(supabase, df):
         supabase.table("snap_counts").upsert(chunk, on_conflict="game_id,player").execute()
         time.sleep(0.2)
 
+def main():
+    supabase_client = get_client()
 
-supabase_client = get_client()
+    # Player stats
+    player_stats = nfl.load_player_stats(seasons=YEARS)
+    player_stats = player_stats_preprocess(player_stats)
+    store_table(supabase_client, "player_stats", player_stats)
 
-# Player stats
-player_stats = nfl.load_player_stats(seasons=YEARS)
-player_stats = player_stats_preprocess(player_stats)
-store_table(supabase_client, "player_stats", player_stats)
+    # Depth charts
+    depth_charts = nfl.load_depth_charts(seasons=list(range(2015, 2026)))
+    depth_charts = depth_charts_preprocess(depth_charts)
+    store_table(supabase_client, "depth_charts", depth_charts)
 
-# Depth charts
-depth_charts = nfl.load_depth_charts(seasons=list(range(2015, 2026)))
-depth_charts = depth_charts_preprocess(depth_charts)
-store_table(supabase_client, "depth_charts", depth_charts)
+    # Rosters
+    rosters = nfl.load_rosters(seasons=list(range(2015, 2026)))
+    rosters = rosters_preprocess(rosters)
+    store_table(supabase_client, "rosters", rosters)
 
-# Rosters
-rosters = nfl.load_rosters(seasons=list(range(2015, 2026)))
-rosters = rosters_preprocess(rosters)
-store_table(supabase_client, "rosters", rosters)
+    # Team stats (now includes sacks_suffered, def_qb_hits, pt_*, pat_*)
+    team_stats = nfl.load_team_stats(seasons=list(range(2015, 2026)))
+    team_stats = team_stats_preprocess(team_stats)
+    store_table(supabase_client, "team_stats", team_stats)
 
-# Team stats (now includes sacks_suffered, def_qb_hits, pt_*, pat_*)
-team_stats = nfl.load_team_stats(seasons=list(range(2015, 2026)))
-team_stats = team_stats_preprocess(team_stats)
-store_table(supabase_client, "team_stats", team_stats)
+    # Schedules
+    schedules_raw = nfl.load_schedules(seasons=list(range(2015, 2026)))
+    schedules = schedules_preprocess(schedules_raw)
+    store_table(supabase_client, "schedules", schedules)
 
-# Schedules
-schedules_raw = nfl.load_schedules(seasons=list(range(2015, 2026)))
-schedules = schedules_preprocess(schedules_raw)
-store_table(supabase_client, "schedules", schedules)
+    # Coaches
+    coaches = coaches_preprocess(schedules_raw)
+    store_table(supabase_client, "coaches", coaches)
 
-# Coaches
-coaches = coaches_preprocess(schedules_raw)
-store_table(supabase_client, "coaches", coaches)
+    # Snap counts
+    print("Loading snap counts (OL/LS only)...")
+    snap_counts_raw = nfl.load_snap_counts(seasons=list(range(2015, 2026)))
+    snap_counts = snap_counts_preprocess(snap_counts_raw)
+    print(f"Upserting {len(snap_counts)} snap count rows...")
+    upsert_snap_counts(supabase_client, snap_counts)
 
-# Snap counts
-print("Loading snap counts (OL/LS only)...")
-snap_counts_raw = nfl.load_snap_counts(seasons=list(range(2015, 2026)))
-snap_counts = snap_counts_preprocess(snap_counts_raw)
-print(f"Upserting {len(snap_counts)} snap count rows...")
-upsert_snap_counts(supabase_client, snap_counts)
+if __name__ == "__main__":
+    main()

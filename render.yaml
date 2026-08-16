@@ -47,11 +47,11 @@ services:
       - key: MONGO_URI
         sync: false
       - key: PLAY_CALL_URL
-        value: https://play-call-inference.onrender.com
+        value: https://play-call-inference-service.onrender.com
       - key: OUTCOME_URL
-        value: https://outcome-inference.onrender.com
+        value: https://outcome-inference-service.onrender.com
       - key: TABSYN_URL
-        value: https://tabsyn-inference.onrender.com
+        value: https://nfl-randomteam-analysis-p6d3.onrender.com
 
   - type: web
     name: outcome-inference
