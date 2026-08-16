@@ -58,7 +58,6 @@ services:
     runtime: docker
     dockerfilePath: ./backend/python_backend/docker/Dockerfile.outcome_inference
     dockerContext: ./backend/python_backend
-    plan: starter
     envVars:
       - key: WANDB_API_KEY
         sync: false
@@ -72,7 +71,6 @@ services:
     runtime: docker
     dockerfilePath: ./backend/python_backend/docker/Dockerfile.play_call_inference
     dockerContext: ./backend/python_backend
-    plan: starter
     envVars:
       - key: WANDB_API_KEY
         sync: false
@@ -86,7 +84,6 @@ services:
     runtime: docker
     dockerfilePath: ./backend/python_backend/docker/Dockerfile.tabsyn_inference
     dockerContext: ./backend/python_backend
-    plan: starter
     envVars:
       - key: WANDB_API_KEY
         sync: false
