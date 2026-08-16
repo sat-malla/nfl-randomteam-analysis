@@ -14,3 +14,4 @@ polars
 torch
 scikit-learn
 wandb
+pyarrow
