@@ -7,6 +7,9 @@ on:
     - cron: "0 13 * * 2"
   workflow_dispatch: {}
 
+permissions:
+  contents: write
+
 jobs:
   check-nflverse-data:
     runs-on: ubuntu-latest
@@ -22,7 +25,7 @@ jobs:
           PLAYER_STATS=$(curl -s https://api.github.com/repos/nflverse/nflverse-data/releases/tags/player_stats | jq -r '[.assets[].updated_at] | max')
           echo "pbp=$PBP" >> "$GITHUB_OUTPUT"
           echo "player_stats=$PLAYER_STATS" >> "$GITHUB_OUTPUT"
-          
+
       - name: Compare against stored watermark
         id: compare
         run: |
