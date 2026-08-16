@@ -1,0 +1,116 @@
+name: Retrain Pro Football RTGA Inference Models
+
+on:
+  schedule:
+    # Every Tuesday at 1 PM UTC
+    # Mainly matters Jan-Feb (season end)
+    - cron: "0 13 * * 2"
+  workflow_dispatch: {}
+
+jobs:
+  check-nflverse-data:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.compare.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch latest nflverse timestamp
+        id: check
+        run: |
+          PBP=$(curl -s https://api.github.com/repos/nflverse/nflverse-data/releases/tags/pbp | jq -r '[.assets[].updated_at] | max')
+          PLAYER_STATS=$(curl -s https://api.github.com/repos/nflverse/nflverse-data/releases/tags/player_stats | jq -r '[.assets[].updated_at] | max')
+          echo "pbp=$PBP" >> "$GITHUB_OUTPUT"
+          echo "player_stats=$PLAYER_STATS" >> "$GITHUB_OUTPUT"
+          
+      - name: Compare against stored watermark
+        id: compare
+        run: |
+          STORED=$(cat .nflverse_watermark.txt 2>/dev/null || echo "|")
+          STORED_PBP=$(echo "$STORED" | cut -d'|' -f1)
+          STORED_PLAYER_STATS=$(echo "$STORED" | cut -d'|' -f2)
+          if [ "$STORED_PBP" != "${{ steps.check.outputs.pbp }}" ] || [ "$STORED_PLAYER_STATS" != "${{ steps.check.outputs.player_stats }}" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Save new watermark
+        if: steps.compare.outputs.changed == 'true'
+        run: echo "${{ steps.check.outputs.pbp }}|${{ steps.check.outputs.player_stats }}" > .nflverse_watermark.txt
+
+      - name: Commit updated watermark
+        if: steps.compare.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add .nflverse_watermark.txt
+          git commit -m "Update nflverse data watermark [skip ci]"
+          git push
+
+  retrain:
+    needs: check-nflverse-data
+    if: needs.check-nflverse-data.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend/python_backend
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+      MONGO_URI: ${{ secrets.MONGO_URI }}
+      WANDB_API_KEY: ${{ secrets.WANDB_API_KEY }}
+      WANDB_ENTITY: ${{ secrets.WANDB_ENTITY }}
+      WANDB_PROJECT: ${{ secrets.WANDB_PROJECT }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt --break-system-packages
+
+      - name: Snapshot Supabase tables
+        run: python prod_scripts/snapshot_data.py
+
+      - name: Snapshot raw PBP data
+        run: python prod_scripts/snapshot_pbp_data.py
+
+      - name: Build wide team-seasons table
+        run: python prod_scripts/build_wide_table_snapshot.py
+
+      - name: Train outcome model
+        id: train_outcome
+        run: python prod_scripts/train_outcome_model.py
+
+      - name: Train play-call model
+        id: train_play_call
+        run: python prod_scripts/train_play_call_model.py
+
+      - name: Train TabSyn model
+        id: train_tabsyn
+        run: python prod_scripts/train_tabsyn.py
+
+      - name: Send status email
+        if: always()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.USER_EMAIL }}
+          password: ${{ secrets.EMAIL_APP_PASSWORD }}
+          subject: "NFL model retrain finished — ${{ job.status }}"
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: NFL Retrain Bot
+          body: |
+            Retrain workflow finished with status: ${{ job.status }}
+
+            View full run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            Check WandB for promote/reject details on each model:
+            https://wandb.ai/${{ secrets.WANDB_ENTITY }}/${{ secrets.WANDB_PROJECT }}
