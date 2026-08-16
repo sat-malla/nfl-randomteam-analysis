@@ -10,6 +10,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: retrain-models
+  cancel-in-progress: false
+
 jobs:
   check-nflverse-data:
     runs-on: ubuntu-latest
