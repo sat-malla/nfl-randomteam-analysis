@@ -1,9 +1,7 @@
 name: Retrain Pro Football RTGA Inference Models
 
 on:
-  schedule:
-    # Every Tuesday at 1 PM UTC
-    # Mainly matters Jan-Feb (season end)
+  schedule: # Every Tuesday at 1 PM UTC
     - cron: "0 13 * * 2"
   workflow_dispatch: {}
 
@@ -22,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch latest nflverse timestamp
+      - name: Fetch latest nflverse timestamps
         id: check
         run: |
           PBP=$(curl -s https://api.github.com/repos/nflverse/nflverse-data/releases/tags/pbp | jq -r '[.assets[].updated_at] | max')
@@ -55,7 +53,7 @@ jobs:
           git commit -m "Update nflverse data watermark [skip ci]"
           git push
 
-  retrain:
+  snapshot-data:
     needs: check-nflverse-data
     if: needs.check-nflverse-data.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
@@ -91,42 +89,101 @@ jobs:
       - name: Build wide team-seasons table
         run: python prod_scripts/build_wide_table_snapshot.py
 
-      - name: Download shared PBP artifact
-        run: |
-          python -c "
-          import wandb
-          api = wandb.Api()
-          artifact = api.artifact(f'{\"${{ secrets.WANDB_ENTITY }}\"}/{\"${{ secrets.WANDB_PROJECT }}\"}/pbp-raw:latest')
-          artifact.download(root='shared_pbp_cache')
-          "
-
+  train-outcome-model:
+    needs: snapshot-data
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend/python_backend
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+      MONGO_URI: ${{ secrets.MONGO_URI }}
+      WANDB_API_KEY: ${{ secrets.WANDB_API_KEY }}
+      WANDB_ENTITY: ${{ secrets.WANDB_ENTITY }}
+      WANDB_PROJECT: ${{ secrets.WANDB_PROJECT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt --break-system-packages
       - name: Train outcome model
-        id: train_outcome
         run: python prod_scripts/train_outcome_model.py
 
+  train-play-call-model:
+    needs: snapshot-data
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend/python_backend
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+      MONGO_URI: ${{ secrets.MONGO_URI }}
+      WANDB_API_KEY: ${{ secrets.WANDB_API_KEY }}
+      WANDB_ENTITY: ${{ secrets.WANDB_ENTITY }}
+      WANDB_PROJECT: ${{ secrets.WANDB_PROJECT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt --break-system-packages
       - name: Train play-call model
-        id: train_play_call
         run: python prod_scripts/train_play_call_model.py
 
+  train-tabsyn-model:
+    needs: snapshot-data
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend/python_backend
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+      MONGO_URI: ${{ secrets.MONGO_URI }}
+      WANDB_API_KEY: ${{ secrets.WANDB_API_KEY }}
+      WANDB_ENTITY: ${{ secrets.WANDB_ENTITY }}
+      WANDB_PROJECT: ${{ secrets.WANDB_PROJECT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt --break-system-packages
       - name: Train TabSyn model
-        id: train_tabsyn
         run: python prod_scripts/train_tabsyn.py
 
+  notify:
+    needs: [train-outcome-model, train-play-call-model, train-tabsyn-model]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
       - name: Send status email
-        if: always()
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
           server_port: 465
           username: ${{ secrets.USER_EMAIL }}
           password: ${{ secrets.EMAIL_APP_PASSWORD }}
-          subject: "NFL model retrain finished: ${{ job.status }}"
+          subject: "NFL model retrain finished"
           to: ${{ secrets.NOTIFICATION_EMAIL }}
           from: NFL Retrain Bot
           body: |
-            Retrain workflow finished with status: ${{ job.status }}
+            Retrain workflow finished.
+
+            outcome-model: ${{ needs.train-outcome-model.result }}
+            play-call-model: ${{ needs.train-play-call-model.result }}
+            tabsyn-model: ${{ needs.train-tabsyn-model.result }}
 
             View full run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
-            Check WandB for promote/reject details on each model:
+            Check WandB for promote/reject details:
             https://wandb.ai/${{ secrets.WANDB_ENTITY }}/${{ secrets.WANDB_PROJECT }}
