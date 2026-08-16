@@ -25,6 +25,7 @@ warnings.filterwarnings("ignore")
 WANDB_PROJECT = os.getenv("WANDB_PROJECT")
 WANDB_ENTITY = os.getenv("WANDB_ENTITY")
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+SHARED_PBP_DIR = "prod_scripts/_shared_pbp_cache"
 
 EPOCHS = 80
 BATCH_SIZE = 4096
@@ -33,9 +34,14 @@ HOLDOUT_SEASON = 2025
 PROMOTION_TOLERANCE = 0.98  # candidate must reach >= 98% of current production's val accuracy
 
 def load_pbp_data(run) -> pd.DataFrame:
-    artifact = run.use_artifact(f"{WANDB_ENTITY}/{WANDB_PROJECT}/pbp-raw:latest")
-    data_dir = artifact.download()
-    return pd.read_csv(os.path.join(data_dir, "pbp_raw.csv"), low_memory=False)
+    csv_path = os.path.join(SHARED_PBP_DIR, "pbp_raw.csv")
+    if os.path.exists(csv_path):
+        print(f"Using shared cached PBP data at {csv_path}")
+    else:
+        artifact = run.use_artifact(f"{WANDB_ENTITY}/{WANDB_PROJECT}/pbp-raw:latest")
+        data_dir = artifact.download(root=SHARED_PBP_DIR)
+        csv_path = os.path.join(data_dir, "pbp_raw.csv")
+    return pd.read_csv(csv_path, low_memory=False)
 
 def prepare_dataset(pbp_raw: pd.DataFrame):
     KEEP_TYPES = {"run", "pass", "punt", "field_goal"}

@@ -87,6 +87,15 @@ jobs:
       - name: Build wide team-seasons table
         run: python prod_scripts/build_wide_table_snapshot.py
 
+      - name: Download shared PBP artifact
+        run: |
+          python -c "
+          import wandb
+          api = wandb.Api()
+          artifact = api.artifact(f'{\"${{ secrets.WANDB_ENTITY }}\"}/{\"${{ secrets.WANDB_PROJECT }}\"}/pbp-raw:latest')
+          artifact.download(root='shared_pbp_cache')
+          "
+
       - name: Train outcome model
         id: train_outcome
         run: python prod_scripts/train_outcome_model.py
