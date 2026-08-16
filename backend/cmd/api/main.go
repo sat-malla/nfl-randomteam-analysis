@@ -24,7 +24,7 @@ func main() {
 	client := database.ConnectToDatabase(mongoURI)
 
 	app := fiber.New(fiber.Config{
-		AppName: "Pro Football Random Team Analysis",
+		AppName:      "Pro Football Random Team Analysis",
 		ServerHeader: "Fiber",
 	})
 
@@ -58,5 +58,10 @@ func main() {
 		log.Println("MongoDB unavailable — /event, /team, /players, /analysis routes disabled")
 	}
 
-	log.Fatal(app.Listen(":8000"))
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8000" // local fallback
+	}
+
+	log.Fatal(app.Listen(":" + port))
 }

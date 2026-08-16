@@ -1,0 +1,96 @@
+services:
+  - type: web
+    name: go-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    envVars:
+      - key: MONGO_URI
+        sync: false
+
+  - type: web
+    name: team-analysis
+    runtime: docker
+    dockerfilePath: ./backend/python_backend/docker/Dockerfile.team_analysis
+    dockerContext: ./backend/python_backend
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: MONGO_URI
+        sync: false
+
+  - type: web
+    name: optimize-team
+    runtime: docker
+    dockerfilePath: ./backend/python_backend/docker/Dockerfile.optimize_team
+    dockerContext: ./backend/python_backend
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: MONGO_URI
+        sync: false
+
+  - type: web
+    name: simulate-game
+    runtime: docker
+    dockerfilePath: ./backend/python_backend/docker/Dockerfile.simulate_game
+    dockerContext: ./backend/python_backend
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: MONGO_URI
+        sync: false
+      - key: PLAY_CALL_URL
+        value: https://play-call-inference.onrender.com
+      - key: OUTCOME_URL
+        value: https://outcome-inference.onrender.com
+      - key: TABSYN_URL
+        value: https://tabsyn-inference.onrender.com
+
+  - type: web
+    name: outcome-inference
+    runtime: docker
+    dockerfilePath: ./backend/python_backend/docker/Dockerfile.outcome_inference
+    dockerContext: ./backend/python_backend
+    plan: starter
+    envVars:
+      - key: WANDB_API_KEY
+        sync: false
+      - key: WANDB_ENTITY
+        sync: false
+      - key: WANDB_PROJECT
+        sync: false
+
+  - type: web
+    name: play-call-inference
+    runtime: docker
+    dockerfilePath: ./backend/python_backend/docker/Dockerfile.play_call_inference
+    dockerContext: ./backend/python_backend
+    plan: starter
+    envVars:
+      - key: WANDB_API_KEY
+        sync: false
+      - key: WANDB_ENTITY
+        sync: false
+      - key: WANDB_PROJECT
+        sync: false
+
+  - type: web
+    name: tabsyn-inference
+    runtime: docker
+    dockerfilePath: ./backend/python_backend/docker/Dockerfile.tabsyn_inference
+    dockerContext: ./backend/python_backend
+    plan: starter
+    envVars:
+      - key: WANDB_API_KEY
+        sync: false
+      - key: WANDB_ENTITY
+        sync: false
+      - key: WANDB_PROJECT
+        sync: false

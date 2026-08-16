@@ -7,7 +7,7 @@ load_dotenv()
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from build_wide_table import (
+from backend.python_backend.supabase_table_build_scripts.build_wide_table import (
     extract_player_stats, extract_team_stats, extract_snap_counts,
     build_ol_ls_features, reshape_to_wide, validate,
 )
