@@ -101,9 +101,21 @@ const SECTIONS: Section[] = [
       {
         type: "links",
         links: [
-          { label: "GitHub", icon: "logo-github" as const, url: "https://github.com/sat-malla" },
-          { label: "LinkedIn", icon: "logo-linkedin" as const, url: "https://www.linkedin.com/in/sathvik-malla-41b7aa284" },
-          { label: "Portfolio", icon: "globe-outline" as const, url: "https://sathvik-malla.netlify.app/" },
+          {
+            label: "GitHub",
+            icon: "logo-github" as const,
+            url: "https://github.com/sat-malla",
+          },
+          {
+            label: "LinkedIn",
+            icon: "logo-linkedin" as const,
+            url: "https://www.linkedin.com/in/sathvik-malla-41b7aa284",
+          },
+          {
+            label: "Portfolio",
+            icon: "globe-outline" as const,
+            url: "https://sathvik-malla.netlify.app/",
+          },
         ],
       },
     ],
@@ -135,11 +147,20 @@ export default function Info() {
       {SECTIONS.map((section) => (
         <View
           key={section.id}
-          style={[styles.card, { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow }]}
+          style={[
+            styles.card,
+            {
+              backgroundColor: c.card,
+              borderColor: c.border,
+              boxShadow: c.shadow,
+            },
+          ]}
         >
           <View style={styles.sectionHeader}>
             <Ionicons name={section.icon} size={22} color={c.accent} />
-            <Text style={[styles.sectionTitle, { color: c.text }]}>{section.title}</Text>
+            <Text style={[styles.sectionTitle, { color: c.text }]}>
+              {section.title}
+            </Text>
           </View>
           {section.content.map((block, i) => {
             if (block.type === "label") {
@@ -166,7 +187,9 @@ export default function Info() {
                       onPress={() => Linking.openURL(link.url)}
                     >
                       <Ionicons name={link.icon} size={18} color={c.accent} />
-                      <Text style={[styles.linkLabel, { color: c.accent }]}>{link.label}</Text>
+                      <Text style={[styles.linkLabel, { color: c.accent }]}>
+                        {link.label}
+                      </Text>
                     </TouchableOpacity>
                   ))}
                 </View>

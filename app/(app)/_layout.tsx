@@ -1,13 +1,29 @@
 import { Button, ButtonIcon } from "@/components/ui/button";
 import { GluestackUIProvider } from "@/components/ui/gluestack-ui-provider";
 import { Heading } from "@/components/ui/heading";
-import { CloseIcon, Icon, SettingsIcon, ArrowLeftIcon, InfoIcon } from "@/components/ui/icon";
+import {
+  CloseIcon,
+  Icon,
+  SettingsIcon,
+  ArrowLeftIcon,
+  InfoIcon,
+} from "@/components/ui/icon";
 import { Switch } from "react-native";
 import { Text } from "@/components/ui/text";
 import { Stack, useRouter } from "expo-router";
 import { useState, useEffect } from "react";
-import { useFonts, Montserrat_400Regular, Montserrat_700Bold } from "@expo-google-fonts/montserrat";
-import { Appearance, StyleSheet, TouchableOpacity, View, useColorScheme } from "react-native";
+import {
+  useFonts,
+  Montserrat_400Regular,
+  Montserrat_700Bold,
+} from "@expo-google-fonts/montserrat";
+import {
+  Appearance,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+  useColorScheme,
+} from "react-native";
 import * as SplashScreen from "expo-splash-screen";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import {
@@ -30,7 +46,7 @@ export default function RootLayout() {
     Montserrat_700Bold,
   });
   const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const isDark = colorScheme === "dark";
   const router = useRouter();
 
   useEffect(() => {
@@ -44,8 +60,8 @@ export default function RootLayout() {
   const themeTextStyle = isDark ? styles.darkText : styles.lightText;
 
   const toggleTheme = (newValue: boolean) => {
-    Appearance.setColorScheme(newValue ? 'dark' : 'light');
-  }
+    Appearance.setColorScheme(newValue ? "dark" : "light");
+  };
 
   return (
     <GluestackUIProvider>
@@ -68,7 +84,15 @@ export default function RootLayout() {
               }}
               style={{ backgroundColor: "transparent", gap: 6 }}
             >
-              <ButtonIcon as={ArrowLeftIcon} style={{ color: "#fff", width: 25, height: 25, marginBottom: 4 }} />
+              <ButtonIcon
+                as={ArrowLeftIcon}
+                style={{
+                  color: "#fff",
+                  width: 25,
+                  height: 25,
+                  marginBottom: 4,
+                }}
+              />
             </Button>
           ),
           headerRight: () => (
@@ -79,7 +103,15 @@ export default function RootLayout() {
               }}
               style={{ backgroundColor: "transparent" }}
             >
-              <ButtonIcon as={SettingsIcon} style={{ color: "#fff", width: 25, height: 25, marginBottom: 7 }} />
+              <ButtonIcon
+                as={SettingsIcon}
+                style={{
+                  color: "#fff",
+                  width: 25,
+                  height: 25,
+                  marginBottom: 7,
+                }}
+              />
             </Button>
           ),
         }}
@@ -94,15 +126,23 @@ export default function RootLayout() {
                 onPress={() => router.push("/info")}
                 style={{ backgroundColor: "transparent" }}
               >
-                <ButtonIcon as={InfoIcon} style={{ color: "#fff", width: 27, height: 27, marginBottom: 4 }} />
+                <ButtonIcon
+                  as={InfoIcon}
+                  style={{
+                    color: "#fff",
+                    width: 27,
+                    height: 27,
+                    marginBottom: 4,
+                  }}
+                />
               </Button>
             ),
           }}
         />
-        <Stack.Screen 
+        <Stack.Screen
           name="generate-team"
           options={{
-            title: "Generate"
+            title: "Generate",
           }}
         />
         <Stack.Screen
@@ -183,14 +223,25 @@ export default function RootLayout() {
         <DrawerBackdrop />
         <DrawerContent>
           <DrawerHeader style={{ marginTop: 50 }}>
-            <Heading size="xl" style={[styles.lightText, themeTextStyle]}>Settings</Heading>
+            <Heading size="xl" style={[styles.lightText, themeTextStyle]}>
+              Settings
+            </Heading>
             <DrawerCloseButton>
               <Icon as={CloseIcon} />
             </DrawerCloseButton>
           </DrawerHeader>
           <DrawerBody style={{ marginTop: 30 }}>
-            <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 12 }}>
-              <Text style={{ fontFamily: "Montserrat_700Bold" }} size="md">Dark Mode</Text>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "center",
+                alignItems: "center",
+                gap: 12,
+              }}
+            >
+              <Text style={{ fontFamily: "Montserrat_700Bold" }} size="md">
+                Dark Mode
+              </Text>
               <Switch
                 trackColor={{ false: "#ccc", true: "#3b82f6" }}
                 thumbColor="#fff"
@@ -199,42 +250,112 @@ export default function RootLayout() {
               />
             </View>
 
-            <View style={[styles.divider, { backgroundColor: isDark ? "#edf5ff" : "#02080f", marginTop: 28 }]} />
-            <TouchableOpacity style={styles.supportRow} onPress={() => { setShowDrawer(false); router.push("/app-icon"); }}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <View
+              style={[
+                styles.divider,
+                {
+                  backgroundColor: isDark ? "#edf5ff" : "#02080f",
+                  marginTop: 28,
+                },
+              ]}
+            />
+            <TouchableOpacity
+              style={styles.supportRow}
+              onPress={() => {
+                setShowDrawer(false);
+                router.push("/app-icon");
+              }}
+            >
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+              >
                 <Text style={styles.supportLink}>App Icon</Text>
               </View>
               <Ionicons name="chevron-forward" size={16} color="#0099ff" />
             </TouchableOpacity>
-            <View style={[styles.divider, { backgroundColor: isDark ? "#edf5ff" : "#02080f" }]} />
-            <TouchableOpacity style={styles.supportRow} onPress={() => { setShowDrawer(false); router.push("/support"); }}>
+            <View
+              style={[
+                styles.divider,
+                { backgroundColor: isDark ? "#edf5ff" : "#02080f" },
+              ]}
+            />
+            <TouchableOpacity
+              style={styles.supportRow}
+              onPress={() => {
+                setShowDrawer(false);
+                router.push("/support");
+              }}
+            >
               <Text style={styles.supportLink}>Support</Text>
               <Ionicons name="chevron-forward" size={16} color="#0099ff" />
             </TouchableOpacity>
-            <View style={[styles.divider, { backgroundColor: isDark ? "#edf5ff" : "#02080f" }]} />
-            <TouchableOpacity style={styles.supportRow} onPress={() => { setShowDrawer(false); router.push("/donate"); }}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <View
+              style={[
+                styles.divider,
+                { backgroundColor: isDark ? "#edf5ff" : "#02080f" },
+              ]}
+            />
+            <TouchableOpacity
+              style={styles.supportRow}
+              onPress={() => {
+                setShowDrawer(false);
+                router.push("/donate");
+              }}
+            >
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+              >
                 <Ionicons name="heart" size={16} color="#f43f5e" />
                 <Text style={styles.donateLink}>Donate</Text>
               </View>
               <Ionicons name="chevron-forward" size={16} color="#f43f5e" />
             </TouchableOpacity>
-            
-            <Text style={[styles.legalLabel, { color: isDark ? "#edf5ff" : "#02080f" }]}>LEGAL</Text>
 
-            <TouchableOpacity style={styles.legalRow} onPress={() => { setShowDrawer(false); router.push("/terms"); }}>
+            <Text
+              style={[
+                styles.legalLabel,
+                { color: isDark ? "#edf5ff" : "#02080f" },
+              ]}
+            >
+              LEGAL
+            </Text>
+
+            <TouchableOpacity
+              style={styles.legalRow}
+              onPress={() => {
+                setShowDrawer(false);
+                router.push("/terms");
+              }}
+            >
               <Text style={styles.legalLink}>Terms & Conditions</Text>
               <Ionicons name="chevron-forward" size={16} color="#0099ff" />
             </TouchableOpacity>
-            <View style={[styles.divider, { backgroundColor: isDark ? "#edf5ff" : "#02080f" }]} />
-            <TouchableOpacity style={styles.legalRow} onPress={() => { setShowDrawer(false); router.push("/privacy"); }}>
+            <View
+              style={[
+                styles.divider,
+                { backgroundColor: isDark ? "#edf5ff" : "#02080f" },
+              ]}
+            />
+            <TouchableOpacity
+              style={styles.legalRow}
+              onPress={() => {
+                setShowDrawer(false);
+                router.push("/privacy");
+              }}
+            >
               <Text style={styles.legalLink}>Privacy Policy</Text>
               <Ionicons name="chevron-forward" size={16} color="#0099ff" />
             </TouchableOpacity>
           </DrawerBody>
           <DrawerFooter>
-            <Text style={[styles.copyright, { color: isDark ? "#edf5ff" : "#02080f" }]}>
-              © {new Date().getFullYear()} Pro Football RTGA. All rights reserved.
+            <Text
+              style={[
+                styles.copyright,
+                { color: isDark ? "#edf5ff" : "#02080f" },
+              ]}
+            >
+              © {new Date().getFullYear()} Pro Football RTGA. All rights
+              reserved.
             </Text>
           </DrawerFooter>
         </DrawerContent>
@@ -300,6 +421,3 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
 });
-
-
-

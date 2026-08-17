@@ -136,12 +136,12 @@ export default function Donate() {
           Support Pro Football RTGA
         </Text>
         <Text style={[styles.heroBody, { color: c.subtext }]}>
-          Pro Football RTGA is just a solo passion project! No company, no funding, no
-          subscriptions. An app build with entirely free services with rate
-          limits. If you had fun simulating games or building rosters, any
-          contribution would be much appreciated to improve the quality of the
-          app and services provided for you guys. Ultimately, these donations
-          will be for you.
+          Pro Football RTGA is just a solo passion project! No company, no
+          funding, no subscriptions. An app build with entirely free services
+          with rate limits. If you had fun simulating games or building rosters,
+          any contribution would be much appreciated to improve the quality of
+          the app and services provided for you guys. Ultimately, these
+          donations will be for you.
         </Text>
       </View>
 

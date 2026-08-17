@@ -21,7 +21,9 @@ export default function Modes() {
   const isDark = colorScheme === "dark";
   const router = useRouter();
 
-  const themeContainerStyle = isDark ? styles.darkContainer : styles.lightContainer;
+  const themeContainerStyle = isDark
+    ? styles.darkContainer
+    : styles.lightContainer;
   const themeTextStyle = isDark ? styles.darkText : styles.lightText;
 
   return (

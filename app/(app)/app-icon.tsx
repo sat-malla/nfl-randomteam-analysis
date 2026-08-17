@@ -13,16 +13,23 @@ import {
 
 const FOREGROUND = require("../../assets/images/official-PF-RTGA-icon-foreground.png");
 let getAppIconName: () => string | null = () => null;
-let setAlternateAppIcon: (name: string | null) => Promise<string | null> = async () => null;
+let setAlternateAppIcon: (
+  name: string | null,
+) => Promise<string | null> = async () => null;
 let supportsAlternateIcons = false;
 try {
   const mod = require("expo-alternate-app-icons");
   getAppIconName = mod.getAppIconName;
   setAlternateAppIcon = mod.setAlternateAppIcon;
   supportsAlternateIcons = mod.supportsAlternateIcons;
-} catch {};
+} catch {}
 
-const ICONS: { name: string | null; label: string; color: string; position: string }[] = [
+const ICONS: {
+  name: string | null;
+  label: string;
+  color: string;
+  position: string;
+}[] = [
   { name: null, label: "Default (Blue)", color: "#1f55ed", position: "RB" },
   { name: "iconRed", label: "Red", color: "#dc2626", position: "QB" },
   { name: "iconGreen", label: "Green", color: "#059669", position: "WR" },
@@ -44,7 +51,9 @@ export default function AppIcon() {
     text: isDark ? "#edf5ff" : "#02080f",
     subtext: isDark ? "#a0b4c8" : "#4a5568",
     border: isDark ? "#1e3a52" : "#bfdbfe",
-    shadow: isDark ? "rgba(250,250,250,0.8) 0px 3px 8px" : "rgba(0,0,0,0.24) 0px 3px 8px",
+    shadow: isDark
+      ? "rgba(250,250,250,0.8) 0px 3px 8px"
+      : "rgba(0,0,0,0.24) 0px 3px 8px",
   };
 
   const [current, setCurrent] = useState<string | null>(null);
@@ -57,12 +66,15 @@ export default function AppIcon() {
     setSelected(active);
   }, []);
 
-  const activeIcon = ICONS.find(i => i.name === selected) ?? ICONS[0];
+  const activeIcon = ICONS.find((i) => i.name === selected) ?? ICONS[0];
   const hasChanged = selected !== current;
 
   const handleSave = async () => {
     if (!supportsAlternateIcons) {
-      Alert.alert("Not supported", "Alternate app icons are not supported on this device.");
+      Alert.alert(
+        "Not supported",
+        "Alternate app icons are not supported on this device.",
+      );
       return;
     }
     setSaving(true);
@@ -70,7 +82,10 @@ export default function AppIcon() {
       await setAlternateAppIcon(selected);
       setCurrent(selected);
     } catch (e) {
-      Alert.alert("Error", "Failed to change app icon. This requires a native build.");
+      Alert.alert(
+        "Error",
+        "Failed to change app icon. This requires a native build.",
+      );
     } finally {
       setSaving(false);
     }
@@ -82,20 +97,51 @@ export default function AppIcon() {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow }]}>
-        <Text style={[styles.cardLabel, { color: c.subtext }]}>CURRENT ICON</Text>
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: c.card,
+            borderColor: c.border,
+            boxShadow: c.shadow,
+          },
+        ]}
+      >
+        <Text style={[styles.cardLabel, { color: c.subtext }]}>
+          CURRENT ICON
+        </Text>
         <View style={styles.previewCol}>
-          <View style={[styles.previewSwatch, { backgroundColor: activeIcon.color }]}>
+          <View
+            style={[
+              styles.previewSwatch,
+              { backgroundColor: activeIcon.color },
+            ]}
+          >
             <Image source={FOREGROUND} style={styles.previewImg} />
           </View>
-          <Text style={[styles.previewName, { color: c.text }]}>{activeIcon.label}</Text>
-          <Text style={[styles.previewSub, { color: c.subtext }]}>{activeIcon.position} position color</Text>
+          <Text style={[styles.previewName, { color: c.text }]}>
+            {activeIcon.label}
+          </Text>
+          <Text style={[styles.previewSub, { color: c.subtext }]}>
+            {activeIcon.position} position color
+          </Text>
         </View>
       </View>
 
-
-      <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow }]}>
-        <Text style={[styles.cardLabel, { color: c.subtext }]}>Choose an Icon. Colors are based on position badge colors, so choose your favorite position's color if you would like!</Text>
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: c.card,
+            borderColor: c.border,
+            boxShadow: c.shadow,
+          },
+        ]}
+      >
+        <Text style={[styles.cardLabel, { color: c.subtext }]}>
+          Choose an Icon. Colors are based on position badge colors, so choose
+          your favorite position's color if you would like!
+        </Text>
         <View style={styles.grid}>
           {ICONS.map((icon) => {
             const isSelected = selected === icon.name;
@@ -116,7 +162,13 @@ export default function AppIcon() {
                 <View style={[styles.swatch, { backgroundColor: icon.color }]}>
                   <Image source={FOREGROUND} style={styles.swatchImg} />
                 </View>
-                <Text style={[styles.gridLabel, { color: isSelected ? icon.color : c.subtext }]} numberOfLines={1}>
+                <Text
+                  style={[
+                    styles.gridLabel,
+                    { color: isSelected ? icon.color : c.subtext },
+                  ]}
+                  numberOfLines={1}
+                >
                   {icon.label}
                 </Text>
               </TouchableOpacity>
@@ -128,7 +180,10 @@ export default function AppIcon() {
       <TouchableOpacity
         style={[
           styles.saveBtn,
-          { backgroundColor: hasChanged ? activeIcon.color : "#9ca3af", opacity: saving ? 0.7 : 1 },
+          {
+            backgroundColor: hasChanged ? activeIcon.color : "#9ca3af",
+            opacity: saving ? 0.7 : 1,
+          },
         ]}
         onPress={handleSave}
         disabled={!hasChanged || saving}
@@ -137,12 +192,15 @@ export default function AppIcon() {
         {saving ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.saveBtnText}>{hasChanged ? "Save Icon" : "No Changes"}</Text>
+          <Text style={styles.saveBtnText}>
+            {hasChanged ? "Save Icon" : "No Changes"}
+          </Text>
         )}
       </TouchableOpacity>
 
       <Text style={[styles.note, { color: c.subtext }]}>
-        *Note: iOS will briefly display a system notification when the icon changes.
+        *Note: iOS will briefly display a system notification when the icon
+        changes.
       </Text>
       <Text style={[styles.footer, { color: c.subtext }]}>
         © {new Date().getFullYear()} Pro Football RTGA. All rights reserved.

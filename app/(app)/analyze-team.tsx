@@ -1,5 +1,9 @@
 import { assignLbLabels } from "@/utils/defense-rendering";
-import { NFL_TEAM_COLORS, NFL_TEAM_COLORS_DARK, toTeamAbbr } from "@/utils/nflTeamColors";
+import {
+  NFL_TEAM_COLORS,
+  NFL_TEAM_COLORS_DARK,
+  toTeamAbbr,
+} from "@/utils/nflTeamColors";
 import {
   Text,
   ScrollView,
@@ -155,7 +159,26 @@ const POS_COLORS_DARK: Record<string, { bg: string; text: string }> = {
 };
 
 const OFF_POSITIONS = new Set(["QB", "RB", "FB", "WR", "TE"]);
-const DEF_POSITIONS = new Set(["DE", "DT", "NT", "DL", "LB", "OLB", "ILB", "MLB", "SLB", "WLB", "CB", "FS", "SS", "S", "SAF", "DB", "Nickel", "Dime"]);
+const DEF_POSITIONS = new Set([
+  "DE",
+  "DT",
+  "NT",
+  "DL",
+  "LB",
+  "OLB",
+  "ILB",
+  "MLB",
+  "SLB",
+  "WLB",
+  "CB",
+  "FS",
+  "SS",
+  "S",
+  "SAF",
+  "DB",
+  "Nickel",
+  "Dime",
+]);
 
 function aggregateTeamStats(projections: PlayerProjection[]) {
   let scrimmageYards = 0;
@@ -166,8 +189,13 @@ function aggregateTeamStats(projections: PlayerProjection[]) {
   for (const p of projections) {
     const s = p.stats;
     if (OFF_POSITIONS.has(p.position)) {
-      scrimmageYards += (s.rushing_yards?.projected_total ?? 0) + (s.receiving_yards?.projected_total ?? 0);
-      offTDs += (s.rushing_tds?.projected_total ?? 0) + (s.receiving_tds?.projected_total ?? 0) + (s.passing_tds?.projected_total ?? 0);
+      scrimmageYards +=
+        (s.rushing_yards?.projected_total ?? 0) +
+        (s.receiving_yards?.projected_total ?? 0);
+      offTDs +=
+        (s.rushing_tds?.projected_total ?? 0) +
+        (s.receiving_tds?.projected_total ?? 0) +
+        (s.passing_tds?.projected_total ?? 0);
     }
     if (DEF_POSITIONS.has(p.position)) {
       sacks += s.def_sacks?.projected_total ?? 0;
@@ -175,7 +203,12 @@ function aggregateTeamStats(projections: PlayerProjection[]) {
     }
   }
 
-  return { scrimmageYards: Math.round(scrimmageYards), offTDs: Math.round(offTDs), sacks: Math.round(sacks), defINTs: Math.round(defINTs) };
+  return {
+    scrimmageYards: Math.round(scrimmageYards),
+    offTDs: Math.round(offTDs),
+    sacks: Math.round(sacks),
+    defINTs: Math.round(defINTs),
+  };
 }
 
 type TeamStatsGridProps = {
@@ -193,36 +226,80 @@ type LeaderCategory = {
 };
 
 const LEADER_CATEGORIES: LeaderCategory[] = [
-  { label: "Total TD Leader", stat: "total_tds", excludePos: new Set(["QB"]), unit: "TDs" },
+  {
+    label: "Total TD Leader",
+    stat: "total_tds",
+    excludePos: new Set(["QB"]),
+    unit: "TDs",
+  },
   { label: "Rushing TD Leader", stat: "rushing_tds", unit: "TDs" },
   { label: "Receiving TD Leader", stat: "receiving_tds", unit: "TDs" },
   { label: "Scrimmage Yds Leader", stat: "scrimmage_yards", unit: "Yards" },
   { label: "Rushing Yds Leader", stat: "rushing_yards", unit: "Yards" },
   { label: "Receiving Yds Leader", stat: "receiving_yards", unit: "Yards" },
-  { label: "Tackles Leader", stat: "def_tackles_solo", includePos: DEF_POSITIONS, unit: "Tackles" },
-  { label: "Sacks Leader", stat: "def_sacks", includePos: DEF_POSITIONS, unit: "Sacks" },
-  { label: "Passes Def. Leader", stat: "def_pass_defended", includePos: DEF_POSITIONS, unit: "PD" },
-  { label: "Interceptions Leader", stat: "def_interceptions", includePos: DEF_POSITIONS, unit: "INTs" },
+  {
+    label: "Tackles Leader",
+    stat: "def_tackles_solo",
+    includePos: DEF_POSITIONS,
+    unit: "Tackles",
+  },
+  {
+    label: "Sacks Leader",
+    stat: "def_sacks",
+    includePos: DEF_POSITIONS,
+    unit: "Sacks",
+  },
+  {
+    label: "Passes Def. Leader",
+    stat: "def_pass_defended",
+    includePos: DEF_POSITIONS,
+    unit: "PD",
+  },
+  {
+    label: "Interceptions Leader",
+    stat: "def_interceptions",
+    includePos: DEF_POSITIONS,
+    unit: "INTs",
+  },
 ];
 
 function getPlayerStatValue(p: PlayerProjection, stat: string): number {
   if (stat === "total_tds") {
-    return (p.stats.rushing_tds?.projected_total ?? 0) + (p.stats.receiving_tds?.projected_total ?? 0);
+    return (
+      (p.stats.rushing_tds?.projected_total ?? 0) +
+      (p.stats.receiving_tds?.projected_total ?? 0)
+    );
   }
   if (stat === "scrimmage_yards") {
-    return (p.stats.rushing_yards?.projected_total ?? 0) + (p.stats.receiving_yards?.projected_total ?? 0);
+    return (
+      (p.stats.rushing_yards?.projected_total ?? 0) +
+      (p.stats.receiving_yards?.projected_total ?? 0)
+    );
   }
   return p.stats[stat]?.projected_total ?? 0;
 }
 
-function findLeader(projections: PlayerProjection[], cat: LeaderCategory): { name: string; value: number; position: string; nfl_team: string } | null {
-  let best: { name: string; value: number; position: string; nfl_team: string } | null = null;
+function findLeader(
+  projections: PlayerProjection[],
+  cat: LeaderCategory,
+): { name: string; value: number; position: string; nfl_team: string } | null {
+  let best: {
+    name: string;
+    value: number;
+    position: string;
+    nfl_team: string;
+  } | null = null;
   for (const p of projections) {
     if (cat.excludePos && cat.excludePos.has(p.position)) continue;
     if (cat.includePos && !cat.includePos.has(p.position)) continue;
     const val = getPlayerStatValue(p, cat.stat);
     if (val > 0 && (best === null || val > best.value)) {
-      best = { name: p.name, value: val, position: p.position, nfl_team: p.nfl_team };
+      best = {
+        name: p.name,
+        value: val,
+        position: p.position,
+        nfl_team: p.nfl_team,
+      };
     }
   }
   return best;
@@ -243,14 +320,37 @@ type TeamLeadersGridProps = {
 function TeamLeadersGrid({ analysis, c, isDark }: TeamLeadersGridProps) {
   const projections = Array.isArray(analysis.player_projections)
     ? analysis.player_projections
-    : Object.entries(analysis.player_projections as Record<string, PlayerProjection>).map(([name, p]) => ({ ...p, name }));
+    : Object.entries(
+        analysis.player_projections as Record<string, PlayerProjection>,
+      ).map(([name, p]) => ({ ...p, name }));
 
   const POS_COLORS = isDark ? POS_COLORS_DARK : POS_COLORS_LIGHT;
   const { bg, text } = isDark ? TILE_DARK : TILE_LIGHT;
 
   return (
-    <View style={[{ width: "100%", borderRadius: 14, borderWidth: 1, padding: 16, marginBottom: 20, gap: 12 }, { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow }]}>
-      <Text style={{ fontSize: 18, fontFamily: "Montserrat_700Bold", marginBottom: 4, color: c.text }}>Team Leaders</Text>
+    <View
+      style={[
+        {
+          width: "100%",
+          borderRadius: 14,
+          borderWidth: 1,
+          padding: 16,
+          marginBottom: 20,
+          gap: 12,
+        },
+        { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow },
+      ]}
+    >
+      <Text
+        style={{
+          fontSize: 18,
+          fontFamily: "Montserrat_700Bold",
+          marginBottom: 4,
+          color: c.text,
+        }}
+      >
+        Team Leaders
+      </Text>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
         {LEADER_CATEGORIES.map((cat) => {
           const leader = findLeader(projections, cat);
@@ -266,32 +366,104 @@ function TeamLeadersGrid({ analysis, c, isDark }: TeamLeadersGridProps) {
                 padding: 12,
               }}
             >
-              <Text style={{ fontSize: 11, fontFamily: "Montserrat_700Bold", color: text, marginBottom: 6, opacity: 0.8 }}>
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontFamily: "Montserrat_700Bold",
+                  color: text,
+                  marginBottom: 6,
+                  opacity: 0.8,
+                }}
+              >
                 {cat.label}
               </Text>
               {leader ? (
                 <>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 3 }}>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 6,
+                      marginBottom: 3,
+                    }}
+                  >
                     {posBadge && (
-                      <View style={{ backgroundColor: posBadge.bg, borderRadius: 4, paddingHorizontal: 5, paddingVertical: 2, borderWidth: 1, borderColor: text }}>
-                        <Text style={{ fontSize: 10, fontFamily: "Montserrat_700Bold", color: posBadge.text }}>{leader.position}</Text>
+                      <View
+                        style={{
+                          backgroundColor: posBadge.bg,
+                          borderRadius: 4,
+                          paddingHorizontal: 5,
+                          paddingVertical: 2,
+                          borderWidth: 1,
+                          borderColor: text,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 10,
+                            fontFamily: "Montserrat_700Bold",
+                            color: posBadge.text,
+                          }}
+                        >
+                          {leader.position}
+                        </Text>
                       </View>
                     )}
-                    <Text style={{ fontSize: 16, fontFamily: "Montserrat_700Bold", color: text, flexShrink: 1 }} numberOfLines={1}>
+                    <Text
+                      style={{
+                        fontSize: 16,
+                        fontFamily: "Montserrat_700Bold",
+                        color: text,
+                        flexShrink: 1,
+                      }}
+                      numberOfLines={1}
+                    >
                       {shortName(leader.name)}
                     </Text>
                   </View>
-                  <Text style={{ fontSize: 13, fontFamily: "Montserrat_700Bold", color: text, opacity: 0.85 }}>
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontFamily: "Montserrat_700Bold",
+                      color: text,
+                      opacity: 0.85,
+                    }}
+                  >
                     {leader.value} {cat.unit}
                   </Text>
-                  {leader.nfl_team ? (() => { const abbr = toTeamAbbr(leader.nfl_team); const tc = (isDark ? NFL_TEAM_COLORS_DARK : NFL_TEAM_COLORS)[abbr] ?? (isDark ? { bg: "#4a5568", text: "#000000" } : { bg: "#334155", text: "#ffffff" }); return (
-                    <View style={[styles.posBadge, { backgroundColor: tc.bg, marginTop: 4, alignSelf: "center" }]}>
-                      <Text style={[styles.posText, { color: tc.text }]}>{abbr}</Text>
-                    </View>
-                  ); })() : null}
+                  {leader.nfl_team
+                    ? (() => {
+                        const abbr = toTeamAbbr(leader.nfl_team);
+                        const tc =
+                          (isDark ? NFL_TEAM_COLORS_DARK : NFL_TEAM_COLORS)[
+                            abbr
+                          ] ??
+                          (isDark
+                            ? { bg: "#4a5568", text: "#000000" }
+                            : { bg: "#334155", text: "#ffffff" });
+                        return (
+                          <View
+                            style={[
+                              styles.posBadge,
+                              {
+                                backgroundColor: tc.bg,
+                                marginTop: 4,
+                                alignSelf: "center",
+                              },
+                            ]}
+                          >
+                            <Text style={[styles.posText, { color: tc.text }]}>
+                              {abbr}
+                            </Text>
+                          </View>
+                        );
+                      })()
+                    : null}
                 </>
               ) : (
-                <Text style={{ fontSize: 13, color: text, opacity: 0.6 }}>—</Text>
+                <Text style={{ fontSize: 13, color: text, opacity: 0.6 }}>
+                  —
+                </Text>
               )}
             </View>
           );
@@ -307,15 +479,38 @@ const TILE_DARK = { bg: "#60a5fa", text: "#000000" };
 function TeamStatsGrid({ analysis, c, isDark }: TeamStatsGridProps) {
   const projections = Array.isArray(analysis.player_projections)
     ? analysis.player_projections
-    : Object.entries(analysis.player_projections as Record<string, PlayerProjection>).map(([name, p]) => ({ ...p, name }));
+    : Object.entries(
+        analysis.player_projections as Record<string, PlayerProjection>,
+      ).map(([name, p]) => ({ ...p, name }));
 
-  const { scrimmageYards, offTDs, sacks, defINTs } = aggregateTeamStats(projections);
+  const { scrimmageYards, offTDs, sacks, defINTs } =
+    aggregateTeamStats(projections);
 
   const cells = [
-    { label: "Points For", value: analysis.points_for != null ? String(analysis.points_for) : "—", sub: "season total" },
-    { label: "Points Against", value: analysis.points_against != null ? String(analysis.points_against) : "—", sub: "season total" },
-    { label: "Points / Game", value: analysis.points_per_game != null ? String(analysis.points_per_game) : "—", sub: "avg per game" },
-    { label: "Scrimmage Yds", value: String(scrimmageYards), sub: "season total" },
+    {
+      label: "Points For",
+      value: analysis.points_for != null ? String(analysis.points_for) : "—",
+      sub: "season total",
+    },
+    {
+      label: "Points Against",
+      value:
+        analysis.points_against != null ? String(analysis.points_against) : "—",
+      sub: "season total",
+    },
+    {
+      label: "Points / Game",
+      value:
+        analysis.points_per_game != null
+          ? String(analysis.points_per_game)
+          : "—",
+      sub: "avg per game",
+    },
+    {
+      label: "Scrimmage Yds",
+      value: String(scrimmageYards),
+      sub: "season total",
+    },
     { label: "Offensive TDs", value: String(offTDs), sub: "season total" },
     { label: "Team Sacks", value: String(sacks), sub: "season total" },
     { label: "Interceptions", value: String(defINTs), sub: "season total" },
@@ -324,8 +519,29 @@ function TeamStatsGrid({ analysis, c, isDark }: TeamStatsGridProps) {
   const { bg, text } = isDark ? TILE_DARK : TILE_LIGHT;
 
   return (
-    <View style={[{ width: "100%", borderRadius: 14, borderWidth: 1, padding: 16, marginBottom: 20, gap: 12 }, { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow }]}>
-      <Text style={{ fontSize: 18, fontFamily: "Montserrat_700Bold", marginBottom: 4, color: c.text }}>Team Statistics</Text>
+    <View
+      style={[
+        {
+          width: "100%",
+          borderRadius: 14,
+          borderWidth: 1,
+          padding: 16,
+          marginBottom: 20,
+          gap: 12,
+        },
+        { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow },
+      ]}
+    >
+      <Text
+        style={{
+          fontSize: 18,
+          fontFamily: "Montserrat_700Bold",
+          marginBottom: 4,
+          color: c.text,
+        }}
+      >
+        Team Statistics
+      </Text>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
         {cells.map((cell) => (
           <View
@@ -339,9 +555,39 @@ function TeamStatsGrid({ analysis, c, isDark }: TeamStatsGridProps) {
               alignItems: "center",
             }}
           >
-            <Text style={{ fontSize: 26, fontFamily: "Montserrat_700Bold", color: text, lineHeight: 30 }}>{cell.value}</Text>
-            <Text style={{ fontSize: 11, fontFamily: "Montserrat_700Bold", color: text, marginTop: 4, textAlign: "center", opacity: 0.9 }}>{cell.label}</Text>
-            <Text style={{ fontSize: 10, fontFamily: "Montserrat_400Regular", color: text, marginTop: 1, opacity: 0.65 }}>{cell.sub}</Text>
+            <Text
+              style={{
+                fontSize: 26,
+                fontFamily: "Montserrat_700Bold",
+                color: text,
+                lineHeight: 30,
+              }}
+            >
+              {cell.value}
+            </Text>
+            <Text
+              style={{
+                fontSize: 11,
+                fontFamily: "Montserrat_700Bold",
+                color: text,
+                marginTop: 4,
+                textAlign: "center",
+                opacity: 0.9,
+              }}
+            >
+              {cell.label}
+            </Text>
+            <Text
+              style={{
+                fontSize: 10,
+                fontFamily: "Montserrat_400Regular",
+                color: text,
+                marginTop: 1,
+                opacity: 0.65,
+              }}
+            >
+              {cell.sub}
+            </Text>
           </View>
         ))}
       </View>
@@ -364,7 +610,14 @@ type AIChatPanelProps = {
   isDark: boolean;
 };
 
-function AIChatPanel({ visible, onClose, teamId, analysis, c, isDark }: AIChatPanelProps) {
+function AIChatPanel({
+  visible,
+  onClose,
+  teamId,
+  analysis,
+  c,
+  isDark,
+}: AIChatPanelProps) {
   const INITIAL_MSG: ChatMessage = {
     id: "init",
     role: "ai",
@@ -384,7 +637,11 @@ function AIChatPanel({ visible, onClose, teamId, analysis, c, isDark }: AIChatPa
   }, [visible, teamId]);
 
   const sendToAI = async (userText: string) => {
-    const userMsg: ChatMessage = { id: `u-${Date.now()}`, role: "user", text: userText };
+    const userMsg: ChatMessage = {
+      id: `u-${Date.now()}`,
+      role: "user",
+      text: userText,
+    };
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setAiLoading(true);
@@ -397,11 +654,18 @@ function AIChatPanel({ visible, onClose, teamId, analysis, c, isDark }: AIChatPa
       });
       const data = await res.json();
       const reply = data.summary ?? data.message ?? "No response from AI.";
-      setMessages((prev) => [...prev, { id: `a-${Date.now()}`, role: "ai", text: reply }]);
+      setMessages((prev) => [
+        ...prev,
+        { id: `a-${Date.now()}`, role: "ai", text: reply },
+      ]);
     } catch {
       setMessages((prev) => [
         ...prev,
-        { id: `a-err-${Date.now()}`, role: "ai", text: "Couldn't reach the AI backend. Make sure it's running." },
+        {
+          id: `a-err-${Date.now()}`,
+          role: "ai",
+          text: "Couldn't reach the AI backend. Make sure it's running.",
+        },
       ]);
     } finally {
       setAiLoading(false);
@@ -416,21 +680,54 @@ function AIChatPanel({ visible, onClose, teamId, analysis, c, isDark }: AIChatPa
   const userBubble = isDark ? "#1d4ed8" : "#1d4ed8";
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="none"
+      onRequestClose={onClose}
+    >
       <View style={aiStyles.overlay} pointerEvents="box-none">
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={aiStyles.kvWrapper}
           pointerEvents="box-none"
         >
-          <View style={[aiStyles.panel, { backgroundColor: panelBg, borderColor: c.border, shadowColor: isDark ? "#000" : "#003" }]}>
-            <View style={[aiStyles.panelHeader, { borderBottomColor: c.border }]}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <View
+            style={[
+              aiStyles.panel,
+              {
+                backgroundColor: panelBg,
+                borderColor: c.border,
+                shadowColor: isDark ? "#000" : "#003",
+              },
+            ]}
+          >
+            <View
+              style={[aiStyles.panelHeader, { borderBottomColor: c.border }]}
+            >
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
+              >
                 <View style={aiStyles.aiDot} />
-                <Text style={{ fontSize: 15, fontFamily: "Montserrat_700Bold", color: c.text }}>AI Analysis</Text>
+                <Text
+                  style={{
+                    fontSize: 15,
+                    fontFamily: "Montserrat_700Bold",
+                    color: c.text,
+                  }}
+                >
+                  AI Analysis
+                </Text>
               </View>
-              <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Text style={{ fontSize: 20, color: c.subtext, lineHeight: 24 }}>×</Text>
+              <TouchableOpacity
+                onPress={onClose}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Text
+                  style={{ fontSize: 20, color: c.subtext, lineHeight: 24 }}
+                >
+                  ×
+                </Text>
               </TouchableOpacity>
             </View>
 
@@ -440,7 +737,9 @@ function AIChatPanel({ visible, onClose, teamId, analysis, c, isDark }: AIChatPa
               keyExtractor={(m) => m.id}
               style={{ flex: 1 }}
               contentContainerStyle={{ padding: 12, gap: 8 }}
-              onContentSizeChange={() => flatRef.current?.scrollToEnd({ animated: false })}
+              onContentSizeChange={() =>
+                flatRef.current?.scrollToEnd({ animated: false })
+              }
               renderItem={({ item }) => (
                 <View
                   style={[
@@ -450,14 +749,26 @@ function AIChatPanel({ visible, onClose, teamId, analysis, c, isDark }: AIChatPa
                       : { alignSelf: "flex-end", backgroundColor: userBubble },
                   ]}
                 >
-                  <Text style={{ fontSize: 13, fontFamily: "Montserrat_400Regular", color: item.role === "ai" ? aiBubbleText : "#ffffff", lineHeight: 18 }}>
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontFamily: "Montserrat_400Regular",
+                      color: item.role === "ai" ? aiBubbleText : "#ffffff",
+                      lineHeight: 18,
+                    }}
+                  >
                     {item.text}
                   </Text>
                 </View>
               )}
               ListFooterComponent={
                 aiLoading ? (
-                  <View style={[aiStyles.bubble, { alignSelf: "flex-start", backgroundColor: aiBubble }]}>
+                  <View
+                    style={[
+                      aiStyles.bubble,
+                      { alignSelf: "flex-start", backgroundColor: aiBubble },
+                    ]}
+                  >
                     <ActivityIndicator size="small" color={c.subtext} />
                   </View>
                 ) : null
@@ -467,43 +778,89 @@ function AIChatPanel({ visible, onClose, teamId, analysis, c, isDark }: AIChatPa
             {messages.length === 1 && !aiLoading && (
               <View style={{ paddingHorizontal: 12, paddingBottom: 8 }}>
                 <TouchableOpacity
-                  style={[aiStyles.summarizeBtn, { backgroundColor: isDark ? "#1d4ed8" : "#1d4ed8" }]}
+                  style={[
+                    aiStyles.summarizeBtn,
+                    { backgroundColor: isDark ? "#1d4ed8" : "#1d4ed8" },
+                  ]}
                   onPress={() => sendToAI("Summarize this team's analysis")}
                 >
-                  <Text style={{ color: "#ffffff", fontFamily: "Montserrat_700Bold", fontSize: 14 }}>✦ Summarize</Text>
+                  <Text
+                    style={{
+                      color: "#ffffff",
+                      fontFamily: "Montserrat_700Bold",
+                      fontSize: 14,
+                    }}
+                  >
+                    ✦ Summarize
+                  </Text>
                 </TouchableOpacity>
               </View>
             )}
 
             <Text style={[aiStyles.privacyNote, { color: c.subtext }]}>
-              *Note: Your messages are not stored, viewed, or accessible by this application or anyone monitoring or hosting this application, including third party services.
+              *Note: Your messages are not stored, viewed, or accessible by this
+              application or anyone monitoring or hosting this application,
+              including third party services.
             </Text>
-            <View style={[aiStyles.inputRow, { borderTopColor: c.border, backgroundColor: panelBg }]}>
+            <View
+              style={[
+                aiStyles.inputRow,
+                { borderTopColor: c.border, backgroundColor: panelBg },
+              ]}
+            >
               <View style={aiStyles.textInputWrapper}>
                 <TextInput
-                  style={[aiStyles.textInput, { backgroundColor: inputBg, color: c.text }]}
+                  style={[
+                    aiStyles.textInput,
+                    { backgroundColor: inputBg, color: c.text },
+                  ]}
                   placeholder="Ask about your team..."
                   placeholderTextColor={c.subtext}
                   value={input}
                   onChangeText={setInput}
                   returnKeyType="send"
-                  onSubmitEditing={() => { if (input.trim()) sendToAI(input.trim()); }}
+                  onSubmitEditing={() => {
+                    if (input.trim()) sendToAI(input.trim());
+                  }}
                   editable={!aiLoading}
                 />
                 {input.length > 0 && (
-                  <TouchableOpacity style={aiStyles.clearBtn} onPress={() => setInput("")}>
+                  <TouchableOpacity
+                    style={aiStyles.clearBtn}
+                    onPress={() => setInput("")}
+                  >
                     <Ionicons name="close-circle" size={18} color={c.subtext} />
                   </TouchableOpacity>
                 )}
               </View>
               <TouchableOpacity
-                style={[aiStyles.sendBtn, { backgroundColor: input.trim() && !aiLoading ? "#1d4ed8" : "#9ca3af" }]}
-                onPress={() => { if (input.trim() && !aiLoading) sendToAI(input.trim()); }}
+                style={[
+                  aiStyles.sendBtn,
+                  {
+                    backgroundColor:
+                      input.trim() && !aiLoading ? "#1d4ed8" : "#9ca3af",
+                  },
+                ]}
+                onPress={() => {
+                  if (input.trim() && !aiLoading) sendToAI(input.trim());
+                }}
                 disabled={!input.trim() || aiLoading}
               >
                 <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-                  <Path d="M12 19V5" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                  <Path d="M5 12L12 5L19 12" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <Path
+                    d="M12 19V5"
+                    stroke="#ffffff"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <Path
+                    d="M5 12L12 5L19 12"
+                    stroke="#ffffff"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </Svg>
               </TouchableOpacity>
             </View>
@@ -521,7 +878,8 @@ const AnalyzeTeam = () => {
 
   const [teams, setTeams] = useState<Team[]>([]);
   const [selectedTeamId, setSelectedTeamId] = useState<string>("");
-  const [selectedTeamDefenseType, setSelectedTeamDefenseType] = useState<string>("");
+  const [selectedTeamDefenseType, setSelectedTeamDefenseType] =
+    useState<string>("");
   const [loading, setLoading] = useState(false);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [hasSaved, setHasSaved] = useState(false);
@@ -564,7 +922,11 @@ const AnalyzeTeam = () => {
         .then((result) => {
           if (result.status === "Success" && result.data) {
             const mapped = result.data.map(
-              (team: { id: string; team_name: string; defense_type: string }) => ({
+              (team: {
+                id: string;
+                team_name: string;
+                defense_type: string;
+              }) => ({
                 id: team.id,
                 team_name: team.team_name,
                 defense_type: team.defense_type,
@@ -592,8 +954,15 @@ const AnalyzeTeam = () => {
       const result = await res.json();
       if (res.ok && result.status === "Success") {
         const data = result.data as AnalysisResult;
-        const projs = Array.isArray(data.player_projections) ? data.player_projections : Object.entries(data.player_projections as Record<string, PlayerProjection>).map(([name, p]) => ({ ...p, name }));
-        setAnalysis({ ...data, player_projections: assignLbLabels(projs, team.defense_type) });
+        const projs = Array.isArray(data.player_projections)
+          ? data.player_projections
+          : Object.entries(
+              data.player_projections as Record<string, PlayerProjection>,
+            ).map(([name, p]) => ({ ...p, name }));
+        setAnalysis({
+          ...data,
+          player_projections: assignLbLabels(projs, team.defense_type),
+        });
         setHasSaved(true);
       }
     } catch (_) {
@@ -620,8 +989,15 @@ const AnalyzeTeam = () => {
         setError(result.detail ?? "Analysis failed");
       } else {
         const data = result as AnalysisResult;
-        const projs = Array.isArray(data.player_projections) ? data.player_projections : Object.entries(data.player_projections as Record<string, PlayerProjection>).map(([name, p]) => ({ ...p, name }));
-        setAnalysis({ ...data, player_projections: assignLbLabels(projs, selectedTeamDefenseType) });
+        const projs = Array.isArray(data.player_projections)
+          ? data.player_projections
+          : Object.entries(
+              data.player_projections as Record<string, PlayerProjection>,
+            ).map(([name, p]) => ({ ...p, name }));
+        setAnalysis({
+          ...data,
+          player_projections: assignLbLabels(projs, selectedTeamDefenseType),
+        });
         setHasSaved(true);
       }
     } catch (e) {
@@ -644,7 +1020,9 @@ const AnalyzeTeam = () => {
     green: isDark ? "#34f77c" : "#008a33",
     amber: isDark ? "#fbbf24" : "#d97706",
     red: isDark ? "#f87171" : "#dc2626",
-    shadow: isDark ? "rgba(250,250,250,0.8) 0px 3px 8px" : "rgba(0,0,0,0.24) 0px 3px 8px",
+    shadow: isDark
+      ? "rgba(250,250,250,0.8) 0px 3px 8px"
+      : "rgba(0,0,0,0.24) 0px 3px 8px",
   };
 
   const winColor =
@@ -656,241 +1034,259 @@ const AnalyzeTeam = () => {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
-    <ScrollView
-      style={{ flex: 1 }}
-      contentContainerStyle={styles.scrollContent}
-      showsVerticalScrollIndicator={true}
-      keyboardShouldPersistTaps="handled"
-    >
-      <Text style={[styles.title, { color: c.text }]}>Analyze Your Team</Text>
-      <Text style={[styles.subtitle, { color: c.subtext }]}>
-        Select a saved team to run a full season simulation.
-      </Text>
-
-      <View
-        style={[
-          styles.card,
-          { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow },
-        ]}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={true}
+        keyboardShouldPersistTaps="handled"
       >
-        <FormControl size="lg">
-          <VStack space="md">
-            <FormControlLabel>
-              <FormControlLabelText style={{ color: c.text, fontFamily: "Montserrat_700Bold" }}>
-                Choose Team
-              </FormControlLabelText>
-            </FormControlLabel>
-            <PickerTrigger value={teams.find(t => t.id === selectedTeamId)?.team_name ?? ""} placeholder="Select a team" onPress={() => teams.length > 0 ? setTeamPickerOpen(true) : null} borderColor={c.border} textColor={teams.length > 0 ? c.text : c.subtext} placeholderColor={c.subtext} />
-            {teams.length === 0 && (
-              <Text style={{ color: "red", fontSize: 12, fontFamily: "Montserrat_400Regular", marginTop: 4 }}>
-                Generate a team first to get started!
-              </Text>
-            )}
-          </VStack>
-        </FormControl>
+        <Text style={[styles.title, { color: c.text }]}>Analyze Your Team</Text>
+        <Text style={[styles.subtitle, { color: c.subtext }]}>
+          Select a saved team to run a full season simulation.
+        </Text>
 
-        <TouchableOpacity
+        <View
           style={[
-            styles.button,
+            styles.card,
             {
-              backgroundColor:
-                selectedTeamId && !loading && !hasSaved ? c.button : "#9ca3af",
+              backgroundColor: c.card,
+              borderColor: c.border,
+              boxShadow: c.shadow,
             },
           ]}
-          disabled={!selectedTeamId || loading || hasSaved || teams.length === 0}
-          onPress={handleAnalyze}
         >
-          {loading ? (
-            <ActivityIndicator color={c.buttonText} />
-          ) : (
-            <Text
-              style={[
-                styles.buttonText,
-                { color: hasSaved ? "#ffffff" : c.buttonText },
-              ]}
+          <FormControl size="lg">
+            <VStack space="md">
+              <FormControlLabel>
+                <FormControlLabelText
+                  style={{ color: c.text, fontFamily: "Montserrat_700Bold" }}
+                >
+                  Choose Team
+                </FormControlLabelText>
+              </FormControlLabel>
+              <PickerTrigger
+                value={
+                  teams.find((t) => t.id === selectedTeamId)?.team_name ?? ""
+                }
+                placeholder="Select a team"
+                onPress={() =>
+                  teams.length > 0 ? setTeamPickerOpen(true) : null
+                }
+                borderColor={c.border}
+                textColor={teams.length > 0 ? c.text : c.subtext}
+                placeholderColor={c.subtext}
+              />
+              {teams.length === 0 && (
+                <Text
+                  style={{
+                    color: "red",
+                    fontSize: 12,
+                    fontFamily: "Montserrat_400Regular",
+                    marginTop: 4,
+                  }}
+                >
+                  Generate a team first to get started!
+                </Text>
+              )}
+            </VStack>
+          </FormControl>
+
+          <TouchableOpacity
+            style={[
+              styles.button,
+              {
+                backgroundColor:
+                  selectedTeamId && !loading && !hasSaved
+                    ? c.button
+                    : "#9ca3af",
+              },
+            ]}
+            disabled={
+              !selectedTeamId || loading || hasSaved || teams.length === 0
+            }
+            onPress={handleAnalyze}
+          >
+            {loading ? (
+              <ActivityIndicator color={c.buttonText} />
+            ) : (
+              <Text
+                style={[
+                  styles.buttonText,
+                  { color: hasSaved ? "#ffffff" : c.buttonText },
+                ]}
+              >
+                {hasSaved ? "Analyzed" : "Analyze Team"}
+              </Text>
+            )}
+          </TouchableOpacity>
+
+          {hasSaved && !loading && (
+            <TouchableOpacity
+              style={[styles.button, { backgroundColor: c.amber }]}
+              onPress={() => {
+                setHasSaved(false);
+                handleAnalyze();
+              }}
             >
-              {hasSaved ? "Analyzed" : "Analyze Team"}
+              <Text style={[styles.buttonText, { color: "#ffffff" }]}>
+                Re-analyze
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {loading && (
+            <Text style={[styles.loadingNote, { color: c.subtext }]}>
+              Running season simulations... ~10 seconds.
             </Text>
           )}
-        </TouchableOpacity>
 
-        {hasSaved && !loading && (
-          <TouchableOpacity
-            style={[styles.button, { backgroundColor: c.amber }]}
-            onPress={() => {
-              setHasSaved(false);
-              handleAnalyze();
-            }}
-          >
-            <Text style={[styles.buttonText, { color: "#ffffff" }]}>
-              Re-analyze
-            </Text>
-          </TouchableOpacity>
-        )}
+          {error && (
+            <Text style={[styles.error, { color: c.red }]}>{error}</Text>
+          )}
+        </View>
 
-        {loading && (
-          <Text style={[styles.loadingNote, { color: c.subtext }]}>
-            Running season simulations... ~10 seconds.
-          </Text>
-        )}
-
-        {error && <Text style={[styles.error, { color: c.red }]}>{error}</Text>}
-      </View>
-
-      {analysis && (
-        <>
-          <View
-            style={[
-              styles.card,
-              { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow },
-            ]}
-          >
-            <Text style={[styles.cardTitle, { color: c.text }]}>
-              Season Projection
-            </Text>
-
-            <View style={styles.winsRow}>
-              <Text style={[styles.winsNumber, { color: winColor }]}>
-                {analysis.projected_wins}
-              </Text>
-              <Text style={[styles.winsLabel, { color: c.subtext }]}>
-                Projected Wins
-              </Text>
-            </View>
-
-            <Text style={[styles.winsRange, { color: c.subtext }]}>
-              Floor: {analysis.win_floor}W — Ceiling: {analysis.win_ceiling}W
-            </Text>
-
-            <View style={styles.probRow}>
-              <View
-                style={[
-                  styles.probCard,
-                  {
-                    backgroundColor: isDark ? "#4ade80" : "#16a34a",
-                    borderWidth: 0,
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.probPct,
-                    { color: isDark ? "#000000" : "#ffffff" },
-                  ]}
-                >
-                  {analysis.playoff_probability}%
-                </Text>
-                <Text
-                  style={[
-                    styles.probLabel,
-                    { color: isDark ? "#00000099" : "#ffffff99" },
-                  ]}
-                >
-                  Playoff Chance
-                </Text>
-              </View>
-              <View
-                style={[
-                  styles.probCard,
-                  {
-                    backgroundColor: isDark ? "#f87171" : "#dc2626",
-                    borderWidth: 0,
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.probPct,
-                    { color: isDark ? "#000000" : "#ffffff" },
-                  ]}
-                >
-                  {analysis.superbowl_probability}%
-                </Text>
-                <Text
-                  style={[
-                    styles.probLabel,
-                    { color: isDark ? "#00000099" : "#ffffff99" },
-                  ]}
-                >
-                  Super Bowl Chance
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          <TeamStatsGrid analysis={analysis} c={c} isDark={isDark} />
-          <TeamLeadersGrid analysis={analysis} c={c} isDark={isDark} />
-
-          {analysis.coach_analysis && analysis.coach_analysis.coach && (
+        {analysis && (
+          <>
             <View
               style={[
                 styles.card,
-                { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow },
+                {
+                  backgroundColor: c.card,
+                  borderColor: c.border,
+                  boxShadow: c.shadow,
+                },
               ]}
             >
               <Text style={[styles.cardTitle, { color: c.text }]}>
-                Coach Impact
+                Season Projection
               </Text>
-              <Text style={[styles.coachName, { color: c.text }]}>
-                {analysis.coach_analysis.coach}
-                {analysis.coach_analysis.team ? (
-                  <Text style={[styles.coachMeta, { color: c.subtext }]}>{` (${analysis.coach_analysis.team})`}</Text>
-                ) : null}
-              </Text>
-              {analysis.coach_analysis.note ? (
-                <Text style={[styles.coachMeta, { color: c.subtext }]}>
-                  {analysis.coach_analysis.note}
+
+              <View style={styles.winsRow}>
+                <Text style={[styles.winsNumber, { color: winColor }]}>
+                  {analysis.projected_wins}
                 </Text>
-              ) : (
-                <>
-                  <Text style={[styles.coachMeta, { color: c.subtext }]}>
-                    Since 2015:
+                <Text style={[styles.winsLabel, { color: c.subtext }]}>
+                  Projected Wins
+                </Text>
+              </View>
+
+              <Text style={[styles.winsRange, { color: c.subtext }]}>
+                Floor: {analysis.win_floor}W — Ceiling: {analysis.win_ceiling}W
+              </Text>
+
+              <View style={styles.probRow}>
+                <View
+                  style={[
+                    styles.probCard,
+                    {
+                      backgroundColor: isDark ? "#4ade80" : "#16a34a",
+                      borderWidth: 0,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.probPct,
+                      { color: isDark ? "#000000" : "#ffffff" },
+                    ]}
+                  >
+                    {analysis.playoff_probability}%
                   </Text>
-                  <Text style={[styles.coachMeta, { color: c.subtext }]}>
-                    {analysis.coach_analysis.seasons_coached} season
-                    {analysis.coach_analysis.seasons_coached !== 1
-                      ? "s"
-                      : ""}{" "}
-                    coached · Record: {analysis.coach_analysis.record} · Win
-                    rate: {(analysis.coach_analysis.win_rate * 100).toFixed(1)}%
+                  <Text
+                    style={[
+                      styles.probLabel,
+                      { color: isDark ? "#00000099" : "#ffffff99" },
+                    ]}
+                  >
+                    Playoff Chance
                   </Text>
-                  <View style={styles.coachRow}>
-                    <View
-                      style={[
-                        styles.coachBadge,
-                        {
-                          backgroundColor:
-                            analysis.coach_analysis.coach_multiplier >= 1
-                              ? isDark
-                                ? "#4ade80"
-                                : "#16a34a"
-                              : isDark
-                                ? "#f87171"
-                                : "#dc2626",
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.coachBadgeText,
-                          { color: isDark ? "#000000" : "#ffffff" },
-                        ]}
-                      >
-                        {analysis.coach_analysis.coach_multiplier >= 1
-                          ? "+"
-                          : ""}
-                        {(
-                          (analysis.coach_analysis.coach_multiplier - 1) *
-                          100
-                        ).toFixed(1)}
-                        % performance boost
-                      </Text>
-                    </View>
-                    {analysis.coach_analysis.qb_familiarity && (
+                </View>
+                <View
+                  style={[
+                    styles.probCard,
+                    {
+                      backgroundColor: isDark ? "#f87171" : "#dc2626",
+                      borderWidth: 0,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.probPct,
+                      { color: isDark ? "#000000" : "#ffffff" },
+                    ]}
+                  >
+                    {analysis.superbowl_probability}%
+                  </Text>
+                  <Text
+                    style={[
+                      styles.probLabel,
+                      { color: isDark ? "#00000099" : "#ffffff99" },
+                    ]}
+                  >
+                    Super Bowl Chance
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            <TeamStatsGrid analysis={analysis} c={c} isDark={isDark} />
+            <TeamLeadersGrid analysis={analysis} c={c} isDark={isDark} />
+
+            {analysis.coach_analysis && analysis.coach_analysis.coach && (
+              <View
+                style={[
+                  styles.card,
+                  {
+                    backgroundColor: c.card,
+                    borderColor: c.border,
+                    boxShadow: c.shadow,
+                  },
+                ]}
+              >
+                <Text style={[styles.cardTitle, { color: c.text }]}>
+                  Coach Impact
+                </Text>
+                <Text style={[styles.coachName, { color: c.text }]}>
+                  {analysis.coach_analysis.coach}
+                  {analysis.coach_analysis.team ? (
+                    <Text
+                      style={[styles.coachMeta, { color: c.subtext }]}
+                    >{` (${analysis.coach_analysis.team})`}</Text>
+                  ) : null}
+                </Text>
+                {analysis.coach_analysis.note ? (
+                  <Text style={[styles.coachMeta, { color: c.subtext }]}>
+                    {analysis.coach_analysis.note}
+                  </Text>
+                ) : (
+                  <>
+                    <Text style={[styles.coachMeta, { color: c.subtext }]}>
+                      Since 2015:
+                    </Text>
+                    <Text style={[styles.coachMeta, { color: c.subtext }]}>
+                      {analysis.coach_analysis.seasons_coached} season
+                      {analysis.coach_analysis.seasons_coached !== 1
+                        ? "s"
+                        : ""}{" "}
+                      coached · Record: {analysis.coach_analysis.record} · Win
+                      rate:{" "}
+                      {(analysis.coach_analysis.win_rate * 100).toFixed(1)}%
+                    </Text>
+                    <View style={styles.coachRow}>
                       <View
                         style={[
                           styles.coachBadge,
-                          { backgroundColor: isDark ? "#fbbf24" : "#d97706" },
+                          {
+                            backgroundColor:
+                              analysis.coach_analysis.coach_multiplier >= 1
+                                ? isDark
+                                  ? "#4ade80"
+                                  : "#16a34a"
+                                : isDark
+                                  ? "#f87171"
+                                  : "#dc2626",
+                          },
                         ]}
                       >
                         <Text
@@ -899,203 +1295,439 @@ const AnalyzeTeam = () => {
                             { color: isDark ? "#000000" : "#ffffff" },
                           ]}
                         >
-                          Coached QB before
+                          {analysis.coach_analysis.coach_multiplier >= 1
+                            ? "+"
+                            : ""}
+                          {(
+                            (analysis.coach_analysis.coach_multiplier - 1) *
+                            100
+                          ).toFixed(1)}
+                          % performance boost
                         </Text>
                       </View>
-                    )}
-                  </View>
-                </>
-              )}
-            </View>
-          )}
+                      {analysis.coach_analysis.qb_familiarity && (
+                        <View
+                          style={[
+                            styles.coachBadge,
+                            { backgroundColor: isDark ? "#fbbf24" : "#d97706" },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.coachBadgeText,
+                              { color: isDark ? "#000000" : "#ffffff" },
+                            ]}
+                          >
+                            Coached QB before
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  </>
+                )}
+              </View>
+            )}
 
-          <View
-            style={[
-              styles.card,
-              { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow },
-            ]}
-          >
-            <Text style={[styles.cardTitle, { color: c.text }]}>
-              Player Projections
-            </Text>
             <View
               style={[
-                styles.playerCard,
-                { borderColor: c.border, marginBottom: 4 },
+                styles.card,
+                {
+                  backgroundColor: c.card,
+                  borderColor: c.border,
+                  boxShadow: c.shadow,
+                },
               ]}
             >
-              <Text style={[styles.cardTitle, { color: c.text, marginBottom: 6 }]}>Legend</Text>
-              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                  <Text style={[styles.playerName, { color: c.subtext, fontStyle: "italic" }]}>Player Name</Text>
-                  <View style={[styles.posBadge, { backgroundColor: isDark ? "#4a5568" : "#334155" }]}>
-                    <Text style={[styles.posText, { color: "#ffffff" }]}>TEAM</Text>
-                  </View>
-                </View>
-                <View style={[styles.posBadge, { backgroundColor: isDark ? "#60a5fa" : "#1d4ed8" }]}>
-                  <Text style={[styles.posText, { color: isDark ? "#000000" : "#ffffff" }]}>POS</Text>
-                </View>
-              </View>
-              <View style={styles.statRow}>
-                <Text
-                  style={[
-                    styles.statLabel,
-                    { color: c.subtext, fontStyle: "italic" },
-                  ]}
-                >
-                  Stat
-                </Text>
-                <Text
-                  style={[
-                    styles.statValue,
-                    { color: c.subtext, fontStyle: "italic" },
-                  ]}
-                >
-                  1260
-                </Text>
-                <Text
-                  style={[
-                    styles.statRange,
-                    { color: c.subtext, fontStyle: "italic" },
-                  ]}
-                >
-                  1072-1446
-                </Text>
-              </View>
-              <View style={{ flexDirection: "row", marginTop: 2 }}>
-                <View style={{ width: 80 }} />
-                <Text
-                  style={{
-                    width: 50,
-                    fontSize: 10,
-                    color: c.subtext,
-                    fontStyle: "italic",
-                    textAlign: "right",
-                  }}
-                >
-                  ↑ avg
-                </Text>
-                <Text
-                  style={{
-                    fontSize: 10,
-                    color: c.subtext,
-                    fontStyle: "italic",
-                    marginLeft: 8,
-                  }}
-                >
-                  ↑ P10-P90 (80% of seasons)
-                </Text>
-              </View>
-            </View>
-            {(Array.isArray(analysis.player_projections)
-              ? analysis.player_projections
-              : Object.entries(analysis.player_projections as Record<string, PlayerProjection>).map(([name, p]) => ({ ...p, name }))
-            ).map((proj) => (
+              <Text style={[styles.cardTitle, { color: c.text }]}>
+                Player Projections
+              </Text>
               <View
-                key={proj.name}
-                style={[styles.playerCard, { borderColor: c.border }]}
+                style={[
+                  styles.playerCard,
+                  { borderColor: c.border, marginBottom: 4 },
+                ]}
               >
-                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 1 }}>
-                    <Text style={[styles.playerName, { color: c.text }]}>{proj.name}</Text>
-                    {proj.nfl_team ? (() => { const abbr = toTeamAbbr(proj.nfl_team); const tc = (isDark ? NFL_TEAM_COLORS_DARK : NFL_TEAM_COLORS)[abbr] ?? (isDark ? { bg: "#4a5568", text: "#000000" } : { bg: "#334155", text: "#ffffff" }); return (
-                      <View style={[styles.posBadge, { backgroundColor: tc.bg }]}>
-                        <Text style={[styles.posText, { color: tc.text }]}>{abbr}</Text>
-                      </View>
-                    ); })() : null}
-                  </View>
-                  <View style={[styles.posBadge, { backgroundColor: POS_COLORS[proj.position]?.bg ?? c.accentLight }]}>
-                    <Text style={[styles.posText, { color: POS_COLORS[proj.position]?.text ?? c.accent }]}>{proj.position}</Text>
-                  </View>
-                </View>
-                {Object.entries(proj.stats).map(([stat, vals]) => {
-                  const isPct = stat === "fg_pct";
-                  const fmt = (v: number) => isPct ? `${v.toFixed(1)}%` : String(v);
-                  return (
-                    <View key={stat} style={styles.statRow}>
-                      <Text style={[styles.statLabel, { color: c.subtext }]}>
-                        {STAT_LABELS[stat] ?? stat}
-                      </Text>
-                      <Text style={[styles.statValue, { color: c.text }]}>
-                        {fmt(vals.projected_total)}
-                      </Text>
-                      <Text style={[styles.statRange, { color: c.subtext }]}>
-                        {fmt(vals.floor)}-{fmt(vals.ceiling)}
-                      </Text>
-                    </View>
-                  );
-                })}
-              </View>
-            ))}
-          </View>
-
-          <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow }]}>
-            <Text style={[styles.cardTitle, { color: c.text }]}>Position Legend</Text>
-            {[
-              { label: "Offense", entries: [
-                ["QB", "Quarterback"], ["RB", "Running Back"],
-                ["WR", "Wide Receiver"], ["TE", "Tight End"],
-              ]},
-              { label: "Defensive Line", entries: [
-                ["DE", "Defensive End"], ["DT", "Defensive Tackle"], ["NT", "Nose Tackle"],
-              ]},
-              { label: "Linebackers", entries: [
-                ["SLB", "Strong-side LB"], ["MLB", "Middle Linebacker"],
-                ["WLB", "Weak-side LB"], ["OLB", "Outside Linebacker"],
-                ["ILB", "Inside Linebacker"],
-              ]},
-              { label: "Defensive Backs", entries: [
-                ["CB", "Cornerback"], ["FS", "Free Safety"],
-                ["SS", "Strong Safety"], ["S", "Safety"],
-              ]},
-              { label: "Special Teams", entries: [
-                ["K", "Kicker"], ["P", "Punter"],
-                ["RS", "Return Specialist"],
-              ]},
-            ].map((group) => (
-              <View key={group.label} style={{ marginBottom: 10 }}>
-                <Text style={{ fontSize: 13, fontFamily: "Montserrat_700Bold", color: c.subtext, marginBottom: 6 }}>
-                  {group.label}
+                <Text
+                  style={[styles.cardTitle, { color: c.text, marginBottom: 6 }]}
+                >
+                  Legend
                 </Text>
-                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-                  {group.entries.map(([abbr, name]) => (
-                    <View key={abbr} style={{ flexDirection: "row", alignItems: "center", width: "47%" }}>
-                      <View style={{ backgroundColor: POS_COLORS[abbr]?.bg ?? c.accentLight, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2, marginRight: 6, minWidth: 34, alignItems: "center" }}>
-                        <Text style={{ fontSize: 11, fontFamily: "Montserrat_700Bold", color: POS_COLORS[abbr]?.text ?? c.accent }}>{abbr}</Text>
-                      </View>
-                      <Text style={{ fontSize: 12, fontFamily: "Montserrat_400Regular", color: c.subtext, flexShrink: 1 }}>{name}</Text>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginBottom: 4,
+                  }}
+                >
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 6,
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.playerName,
+                        { color: c.subtext, fontStyle: "italic" },
+                      ]}
+                    >
+                      Player Name
+                    </Text>
+                    <View
+                      style={[
+                        styles.posBadge,
+                        { backgroundColor: isDark ? "#4a5568" : "#334155" },
+                      ]}
+                    >
+                      <Text style={[styles.posText, { color: "#ffffff" }]}>
+                        TEAM
+                      </Text>
                     </View>
-                  ))}
+                  </View>
+                  <View
+                    style={[
+                      styles.posBadge,
+                      { backgroundColor: isDark ? "#60a5fa" : "#1d4ed8" },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.posText,
+                        { color: isDark ? "#000000" : "#ffffff" },
+                      ]}
+                    >
+                      POS
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.statRow}>
+                  <Text
+                    style={[
+                      styles.statLabel,
+                      { color: c.subtext, fontStyle: "italic" },
+                    ]}
+                  >
+                    Stat
+                  </Text>
+                  <Text
+                    style={[
+                      styles.statValue,
+                      { color: c.subtext, fontStyle: "italic" },
+                    ]}
+                  >
+                    1260
+                  </Text>
+                  <Text
+                    style={[
+                      styles.statRange,
+                      { color: c.subtext, fontStyle: "italic" },
+                    ]}
+                  >
+                    1072-1446
+                  </Text>
+                </View>
+                <View style={{ flexDirection: "row", marginTop: 2 }}>
+                  <View style={{ width: 80 }} />
+                  <Text
+                    style={{
+                      width: 50,
+                      fontSize: 10,
+                      color: c.subtext,
+                      fontStyle: "italic",
+                      textAlign: "right",
+                    }}
+                  >
+                    ↑ avg
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 10,
+                      color: c.subtext,
+                      fontStyle: "italic",
+                      marginLeft: 8,
+                    }}
+                  >
+                    ↑ P10-P90 (80% of seasons)
+                  </Text>
                 </View>
               </View>
-            ))}
-          </View>
-        </>
-      )}
-    </ScrollView>
+              {(Array.isArray(analysis.player_projections)
+                ? analysis.player_projections
+                : Object.entries(
+                    analysis.player_projections as Record<
+                      string,
+                      PlayerProjection
+                    >,
+                  ).map(([name, p]) => ({ ...p, name }))
+              ).map((proj) => (
+                <View
+                  key={proj.name}
+                  style={[styles.playerCard, { borderColor: c.border }]}
+                >
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      marginBottom: 4,
+                    }}
+                  >
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 6,
+                        flexShrink: 1,
+                      }}
+                    >
+                      <Text style={[styles.playerName, { color: c.text }]}>
+                        {proj.name}
+                      </Text>
+                      {proj.nfl_team
+                        ? (() => {
+                            const abbr = toTeamAbbr(proj.nfl_team);
+                            const tc =
+                              (isDark ? NFL_TEAM_COLORS_DARK : NFL_TEAM_COLORS)[
+                                abbr
+                              ] ??
+                              (isDark
+                                ? { bg: "#4a5568", text: "#000000" }
+                                : { bg: "#334155", text: "#ffffff" });
+                            return (
+                              <View
+                                style={[
+                                  styles.posBadge,
+                                  { backgroundColor: tc.bg },
+                                ]}
+                              >
+                                <Text
+                                  style={[styles.posText, { color: tc.text }]}
+                                >
+                                  {abbr}
+                                </Text>
+                              </View>
+                            );
+                          })()
+                        : null}
+                    </View>
+                    <View
+                      style={[
+                        styles.posBadge,
+                        {
+                          backgroundColor:
+                            POS_COLORS[proj.position]?.bg ?? c.accentLight,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.posText,
+                          {
+                            color: POS_COLORS[proj.position]?.text ?? c.accent,
+                          },
+                        ]}
+                      >
+                        {proj.position}
+                      </Text>
+                    </View>
+                  </View>
+                  {Object.entries(proj.stats).map(([stat, vals]) => {
+                    const isPct = stat === "fg_pct";
+                    const fmt = (v: number) =>
+                      isPct ? `${v.toFixed(1)}%` : String(v);
+                    return (
+                      <View key={stat} style={styles.statRow}>
+                        <Text style={[styles.statLabel, { color: c.subtext }]}>
+                          {STAT_LABELS[stat] ?? stat}
+                        </Text>
+                        <Text style={[styles.statValue, { color: c.text }]}>
+                          {fmt(vals.projected_total)}
+                        </Text>
+                        <Text style={[styles.statRange, { color: c.subtext }]}>
+                          {fmt(vals.floor)}-{fmt(vals.ceiling)}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              ))}
+            </View>
 
-    <Animated.View style={[aiStyles.fab, { opacity: fabOpacity }]} pointerEvents={hasSaved && analysis ? "auto" : "none"}>
-      <TouchableOpacity
-        style={[aiStyles.fabBtn, { backgroundColor: isDark ? "#1d4ed8" : "#1d4ed8", shadowColor: isDark ? "#000" : "#003" }]}
-        onPress={() => setAiPanelOpen(true)}
-        activeOpacity={0.85}
+            <View
+              style={[
+                styles.card,
+                {
+                  backgroundColor: c.card,
+                  borderColor: c.border,
+                  boxShadow: c.shadow,
+                },
+              ]}
+            >
+              <Text style={[styles.cardTitle, { color: c.text }]}>
+                Position Legend
+              </Text>
+              {[
+                {
+                  label: "Offense",
+                  entries: [
+                    ["QB", "Quarterback"],
+                    ["RB", "Running Back"],
+                    ["WR", "Wide Receiver"],
+                    ["TE", "Tight End"],
+                  ],
+                },
+                {
+                  label: "Defensive Line",
+                  entries: [
+                    ["DE", "Defensive End"],
+                    ["DT", "Defensive Tackle"],
+                    ["NT", "Nose Tackle"],
+                  ],
+                },
+                {
+                  label: "Linebackers",
+                  entries: [
+                    ["SLB", "Strong-side LB"],
+                    ["MLB", "Middle Linebacker"],
+                    ["WLB", "Weak-side LB"],
+                    ["OLB", "Outside Linebacker"],
+                    ["ILB", "Inside Linebacker"],
+                  ],
+                },
+                {
+                  label: "Defensive Backs",
+                  entries: [
+                    ["CB", "Cornerback"],
+                    ["FS", "Free Safety"],
+                    ["SS", "Strong Safety"],
+                    ["S", "Safety"],
+                  ],
+                },
+                {
+                  label: "Special Teams",
+                  entries: [
+                    ["K", "Kicker"],
+                    ["P", "Punter"],
+                    ["RS", "Return Specialist"],
+                  ],
+                },
+              ].map((group) => (
+                <View key={group.label} style={{ marginBottom: 10 }}>
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontFamily: "Montserrat_700Bold",
+                      color: c.subtext,
+                      marginBottom: 6,
+                    }}
+                  >
+                    {group.label}
+                  </Text>
+                  <View
+                    style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}
+                  >
+                    {group.entries.map(([abbr, name]) => (
+                      <View
+                        key={abbr}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          width: "47%",
+                        }}
+                      >
+                        <View
+                          style={{
+                            backgroundColor:
+                              POS_COLORS[abbr]?.bg ?? c.accentLight,
+                            borderRadius: 4,
+                            paddingHorizontal: 6,
+                            paddingVertical: 2,
+                            marginRight: 6,
+                            minWidth: 34,
+                            alignItems: "center",
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontSize: 11,
+                              fontFamily: "Montserrat_700Bold",
+                              color: POS_COLORS[abbr]?.text ?? c.accent,
+                            }}
+                          >
+                            {abbr}
+                          </Text>
+                        </View>
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            fontFamily: "Montserrat_400Regular",
+                            color: c.subtext,
+                            flexShrink: 1,
+                          }}
+                        >
+                          {name}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              ))}
+            </View>
+          </>
+        )}
+      </ScrollView>
+
+      <Animated.View
+        style={[aiStyles.fab, { opacity: fabOpacity }]}
+        pointerEvents={hasSaved && analysis ? "auto" : "none"}
       >
-        <Text style={{ fontSize: 20 }}>✦</Text>
-        <Text style={{ color: "#ffffff", fontFamily: "Montserrat_700Bold", fontSize: 12, marginTop: 1 }}>AI</Text>
-      </TouchableOpacity>
-    </Animated.View>
+        <TouchableOpacity
+          style={[
+            aiStyles.fabBtn,
+            {
+              backgroundColor: isDark ? "#1d4ed8" : "#1d4ed8",
+              shadowColor: isDark ? "#000" : "#003",
+            },
+          ]}
+          onPress={() => setAiPanelOpen(true)}
+          activeOpacity={0.85}
+        >
+          <Text style={{ fontSize: 20 }}>✦</Text>
+          <Text
+            style={{
+              color: "#ffffff",
+              fontFamily: "Montserrat_700Bold",
+              fontSize: 12,
+              marginTop: 1,
+            }}
+          >
+            AI
+          </Text>
+        </TouchableOpacity>
+      </Animated.View>
 
-    {analysis && (
-      <AIChatPanel
-        visible={aiPanelOpen}
-        onClose={() => setAiPanelOpen(false)}
-        teamId={selectedTeamId}
-        analysis={analysis}
-        c={c}
-        isDark={isDark}
+      {analysis && (
+        <AIChatPanel
+          visible={aiPanelOpen}
+          onClose={() => setAiPanelOpen(false)}
+          teamId={selectedTeamId}
+          analysis={analysis}
+          c={c}
+          isDark={isDark}
+        />
+      )}
+      <PickerModal
+        visible={teamPickerOpen}
+        onClose={() => setTeamPickerOpen(false)}
+        title="Choose Team"
+        items={teams.map((t) => ({ label: t.team_name, value: t.team_name }))}
+        selectedValue={
+          teams.find((t) => t.id === selectedTeamId)?.team_name ?? ""
+        }
+        onSelect={handleSelectTeam}
       />
-    )}
-    <PickerModal visible={teamPickerOpen} onClose={() => setTeamPickerOpen(false)} title="Choose Team" items={teams.map(t => ({ label: t.team_name, value: t.team_name }))} selectedValue={teams.find(t => t.id === selectedTeamId)?.team_name ?? ""} onSelect={handleSelectTeam} />
     </View>
   );
 };

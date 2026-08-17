@@ -1,13 +1,14 @@
 from supabase import create_client
 import os
+import time
 import nflreadpy as nfl
 import polars as pl
 from dotenv import load_dotenv
-import time
+from datetime import datetime
 
 load_dotenv()
 
-YEARS = list(range(2015, 2026))
+YEARS = list(range(2015, datetime.now().year + 1))
 
 def get_client():
     url = os.getenv("SUPABASE_URL")

@@ -20,7 +20,9 @@ const SUBJECTS = ["Bug Report", "Feature Request", "General Question", "Other"];
 
 const FORMSPREE_ID = process.env.EXPO_PUBLIC_FORMSPREE_ID ?? "";
 const BREVO_API_KEY = process.env.EXPO_PUBLIC_BREVO_API_KEY ?? "";
-const BREVO_TEMPLATE_ID = Number(process.env.EXPO_PUBLIC_BREVO_TEMPLATE_ID ?? "7");
+const BREVO_TEMPLATE_ID = Number(
+  process.env.EXPO_PUBLIC_BREVO_TEMPLATE_ID ?? "7",
+);
 
 export default function Support() {
   const colorScheme = useColorScheme();
@@ -49,16 +51,28 @@ export default function Support() {
     green: "#16a34a",
   };
 
-  const canSend = name.trim() && email.trim() && subject.trim() && message.trim() && !sending;
+  const canSend =
+    name.trim() && email.trim() && subject.trim() && message.trim() && !sending;
 
   const handleSend = async () => {
     setSending(true);
     try {
-      const formspreeRes = await fetch(`https://formspree.io/f/${FORMSPREE_ID}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ name: name.trim(), email: email.trim(), subject, message: message.trim() }),
-      });
+      const formspreeRes = await fetch(
+        `https://formspree.io/f/${FORMSPREE_ID}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            name: name.trim(),
+            email: email.trim(),
+            subject,
+            message: message.trim(),
+          }),
+        },
+      );
       if (!formspreeRes.ok) {
         const text = await formspreeRes.text();
         throw new Error(`Formspree ${formspreeRes.status}: ${text}`);
@@ -95,7 +109,10 @@ export default function Support() {
     }
   };
 
-  const inputStyle = [styles.input, { backgroundColor: c.inputBg, borderColor: c.border, color: c.text }];
+  const inputStyle = [
+    styles.input,
+    { backgroundColor: c.inputBg, borderColor: c.border, color: c.text },
+  ];
   const labelStyle = [styles.label, { color: c.subtext }];
 
   return (
@@ -108,15 +125,27 @@ export default function Support() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow }]}>
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: c.card,
+              borderColor: c.border,
+              boxShadow: c.shadow,
+            },
+          ]}
+        >
           <View style={styles.cardHeader}>
-            <Text style={[styles.cardTitle, { color: c.text }]}>Send a Message</Text>
+            <Text style={[styles.cardTitle, { color: c.text }]}>
+              Send a Message
+            </Text>
           </View>
 
           {sent && (
             <View style={[styles.successBanner, { backgroundColor: c.green }]}>
               <Text style={[styles.successText, { color: "#fff" }]}>
-                Message sent! Check your inbox for a confirmation. I'll get back to you soon.
+                Message sent! Check your inbox for a confirmation. I'll get back
+                to you soon.
               </Text>
             </View>
           )}
@@ -132,7 +161,10 @@ export default function Support() {
               autoCapitalize="words"
             />
             {name.length > 0 && (
-              <TouchableOpacity style={styles.clearBtn} onPress={() => setName("")}>
+              <TouchableOpacity
+                style={styles.clearBtn}
+                onPress={() => setName("")}
+              >
                 <Ionicons name="close-circle" size={18} color={c.subtext} />
               </TouchableOpacity>
             )}
@@ -151,7 +183,10 @@ export default function Support() {
               autoCorrect={false}
             />
             {email.length > 0 && (
-              <TouchableOpacity style={styles.clearBtn} onPress={() => setEmail("")}>
+              <TouchableOpacity
+                style={styles.clearBtn}
+                onPress={() => setEmail("")}
+              >
                 <Ionicons name="close-circle" size={18} color={c.subtext} />
               </TouchableOpacity>
             )}
@@ -171,7 +206,12 @@ export default function Support() {
                 ]}
                 onPress={() => setSubject(s)}
               >
-                <Text style={[styles.subjectChipText, { color: subject === s ? "#fff" : c.subtext }]}>
+                <Text
+                  style={[
+                    styles.subjectChipText,
+                    { color: subject === s ? "#fff" : c.subtext },
+                  ]}
+                >
                   {s}
                 </Text>
               </TouchableOpacity>
@@ -191,44 +231,72 @@ export default function Support() {
               textAlignVertical="top"
             />
             {message.length > 0 && (
-              <TouchableOpacity style={[styles.clearBtn, styles.clearBtnTop]} onPress={() => setMessage("")}>
+              <TouchableOpacity
+                style={[styles.clearBtn, styles.clearBtnTop]}
+                onPress={() => setMessage("")}
+              >
                 <Ionicons name="close-circle" size={18} color={c.subtext} />
               </TouchableOpacity>
             )}
           </View>
 
           <TouchableOpacity
-            style={[styles.sendBtn, { backgroundColor: canSend ? c.button : "#9ca3af" }]}
+            style={[
+              styles.sendBtn,
+              { backgroundColor: canSend ? c.button : "#9ca3af" },
+            ]}
             disabled={!canSend}
             onPress={handleSend}
           >
             {sending ? (
               <ActivityIndicator color={c.buttonText} />
             ) : (
-              <Text style={[styles.sendBtnText, { color: canSend ? c.buttonText : "#fff" }]}>
+              <Text
+                style={[
+                  styles.sendBtnText,
+                  { color: canSend ? c.buttonText : "#fff" },
+                ]}
+              >
                 Send Message
               </Text>
             )}
           </TouchableOpacity>
         </View>
 
-        <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow }]}>
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: c.card,
+              borderColor: c.border,
+              boxShadow: c.shadow,
+            },
+          ]}
+        >
           <View style={styles.cardHeader}>
-            <Text style={[styles.cardTitle, { color: c.text }]}>Reach Out Directly</Text>
+            <Text style={[styles.cardTitle, { color: c.text }]}>
+              Reach Out Directly
+            </Text>
           </View>
           <Text style={[styles.directBody, { color: c.subtext }]}>
             Prefer to email directly? You can always reach me at:
           </Text>
           <TouchableOpacity
-            style={[styles.emailRow, { backgroundColor: c.inputBg, borderColor: c.border }]}
+            style={[
+              styles.emailRow,
+              { backgroundColor: c.inputBg, borderColor: c.border },
+            ]}
             onPress={() => Linking.openURL(`mailto:${SUPPORT_EMAIL}`)}
             disabled={true}
           >
             <Ionicons name="mail" size={18} color={c.accent} />
-            <Text style={[styles.emailText, { color: c.accent }]}>{SUPPORT_EMAIL}</Text>
+            <Text style={[styles.emailText, { color: c.accent }]}>
+              {SUPPORT_EMAIL}
+            </Text>
           </TouchableOpacity>
           <Text style={[styles.directBody, { color: c.subtext }]}>
-            I try to respond within a few days. Whether it's a bug, a suggestion, or just want to talk football and ML!
+            I try to respond within a few days. Whether it's a bug, a
+            suggestion, or just want to talk football and ML!
           </Text>
         </View>
 

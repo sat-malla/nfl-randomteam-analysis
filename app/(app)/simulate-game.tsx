@@ -1,4 +1,8 @@
-import { NFL_TEAM_COLORS, NFL_TEAM_COLORS_DARK, toTeamAbbr } from "@/utils/nflTeamColors";
+import {
+  NFL_TEAM_COLORS,
+  NFL_TEAM_COLORS_DARK,
+  toTeamAbbr,
+} from "@/utils/nflTeamColors";
 import {
   ScrollView,
   StyleSheet,
@@ -23,17 +27,38 @@ import * as Application from "expo-application";
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000";
 
 const NFL_TEAMS = [
-  "Arizona Cardinals", "Atlanta Falcons", "Baltimore Ravens",
-  "Buffalo Bills", "Carolina Panthers", "Chicago Bears",
-  "Cincinnati Bengals", "Cleveland Browns", "Dallas Cowboys",
-  "Denver Broncos", "Detroit Lions", "Green Bay Packers",
-  "Houston Texans", "Indianapolis Colts", "Jacksonville Jaguars",
-  "Kansas City Chiefs", "Las Vegas Raiders", "Los Angeles Chargers",
-  "Los Angeles Rams", "Miami Dolphins", "Minnesota Vikings",
-  "New England Patriots", "New Orleans Saints", "New York Giants",
-  "New York Jets", "Philadelphia Eagles", "Pittsburgh Steelers",
-  "San Francisco 49ers", "Seattle Seahawks", "Tampa Bay Buccaneers",
-  "Tennessee Titans", "Washington Commanders",
+  "Arizona Cardinals",
+  "Atlanta Falcons",
+  "Baltimore Ravens",
+  "Buffalo Bills",
+  "Carolina Panthers",
+  "Chicago Bears",
+  "Cincinnati Bengals",
+  "Cleveland Browns",
+  "Dallas Cowboys",
+  "Denver Broncos",
+  "Detroit Lions",
+  "Green Bay Packers",
+  "Houston Texans",
+  "Indianapolis Colts",
+  "Jacksonville Jaguars",
+  "Kansas City Chiefs",
+  "Las Vegas Raiders",
+  "Los Angeles Chargers",
+  "Los Angeles Rams",
+  "Miami Dolphins",
+  "Minnesota Vikings",
+  "New England Patriots",
+  "New Orleans Saints",
+  "New York Giants",
+  "New York Jets",
+  "Philadelphia Eagles",
+  "Pittsburgh Steelers",
+  "San Francisco 49ers",
+  "Seattle Seahawks",
+  "Tampa Bay Buccaneers",
+  "Tennessee Titans",
+  "Washington Commanders",
 ];
 
 const SEASONS = Array.from({ length: 11 }, (_, i) => String(2015 + i));
@@ -157,7 +182,10 @@ const GAME_END_TIE_TEMPLATES = [
 function buildGameEndLine(result: SimResult): string {
   const { user_team, opponent, final_score, winner } = result;
   if (winner === "TIE") {
-    const template = GAME_END_TIE_TEMPLATES[Math.floor(Math.random() * GAME_END_TIE_TEMPLATES.length)];
+    const template =
+      GAME_END_TIE_TEMPLATES[
+        Math.floor(Math.random() * GAME_END_TIE_TEMPLATES.length)
+      ];
     return template
       .replace("{teamA}", user_team)
       .replace("{teamB}", opponent)
@@ -168,7 +196,8 @@ function buildGameEndLine(result: SimResult): string {
   const loserName = userWon ? opponent : user_team;
   const winnerScore = userWon ? final_score.user : final_score.opponent;
   const loserScore = userWon ? final_score.opponent : final_score.user;
-  const template = GAME_END_TEMPLATES[Math.floor(Math.random() * GAME_END_TEMPLATES.length)];
+  const template =
+    GAME_END_TEMPLATES[Math.floor(Math.random() * GAME_END_TEMPLATES.length)];
   return template
     .replace("{winner}", winnerName)
     .replace("{loser}", loserName)
@@ -187,7 +216,11 @@ export default function SimulateGame() {
   const [isHome, setIsHome] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<SimResult | null>(null);
-  const [error, setError] = useState<{ message: string; status: number; raw: string } | null>(null);
+  const [error, setError] = useState<{
+    message: string;
+    status: number;
+    raw: string;
+  } | null>(null);
   const [playoffMode, setPlayoffMode] = useState(false);
   const [myTeamOpen, setMyTeamOpen] = useState(false);
   const [nflPickerOpen, setNflPickerOpen] = useState(false);
@@ -217,8 +250,10 @@ export default function SimulateGame() {
   };
 
   const getDeviceUuid = async () => {
-    if (Platform.OS === "android") return Application.getAndroidId() || "test-device-uuid";
-    if (Platform.OS === "ios") return (await Application.getIosIdForVendorAsync()) || "test-device-uuid";
+    if (Platform.OS === "android")
+      return Application.getAndroidId() || "test-device-uuid";
+    if (Platform.OS === "ios")
+      return (await Application.getIosIdForVendorAsync()) || "test-device-uuid";
     return "test-device-uuid";
   };
 
@@ -229,10 +264,12 @@ export default function SimulateGame() {
         .then((r) => r.json())
         .then((res) => {
           if (res.status === "Success" && res.data) {
-            setMyTeams(res.data.map((t: { id: string; team_name: string }) => ({
-              id: t.id,
-              team_name: t.team_name,
-            })));
+            setMyTeams(
+              res.data.map((t: { id: string; team_name: string }) => ({
+                id: t.id,
+                team_name: t.team_name,
+              })),
+            );
           }
         })
         .catch(() => {});
@@ -253,7 +290,13 @@ export default function SimulateGame() {
   }, [result]);
 
   const selectedTeam = myTeams.find((t) => t.team_name === selectedMyTeamName);
-  const canSimulate = !!(selectedTeam && selectedOpponent && selectedSeason && isHome !== null && !loading);
+  const canSimulate = !!(
+    selectedTeam &&
+    selectedOpponent &&
+    selectedSeason &&
+    isHome !== null &&
+    !loading
+  );
 
   const handleSimulate = async () => {
     if (!canSimulate || !selectedTeam) return;
@@ -289,19 +332,33 @@ export default function SimulateGame() {
             playoff: playoffMode,
           });
         } catch {
-          setError({ message: "Received invalid response from server.", status: resp.status, raw: rawText });
+          setError({
+            message: "Received invalid response from server.",
+            status: resp.status,
+            raw: rawText,
+          });
         }
       }
     } catch (e: any) {
-      setError({ message: e?.message ?? "Network error. Make sure the backend is running.", status: 0, raw: "" });
+      setError({
+        message:
+          e?.message ?? "Network error. Make sure the backend is running.",
+        status: 0,
+        raw: "",
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const myTeamItems = myTeams.map((t) => ({ label: t.team_name, value: t.team_name }));
+  const myTeamItems = myTeams.map((t) => ({
+    label: t.team_name,
+    value: t.team_name,
+  }));
   const nflTeamItems = NFL_TEAMS.map((t) => ({ label: t, value: t }));
-  const seasonItems = SEASONS.slice().reverse().map((s) => ({ label: s, value: s }));
+  const seasonItems = SEASONS.slice()
+    .reverse()
+    .map((s) => ({ label: s, value: s }));
   const isSameAsLastSim =
     !!lastSimParams &&
     !!selectedTeam &&
@@ -309,22 +366,24 @@ export default function SimulateGame() {
     lastSimParams.opponent === selectedOpponent &&
     lastSimParams.playoff === playoffMode;
 
-  const simulateButtonLabel = isSameAsLastSim ? "Simulate New Game" : "Simulate Game";
+  const simulateButtonLabel = isSameAsLastSim
+    ? "Simulate New Game"
+    : "Simulate Game";
 
   const winnerColor = result
     ? result.winner === "TIE"
       ? c.tie
       : result.winner === result.user_team
-      ? c.win
-      : c.loss
+        ? c.win
+        : c.loss
     : c.text;
 
   const winnerLabel = result
     ? result.winner === "TIE"
       ? "TIE GAME"
       : result.winner === result.user_team
-      ? "YOU WIN!"
-      : "YOU LOSE"
+        ? "YOU WIN!"
+        : "YOU LOSE"
     : "";
 
   return (
@@ -335,42 +394,69 @@ export default function SimulateGame() {
     >
       <Text style={[styles.title, { color: c.text }]}>Simulate a Game</Text>
       <Text style={[styles.subtitle, { color: c.subtext }]}>
-        Pit your generated team against a real NFL squad and see how the game plays out.
+        Pit your generated team against a real NFL squad and see how the game
+        plays out.
       </Text>
 
-      <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow }]}>
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: c.card,
+            borderColor: c.border,
+            boxShadow: c.shadow,
+          },
+        ]}
+      >
         <FormControl size="lg">
           <VStack space="xl">
             <VStack space="sm">
               <FormControlLabel>
-                <FormControlLabelText style={{ color: c.text, fontFamily: "Montserrat_700Bold" }}>
+                <FormControlLabelText
+                  style={{ color: c.text, fontFamily: "Montserrat_700Bold" }}
+                >
                   Your Team
                 </FormControlLabelText>
               </FormControlLabel>
               <PickerTrigger
                 value={selectedMyTeamName}
                 placeholder="Select your generated team"
-                onPress={() => myTeams.length > 0 ? setMyTeamOpen(true) : undefined}
+                onPress={() =>
+                  myTeams.length > 0 ? setMyTeamOpen(true) : undefined
+                }
                 borderColor={c.border}
                 textColor={myTeams.length > 0 ? c.text : c.subtext}
                 placeholderColor={c.subtext}
               />
               {myTeams.length === 0 && (
-                <Text style={{ color: "red", fontSize: 12, fontFamily: "Montserrat_400Regular", marginTop: 4 }}>
+                <Text
+                  style={{
+                    color: "red",
+                    fontSize: 12,
+                    fontFamily: "Montserrat_400Regular",
+                    marginTop: 4,
+                  }}
+                >
                   Generate a team first to get started!
                 </Text>
               )}
             </VStack>
 
             <View style={styles.vsDivider}>
-              <View style={[styles.vsDividerLine, { backgroundColor: c.border }]} />
+              <View
+                style={[styles.vsDividerLine, { backgroundColor: c.border }]}
+              />
               <Text style={[styles.vsText, { color: c.subtext }]}>VS</Text>
-              <View style={[styles.vsDividerLine, { backgroundColor: c.border }]} />
+              <View
+                style={[styles.vsDividerLine, { backgroundColor: c.border }]}
+              />
             </View>
 
             <VStack space="sm">
               <FormControlLabel>
-                <FormControlLabelText style={{ color: c.text, fontFamily: "Montserrat_700Bold" }}>
+                <FormControlLabelText
+                  style={{ color: c.text, fontFamily: "Montserrat_700Bold" }}
+                >
                   NFL Opponent
                 </FormControlLabelText>
               </FormControlLabel>
@@ -386,7 +472,9 @@ export default function SimulateGame() {
 
             <VStack space="sm">
               <FormControlLabel>
-                <FormControlLabelText style={{ color: c.text, fontFamily: "Montserrat_700Bold" }}>
+                <FormControlLabelText
+                  style={{ color: c.text, fontFamily: "Montserrat_700Bold" }}
+                >
                   Season
                 </FormControlLabelText>
               </FormControlLabel>
@@ -405,7 +493,9 @@ export default function SimulateGame() {
 
             <VStack space="sm">
               <FormControlLabel>
-                <FormControlLabelText style={{ color: c.text, fontFamily: "Montserrat_700Bold" }}>
+                <FormControlLabelText
+                  style={{ color: c.text, fontFamily: "Montserrat_700Bold" }}
+                >
                   Game Location
                 </FormControlLabelText>
               </FormControlLabel>
@@ -425,10 +515,12 @@ export default function SimulateGame() {
                       ]}
                       onPress={() => setIsHome(home)}
                     >
-                      <Text style={[
-                        styles.locationBtnText,
-                        { color: active ? c.buttonText : c.subtext },
-                      ]}>
+                      <Text
+                        style={[
+                          styles.locationBtnText,
+                          { color: active ? c.buttonText : c.subtext },
+                        ]}
+                      >
                         {home ? "Home" : "Away"}
                       </Text>
                     </TouchableOpacity>
@@ -439,11 +531,26 @@ export default function SimulateGame() {
           </VStack>
         </FormControl>
 
-        <View style={[styles.playoffRow, { borderColor: c.border, backgroundColor: playoffMode ? (isDark ? "#1e1040" : "#f3f0ff") : "transparent" }]}>
+        <View
+          style={[
+            styles.playoffRow,
+            {
+              borderColor: c.border,
+              backgroundColor: playoffMode
+                ? isDark
+                  ? "#1e1040"
+                  : "#f3f0ff"
+                : "transparent",
+            },
+          ]}
+        >
           <View style={{ flex: 1 }}>
-            <Text style={[styles.playoffLabel, { color: c.text }]}>Playoff Mode</Text>
+            <Text style={[styles.playoffLabel, { color: c.text }]}>
+              Playoff Mode
+            </Text>
             <Text style={[styles.playoffHint, { color: c.subtext }]}>
-              No ties! Game goes to however many OTs it takes. Expect a tougher play by the opponent.
+              No ties! Game goes to however many OTs it takes. Expect a tougher
+              play by the opponent.
             </Text>
           </View>
           <Switch
@@ -455,14 +562,22 @@ export default function SimulateGame() {
         </View>
 
         <TouchableOpacity
-          style={[styles.simulateBtn, { backgroundColor: canSimulate ? c.button : "#9ca3af" }]}
+          style={[
+            styles.simulateBtn,
+            { backgroundColor: canSimulate ? c.button : "#9ca3af" },
+          ]}
           disabled={!canSimulate}
           onPress={handleSimulate}
         >
           {loading ? (
             <ActivityIndicator color={c.buttonText} />
           ) : (
-            <Text style={[styles.simulateBtnText, { color: canSimulate ? c.buttonText : "#fff" }]}>
+            <Text
+              style={[
+                styles.simulateBtnText,
+                { color: canSimulate ? c.buttonText : "#fff" },
+              ]}
+            >
               {simulateButtonLabel}
             </Text>
           )}
@@ -470,26 +585,84 @@ export default function SimulateGame() {
       </View>
 
       {!!error && (
-        <View style={[styles.card, { backgroundColor: "#fee2e2", borderColor: "#fca5a5", boxShadow: c.shadow, gap: 8 }]}>
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-            <Text style={{ color: "#dc2626", fontFamily: "Montserrat_700Bold", fontSize: 15 }}>
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: "#fee2e2",
+              borderColor: "#fca5a5",
+              boxShadow: c.shadow,
+              gap: 8,
+            },
+          ]}
+        >
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <Text
+              style={{
+                color: "#dc2626",
+                fontFamily: "Montserrat_700Bold",
+                fontSize: 15,
+              }}
+            >
               Simulation Error
             </Text>
             {error.status > 0 && (
-              <View style={{ backgroundColor: "#dc2626", borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 }}>
-                <Text style={{ color: "#fff", fontFamily: "Montserrat_700Bold", fontSize: 12 }}>
+              <View
+                style={{
+                  backgroundColor: "#dc2626",
+                  borderRadius: 6,
+                  paddingHorizontal: 8,
+                  paddingVertical: 2,
+                }}
+              >
+                <Text
+                  style={{
+                    color: "#fff",
+                    fontFamily: "Montserrat_700Bold",
+                    fontSize: 12,
+                  }}
+                >
                   HTTP {error.status}
                 </Text>
               </View>
             )}
           </View>
-          <Text style={{ color: "#991b1b", fontFamily: "Montserrat_400Regular", fontSize: 14, lineHeight: 20 }}>
+          <Text
+            style={{
+              color: "#991b1b",
+              fontFamily: "Montserrat_400Regular",
+              fontSize: 14,
+              lineHeight: 20,
+            }}
+          >
             {error.message}
           </Text>
           {!!error.raw && error.raw !== error.message && (
-            <View style={{ backgroundColor: "#fecaca", borderRadius: 8, padding: 10, marginTop: 2 }}>
-              <Text style={{ color: "#7f1d1d", fontFamily: "Montserrat_400Regular", fontSize: 12, lineHeight: 18 }}>
-                {error.raw.length > 500 ? error.raw.slice(0, 500) + "..." : error.raw}
+            <View
+              style={{
+                backgroundColor: "#fecaca",
+                borderRadius: 8,
+                padding: 10,
+                marginTop: 2,
+              }}
+            >
+              <Text
+                style={{
+                  color: "#7f1d1d",
+                  fontFamily: "Montserrat_400Regular",
+                  fontSize: 12,
+                  lineHeight: 18,
+                }}
+              >
+                {error.raw.length > 500
+                  ? error.raw.slice(0, 500) + "..."
+                  : error.raw}
               </Text>
             </View>
           )}
@@ -498,118 +671,282 @@ export default function SimulateGame() {
 
       {result && (
         <>
-          <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow }]}>
-            <Text style={[styles.sectionTitle, { color: c.text }]}>Final Score</Text>
+          <View
+            style={[
+              styles.card,
+              {
+                backgroundColor: c.card,
+                borderColor: c.border,
+                boxShadow: c.shadow,
+              },
+            ]}
+          >
+            <Text style={[styles.sectionTitle, { color: c.text }]}>
+              Final Score
+            </Text>
             <View style={styles.scoreboard}>
               <View style={styles.scoreTeam}>
-                <Text style={[styles.scoreTeamName, { color: c.text }]} numberOfLines={2}>
-                  {isHome ? `${result.season} ${result.opponent}` : result.user_team}
+                <Text
+                  style={[styles.scoreTeamName, { color: c.text }]}
+                  numberOfLines={2}
+                >
+                  {isHome
+                    ? `${result.season} ${result.opponent}`
+                    : result.user_team}
                 </Text>
                 <Text style={[styles.scoreNum, { color: winnerColor }]}>
-                  {isHome ? result.final_score.opponent : result.final_score.user}
+                  {isHome
+                    ? result.final_score.opponent
+                    : result.final_score.user}
                 </Text>
               </View>
               <View style={styles.scoreTeam}>
-                <Text style={[styles.scoreTeamName, { color: c.text }]} numberOfLines={2}>
-                  {isHome ? result.user_team : `${result.season} ${result.opponent}`}
+                <Text
+                  style={[styles.scoreTeamName, { color: c.text }]}
+                  numberOfLines={2}
+                >
+                  {isHome
+                    ? result.user_team
+                    : `${result.season} ${result.opponent}`}
                 </Text>
                 <Text style={[styles.scoreNum, { color: winnerColor }]}>
-                  {isHome ? result.final_score.user : result.final_score.opponent}
+                  {isHome
+                    ? result.final_score.user
+                    : result.final_score.opponent}
                 </Text>
               </View>
             </View>
-            <Text style={[styles.winnerBadge, { color: winnerColor }]}>{winnerLabel}</Text>
+            <Text style={[styles.winnerBadge, { color: winnerColor }]}>
+              {winnerLabel}
+            </Text>
             {result.overtime_periods > 0 && (
-              <View style={[styles.otBadge, { backgroundColor: isDark ? "#1e1040" : "#f3f0ff", borderColor: "#7c3aed" }]}>
+              <View
+                style={[
+                  styles.otBadge,
+                  {
+                    backgroundColor: isDark ? "#1e1040" : "#f3f0ff",
+                    borderColor: "#7c3aed",
+                  },
+                ]}
+              >
                 <Text style={styles.otBadgeText}>
-                  {result.overtime_periods === 1 ? "Overtime" : `${result.overtime_periods}x Overtime`}
+                  {result.overtime_periods === 1
+                    ? "Overtime"
+                    : `${result.overtime_periods}x Overtime`}
                 </Text>
               </View>
             )}
           </View>
 
-          {result.box_score.length > 0 && (() => {
-            const OFF_ORDER = ["QB", "RB", "FB", "WR", "TE"];
-            const DEF_ORDER = ["DE", "DT", "NT", "DL", "LB", "OLB", "ILB", "MLB", "SLB", "WLB", "CB", "DB", "FS", "SS", "S", "SAF", "Nickel", "Dime"];
-            const ST_ORDER = ["K", "P", "RS"];
-            const offense = result.box_score.filter(p => OFF_ORDER.includes(p.position))
-              .sort((a, b) => OFF_ORDER.indexOf(a.position) - OFF_ORDER.indexOf(b.position));
-            const defense = result.box_score.filter(p => DEF_ORDER.includes(p.position))
-              .sort((a, b) => DEF_ORDER.indexOf(a.position) - DEF_ORDER.indexOf(b.position));
-            const specialTeams = result.box_score.filter(p => ST_ORDER.includes(p.position))
-              .sort((a, b) => ST_ORDER.indexOf(a.position) - ST_ORDER.indexOf(b.position));
+          {result.box_score.length > 0 &&
+            (() => {
+              const OFF_ORDER = ["QB", "RB", "FB", "WR", "TE"];
+              const DEF_ORDER = [
+                "DE",
+                "DT",
+                "NT",
+                "DL",
+                "LB",
+                "OLB",
+                "ILB",
+                "MLB",
+                "SLB",
+                "WLB",
+                "CB",
+                "DB",
+                "FS",
+                "SS",
+                "S",
+                "SAF",
+                "Nickel",
+                "Dime",
+              ];
+              const ST_ORDER = ["K", "P", "RS"];
+              const offense = result.box_score
+                .filter((p) => OFF_ORDER.includes(p.position))
+                .sort(
+                  (a, b) =>
+                    OFF_ORDER.indexOf(a.position) -
+                    OFF_ORDER.indexOf(b.position),
+                );
+              const defense = result.box_score
+                .filter((p) => DEF_ORDER.includes(p.position))
+                .sort(
+                  (a, b) =>
+                    DEF_ORDER.indexOf(a.position) -
+                    DEF_ORDER.indexOf(b.position),
+                );
+              const specialTeams = result.box_score
+                .filter((p) => ST_ORDER.includes(p.position))
+                .sort(
+                  (a, b) =>
+                    ST_ORDER.indexOf(a.position) - ST_ORDER.indexOf(b.position),
+                );
 
-            const renderPlayer = (player: BoxEntry, i: number) => {
-              const posColor = posColors[player.position] ?? { bg: "#334155", text: "#ffffff" };
-              return (
-                <View key={i} style={[styles.boxRow, { borderBottomColor: c.border }]}>
-                  <View style={styles.boxLeft}>
-                    <View style={[styles.posBadge, { backgroundColor: posColor.bg }]}>
-                      <Text style={[styles.posText, { color: posColor.text }]}>{player.position}</Text>
+              const renderPlayer = (player: BoxEntry, i: number) => {
+                const posColor = posColors[player.position] ?? {
+                  bg: "#334155",
+                  text: "#ffffff",
+                };
+                return (
+                  <View
+                    key={i}
+                    style={[styles.boxRow, { borderBottomColor: c.border }]}
+                  >
+                    <View style={styles.boxLeft}>
+                      <View
+                        style={[
+                          styles.posBadge,
+                          { backgroundColor: posColor.bg },
+                        ]}
+                      >
+                        <Text
+                          style={[styles.posText, { color: posColor.text }]}
+                        >
+                          {player.position}
+                        </Text>
+                      </View>
+                      <Text style={[styles.boxName, { color: c.text }]}>
+                        {player.name}
+                      </Text>
+                      {player.nfl_team
+                        ? (() => {
+                            const abbr = toTeamAbbr(player.nfl_team);
+                            const tc =
+                              (isDark ? NFL_TEAM_COLORS_DARK : NFL_TEAM_COLORS)[
+                                abbr
+                              ] ??
+                              (isDark
+                                ? { bg: "#4a5568", text: "#000000" }
+                                : { bg: "#334155", text: "#ffffff" });
+                            return (
+                              <View
+                                style={[
+                                  styles.posBadge,
+                                  { backgroundColor: tc.bg, marginLeft: 6 },
+                                ]}
+                              >
+                                <Text
+                                  style={[styles.posText, { color: tc.text }]}
+                                >
+                                  {abbr}
+                                </Text>
+                              </View>
+                            );
+                          })()
+                        : null}
                     </View>
-                    <Text style={[styles.boxName, { color: c.text }]}>{player.name}</Text>
-                    {player.nfl_team ? (() => { const abbr = toTeamAbbr(player.nfl_team); const tc = (isDark ? NFL_TEAM_COLORS_DARK : NFL_TEAM_COLORS)[abbr] ?? (isDark ? { bg: "#4a5568", text: "#000000" } : { bg: "#334155", text: "#ffffff" }); return (
-                      <View style={[styles.posBadge, { backgroundColor: tc.bg, marginLeft: 6 }]}>
-                        <Text style={[styles.posText, { color: tc.text }]}>{abbr}</Text>
-                      </View>
-                    ); })() : null}
+                    <View style={styles.boxStats}>
+                      {player.stats.map(({ label, val }) => (
+                        <View key={label} style={styles.statChip}>
+                          <Text style={[styles.statVal, { color: c.text }]}>
+                            {val}
+                          </Text>
+                          <Text
+                            style={[styles.statLabel, { color: c.subtext }]}
+                          >
+                            {label}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
                   </View>
-                  <View style={styles.boxStats}>
-                    {player.stats.map(({ label, val }) => (
-                      <View key={label} style={styles.statChip}>
-                        <Text style={[styles.statVal, { color: c.text }]}>{val}</Text>
-                        <Text style={[styles.statLabel, { color: c.subtext }]}>{label}</Text>
-                      </View>
-                    ))}
+                );
+              };
+
+              const renderGroup = (title: string, players: BoxEntry[]) =>
+                players.length === 0 ? null : (
+                  <View key={title}>
+                    <Text style={[styles.boxGroupLabel, { color: c.subtext }]}>
+                      {title}
+                    </Text>
+                    {players.map(renderPlayer)}
                   </View>
+                );
+
+              return (
+                <View
+                  style={[
+                    styles.card,
+                    {
+                      backgroundColor: c.card,
+                      borderColor: c.border,
+                      boxShadow: c.shadow,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.sectionTitle, { color: c.text }]}>
+                    Your Team Box Score
+                  </Text>
+                  {renderGroup("Offense", offense)}
+                  {renderGroup("Defense", defense)}
+                  {renderGroup("Special Teams", specialTeams)}
                 </View>
               );
-            };
-
-            const renderGroup = (title: string, players: BoxEntry[]) => players.length === 0 ? null : (
-              <View key={title}>
-                <Text style={[styles.boxGroupLabel, { color: c.subtext }]}>{title}</Text>
-                {players.map(renderPlayer)}
-              </View>
-            );
-
-            return (
-              <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow }]}>
-                <Text style={[styles.sectionTitle, { color: c.text }]}>Your Team Box Score</Text>
-                {renderGroup("Offense", offense)}
-                {renderGroup("Defense", defense)}
-                {renderGroup("Special Teams", specialTeams)}
-              </View>
-            );
-          })()}
+            })()}
 
           {displayPlayByPlay.length > 0 && (
-            <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow }]}>
-              <Text style={[styles.sectionTitle, { color: c.text }]}>Highlights</Text>
+            <View
+              style={[
+                styles.card,
+                {
+                  backgroundColor: c.card,
+                  borderColor: c.border,
+                  boxShadow: c.shadow,
+                },
+              ]}
+            >
+              <Text style={[styles.sectionTitle, { color: c.text }]}>
+                Highlights
+              </Text>
               {displayPlayByPlay.map((entry, i) => {
                 const isUser = entry.team === result.user_team;
-                const qColor = QUARTER_COLORS[entry.quarter] ?? (entry.quarter.startsWith("OT") ? "#7c3aed" : c.subtext);
+                const qColor =
+                  QUARTER_COLORS[entry.quarter] ??
+                  (entry.quarter.startsWith("OT") ? "#7c3aed" : c.subtext);
                 return (
-                  <View key={i} style={[styles.playRow, { borderBottomColor: c.border }]}>
+                  <View
+                    key={i}
+                    style={[styles.playRow, { borderBottomColor: c.border }]}
+                  >
                     <View style={styles.playMeta}>
-                      <View style={[styles.quarterBadge, { backgroundColor: qColor }]}>
+                      <View
+                        style={[
+                          styles.quarterBadge,
+                          { backgroundColor: qColor },
+                        ]}
+                      >
                         <Text style={styles.quarterText}>{entry.quarter}</Text>
                       </View>
-                      <Text style={[styles.playScore, { color: c.subtext }]}>{entry.score}</Text>
+                      <Text style={[styles.playScore, { color: c.subtext }]}>
+                        {entry.score}
+                      </Text>
                       {entry.is_score && (
                         <View style={styles.scoreBadge}>
                           <Text style={styles.scoreBadgeText}>SCORE!</Text>
                         </View>
                       )}
                     </View>
-                    <View style={[
-                      styles.playContent,
-                      { borderLeftColor: isUser ? c.button : c.border, borderLeftWidth: 3 }
-                    ]}>
-                      <Text style={[styles.playTeamLabel, { color: isUser ? c.text : c.subtext }]}>
+                    <View
+                      style={[
+                        styles.playContent,
+                        {
+                          borderLeftColor: isUser ? c.button : c.border,
+                          borderLeftWidth: 3,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.playTeamLabel,
+                          { color: isUser ? c.text : c.subtext },
+                        ]}
+                      >
                         {entry.team}
                       </Text>
-                      <Text style={[styles.playText, { color: c.text }]}>{entry.play}</Text>
+                      <Text style={[styles.playText, { color: c.text }]}>
+                        {entry.play}
+                      </Text>
                     </View>
                   </View>
                 );

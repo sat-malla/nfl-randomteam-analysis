@@ -1,4 +1,8 @@
-import { NFL_TEAM_COLORS, NFL_TEAM_COLORS_DARK, toTeamAbbr } from "@/utils/nflTeamColors";
+import {
+  NFL_TEAM_COLORS,
+  NFL_TEAM_COLORS_DARK,
+  toTeamAbbr,
+} from "@/utils/nflTeamColors";
 import {
   ScrollView,
   StyleSheet,
@@ -95,16 +99,6 @@ const POS_COLORS_DARK: Record<string, { bg: string; text: string }> = {
   LS: { bg: "#9ca3af", text: "#000000" },
 };
 
-const POS_ORDER = [
-  "QB", "RB", "FB", "WR", "TE",
-  "OT", "G", "C",
-  "DE", "DT", "NT", "DL",
-  "LB", "OLB", "ILB", "MLB", "SLB", "WLB",
-  "CB", "FS", "SS", "S", "SAF",
-  "Nickel", "Dime",
-  "K", "P", "RS", "LS",
-];
-
 function formatSalary(n: number): string {
   if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
@@ -113,7 +107,7 @@ function formatSalary(n: number): string {
 
 function capBarColor(pct: number): string {
   if (pct >= 0.95) return "#dc2626";
-  if (pct >= 0.80) return "#f59e0b";
+  if (pct >= 0.8) return "#f59e0b";
   return "#16a34a";
 }
 
@@ -155,7 +149,10 @@ export default function OptimizeTeam() {
       const resp = await fetch(`${API_URL}/api/optimize/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ offense_type: offenseType, defense_type: defenseType }),
+        body: JSON.stringify({
+          offense_type: offenseType,
+          defense_type: defenseType,
+        }),
       });
       const data = await resp.json();
       if (!resp.ok) {
@@ -173,33 +170,75 @@ export default function OptimizeTeam() {
   const capUsed = result ? result.total_salary / result.salary_cap : 0;
   const capBarWidth = Math.min(capUsed, 1);
 
-  const offense = result?.roster.filter(p => ["QB", "RB", "FB", "WR", "TE"].includes(p.position)) ?? [];
-  const oline = result?.roster.filter(p => ["OT", "G", "C"].includes(p.position)) ?? [];
-  const defense = result?.roster.filter(p =>
-    ["DE", "DT", "NT", "DL", "LB", "OLB", "ILB", "MLB", "SLB", "WLB", "CB", "FS", "SS", "S", "SAF", "Nickel", "Dime"].includes(p.position)
-  ) ?? [];
-  const special = result?.roster.filter(p => ["K", "P", "RS", "LS"].includes(p.position)) ?? [];
+  const offense =
+    result?.roster.filter((p) =>
+      ["QB", "RB", "FB", "WR", "TE"].includes(p.position),
+    ) ?? [];
+  const oline =
+    result?.roster.filter((p) => ["OT", "G", "C"].includes(p.position)) ?? [];
+  const defense =
+    result?.roster.filter((p) =>
+      [
+        "DE",
+        "DT",
+        "NT",
+        "DL",
+        "LB",
+        "OLB",
+        "ILB",
+        "MLB",
+        "SLB",
+        "WLB",
+        "CB",
+        "FS",
+        "SS",
+        "S",
+        "SAF",
+        "Nickel",
+        "Dime",
+      ].includes(p.position),
+    ) ?? [];
+  const special =
+    result?.roster.filter((p) => ["K", "P", "RS", "LS"].includes(p.position)) ??
+    [];
 
   const renderPlayer = (player: RosterPlayer, i: number) => {
-    const posColor = posColors[player.position] ?? { bg: "#334155", text: "#ffffff" };
+    const posColor = posColors[player.position] ?? {
+      bg: "#334155",
+      text: "#ffffff",
+    };
     const teamAbbr = toTeamAbbr(player.nfl_team);
-    const teamColor = (isDark ? NFL_TEAM_COLORS_DARK : NFL_TEAM_COLORS)[teamAbbr] ?? (isDark ? { bg: "#4a5568", text: "#000000" } : { bg: "#334155", text: "#ffffff" });
+    const teamColor =
+      (isDark ? NFL_TEAM_COLORS_DARK : NFL_TEAM_COLORS)[teamAbbr] ??
+      (isDark
+        ? { bg: "#4a5568", text: "#000000" }
+        : { bg: "#334155", text: "#ffffff" });
     return (
       <View key={i} style={[styles.playerRow, { borderBottomColor: c.border }]}>
         <View style={styles.playerLeft}>
           <View style={[styles.posBadge, { backgroundColor: posColor.bg }]}>
-            <Text style={[styles.posText, { color: posColor.text }]}>{player.position}</Text>
+            <Text style={[styles.posText, { color: posColor.text }]}>
+              {player.position}
+            </Text>
           </View>
           <View style={styles.playerInfo}>
-            <Text style={[styles.playerName, { color: c.text }]}>{player.name}</Text>
+            <Text style={[styles.playerName, { color: c.text }]}>
+              {player.name}
+            </Text>
             {teamAbbr ? (
-              <View style={[styles.teamBadge, { backgroundColor: teamColor.bg }]}>
-                <Text style={[styles.teamText, { color: teamColor.text }]}>{teamAbbr}</Text>
+              <View
+                style={[styles.teamBadge, { backgroundColor: teamColor.bg }]}
+              >
+                <Text style={[styles.teamText, { color: teamColor.text }]}>
+                  {teamAbbr}
+                </Text>
               </View>
             ) : null}
           </View>
         </View>
-        <Text style={[styles.salary, { color: c.subtext }]}>{formatSalary(player.salary)}</Text>
+        <Text style={[styles.salary, { color: c.subtext }]}>
+          {formatSalary(player.salary)}
+        </Text>
       </View>
     );
   };
@@ -218,11 +257,15 @@ export default function OptimizeTeam() {
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={[styles.title, { color: c.text }]}>Optimal Team Builder</Text>
+      <Text style={[styles.title, { color: c.text }]}>
+        Optimal Team Builder
+      </Text>
       <Text style={[styles.subtitle, { color: c.subtext }]}>
         Generate a RANDOMIZED but OPTIMAL team under a{" "}
-        <Text style={{ fontFamily: "Montserrat_700Bold" }}>$301.2M salary cap</Text> to
-        maximize Super Bowl probability!
+        <Text style={{ fontFamily: "Montserrat_700Bold" }}>
+          $301.2M salary cap
+        </Text>{" "}
+        to maximize Super Bowl probability!
       </Text>
 
       <Modal
@@ -236,22 +279,41 @@ export default function OptimizeTeam() {
           activeOpacity={1}
           onPress={() => setInfoVisible(false)}
         >
-          <View style={[styles.modalCard, { backgroundColor: c.card, borderColor: c.border }]}>
-            <Text style={[styles.modalTitle, { color: c.text }]}>How It Works</Text>
+          <View
+            style={[
+              styles.modalCard,
+              { backgroundColor: c.card, borderColor: c.border },
+            ]}
+          >
+            <Text style={[styles.modalTitle, { color: c.text }]}>
+              How It Works
+            </Text>
 
             <View style={styles.modalItem}>
-              <Text style={[styles.modalItemTitle, { color: c.text }]}>$301.2M Salary Cap</Text>
+              <Text style={[styles.modalItemTitle, { color: c.text }]}>
+                $301.2M Salary Cap
+              </Text>
               <Text style={[styles.modalItemBody, { color: c.subtext }]}>
-                The NFL uses a salary cap to stop teams from buying every superstar. We use the official 2026 NFL salary cap of $301.2M so you can't just stack the roster with Patrick Mahomes, George Kittle, and Myles Garrett. Every player has a price tag based on their real performance, so you have to make tradeoffs.
+                The NFL uses a salary cap to stop teams from buying every
+                superstar. We use the official 2026 NFL salary cap of $301.2M so
+                you can't just stack the roster with Patrick Mahomes, George
+                Kittle, and Myles Garrett. Every player has a price tag based on
+                their real performance, so you have to make tradeoffs.
               </Text>
             </View>
 
-            <View style={[styles.modalDivider, { backgroundColor: c.border }]} />
+            <View
+              style={[styles.modalDivider, { backgroundColor: c.border }]}
+            />
 
             <View style={styles.modalItem}>
-              <Text style={[styles.modalItemTitle, { color: c.text }]}>Tracked Roster Slots</Text>
+              <Text style={[styles.modalItemTitle, { color: c.text }]}>
+                Tracked Roster Slots
+              </Text>
               <Text style={[styles.modalItemBody, { color: c.subtext }]}>
-                The active NFL roster has 53 players, but most don't see the field. We optimize the skill positions and specialists that actually produce stats. Every pick matters to the simulation.
+                The active NFL roster has 53 players, but most don't see the
+                field. We optimize the skill positions and specialists that
+                actually produce stats. Every pick matters to the simulation.
               </Text>
             </View>
 
@@ -259,34 +321,62 @@ export default function OptimizeTeam() {
               style={[styles.modalClose, { backgroundColor: c.button }]}
               onPress={() => setInfoVisible(false)}
             >
-              <Text style={[styles.modalCloseText, { color: c.buttonText }]}>Got it</Text>
+              <Text style={[styles.modalCloseText, { color: c.buttonText }]}>
+                Got it
+              </Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
       </Modal>
 
-      <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow }]}>
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: c.card,
+            borderColor: c.border,
+            boxShadow: c.shadow,
+          },
+        ]}
+      >
         <View style={styles.cardHeader}>
-          <Text style={[styles.sectionTitle, { color: c.text }]}>Parameters</Text>
-          <TouchableOpacity onPress={() => setInfoVisible(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Ionicons name="information-circle-outline" size={24} color={c.subtext} />
+          <Text style={[styles.sectionTitle, { color: c.text }]}>
+            Parameters
+          </Text>
+          <TouchableOpacity
+            onPress={() => setInfoVisible(true)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons
+              name="information-circle-outline"
+              size={24}
+              color={c.subtext}
+            />
           </TouchableOpacity>
         </View>
 
         <View style={styles.paramGrid}>
           <View style={styles.paramItem}>
-            <Text style={[styles.paramValue, { color: c.accent }]}>$301.2M</Text>
-            <Text style={[styles.paramLabel, { color: c.subtext }]}>Salary Cap</Text>
+            <Text style={[styles.paramValue, { color: c.accent }]}>
+              $301.2M
+            </Text>
+            <Text style={[styles.paramLabel, { color: c.subtext }]}>
+              Salary Cap
+            </Text>
           </View>
           <View style={styles.paramItem}>
             <Text style={[styles.paramValue, { color: c.accent }]}>29</Text>
-            <Text style={[styles.paramLabel, { color: c.subtext }]}>Roster Slots</Text>
+            <Text style={[styles.paramLabel, { color: c.subtext }]}>
+              Roster Slots
+            </Text>
           </View>
         </View>
 
         <View style={styles.dropdownRow}>
           <View style={styles.dropdownItem}>
-            <Text style={[styles.dropdownLabel, { color: c.subtext }]}>Offensive Scheme</Text>
+            <Text style={[styles.dropdownLabel, { color: c.subtext }]}>
+              Offensive Scheme
+            </Text>
             <PickerTrigger
               value={offenseType}
               placeholder="Select offense"
@@ -297,7 +387,9 @@ export default function OptimizeTeam() {
             />
           </View>
           <View style={styles.dropdownItem}>
-            <Text style={[styles.dropdownLabel, { color: c.subtext }]}>Defensive Scheme</Text>
+            <Text style={[styles.dropdownLabel, { color: c.subtext }]}>
+              Defensive Scheme
+            </Text>
             <PickerTrigger
               value={defenseType}
               placeholder="Select defense"
@@ -310,14 +402,22 @@ export default function OptimizeTeam() {
         </View>
 
         <TouchableOpacity
-          style={[styles.optimizeBtn, { backgroundColor: loading ? "#9ca3af" : c.button }]}
+          style={[
+            styles.optimizeBtn,
+            { backgroundColor: loading ? "#9ca3af" : c.button },
+          ]}
           disabled={loading}
           onPress={handleOptimize}
         >
           {loading ? (
             <View style={styles.loadingRow}>
-              <ActivityIndicator color={c.buttonText} style={{ marginRight: 8 }} />
-              <Text style={[styles.optimizeBtnText, { color: "#fff" }]}>Building team...</Text>
+              <ActivityIndicator
+                color={c.buttonText}
+                style={{ marginRight: 8 }}
+              />
+              <Text style={[styles.optimizeBtnText, { color: "#fff" }]}>
+                Building team...
+              </Text>
             </View>
           ) : (
             <Text style={[styles.optimizeBtnText, { color: c.buttonText }]}>
@@ -334,8 +434,23 @@ export default function OptimizeTeam() {
       </View>
 
       {!!error && (
-        <View style={[styles.card, { backgroundColor: "#fee2e2", borderColor: "#fca5a5", boxShadow: c.shadow }]}>
-          <Text style={{ color: "#dc2626", fontFamily: "Montserrat_400Regular", fontSize: 14 }}>
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: "#fee2e2",
+              borderColor: "#fca5a5",
+              boxShadow: c.shadow,
+            },
+          ]}
+        >
+          <Text
+            style={{
+              color: "#dc2626",
+              fontFamily: "Montserrat_400Regular",
+              fontSize: 14,
+            }}
+          >
             {error}
           </Text>
         </View>
@@ -343,27 +458,54 @@ export default function OptimizeTeam() {
 
       {result && (
         <>
-          <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow }]}>
-            <Text style={[styles.sectionTitle, { color: c.text }]}>Optimal Roster Found</Text>
+          <View
+            style={[
+              styles.card,
+              {
+                backgroundColor: c.card,
+                borderColor: c.border,
+                boxShadow: c.shadow,
+              },
+            ]}
+          >
+            <Text style={[styles.sectionTitle, { color: c.text }]}>
+              Optimal Roster Found
+            </Text>
             <View style={styles.sbRow}>
               <Text style={[styles.sbProb, { color: c.green }]}>
                 {result.superbowl_probability.toFixed(1)}%
               </Text>
-              <Text style={[styles.sbLabel, { color: c.subtext }]}>Super Bowl Probability</Text>
+              <Text style={[styles.sbLabel, { color: c.subtext }]}>
+                Super Bowl Probability
+              </Text>
               <View style={styles.formationRow}>
-                <View style={[styles.formationBadge, { backgroundColor: c.accent }]}>
-                  <Text style={styles.formationText}>{result.offense_type}</Text>
+                <View
+                  style={[styles.formationBadge, { backgroundColor: c.accent }]}
+                >
+                  <Text style={styles.formationText}>
+                    {result.offense_type}
+                  </Text>
                 </View>
-                <View style={[styles.formationBadge, { backgroundColor: "#db2777" }]}>
-                  <Text style={styles.formationText}>{result.defense_type}</Text>
+                <View
+                  style={[
+                    styles.formationBadge,
+                    { backgroundColor: "#db2777" },
+                  ]}
+                >
+                  <Text style={styles.formationText}>
+                    {result.defense_type}
+                  </Text>
                 </View>
               </View>
             </View>
             <View style={styles.capSection}>
               <View style={styles.capHeader}>
-                <Text style={[styles.capLabel, { color: c.text }]}>Salary Cap Usage</Text>
+                <Text style={[styles.capLabel, { color: c.text }]}>
+                  Salary Cap Usage
+                </Text>
                 <Text style={[styles.capNumbers, { color: c.subtext }]}>
-                  {formatSalary(result.total_salary)} / {formatSalary(result.salary_cap)}
+                  {formatSalary(result.total_salary)} /{" "}
+                  {formatSalary(result.salary_cap)}
                 </Text>
               </View>
               <View style={[styles.capBarBg, { backgroundColor: c.border }]}>
@@ -382,8 +524,19 @@ export default function OptimizeTeam() {
               </Text>
             </View>
           </View>
-          <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border, boxShadow: c.shadow }]}>
-            <Text style={[styles.sectionTitle, { color: c.text }]}>Roster - {result.roster_size} players</Text>
+          <View
+            style={[
+              styles.card,
+              {
+                backgroundColor: c.card,
+                borderColor: c.border,
+                boxShadow: c.shadow,
+              },
+            ]}
+          >
+            <Text style={[styles.sectionTitle, { color: c.text }]}>
+              Roster - {result.roster_size} players
+            </Text>
             {renderGroup("Offense", offense)}
             {renderGroup("O-Line", oline)}
             {renderGroup("Defense", defense)}
