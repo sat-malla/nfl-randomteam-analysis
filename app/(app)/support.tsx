@@ -20,7 +20,7 @@ const SUBJECTS = ["Bug Report", "Feature Request", "General Question", "Other"];
 
 const FORMSPREE_ID = process.env.EXPO_PUBLIC_FORMSPREE_ID ?? "";
 const BREVO_API_KEY = process.env.EXPO_PUBLIC_BREVO_API_KEY ?? "";
-const BREVO_TEMPLATE_ID = Number(process.env.EXPO_PUBLIC_BREVO_TEMPLATE_ID ?? "1");
+const BREVO_TEMPLATE_ID = Number(process.env.EXPO_PUBLIC_BREVO_TEMPLATE_ID ?? "7");
 
 export default function Support() {
   const colorScheme = useColorScheme();

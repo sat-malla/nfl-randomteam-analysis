@@ -1062,7 +1062,6 @@ def fetch_coach_factor(coach_name, qb_name):
     }
     return coach_multiplier, meta
 
-
 def run_full_analysis(team_id):
     _POS_STATS_CACHE.clear()
     team = get_generated_team(team_id)
@@ -1089,9 +1088,7 @@ def run_full_analysis(team_id):
 
     return results
 
-
 app = FastAPI()
-
 class AnalyzeRequest(BaseModel):
     team_id: str
 
