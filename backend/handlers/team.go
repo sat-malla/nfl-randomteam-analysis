@@ -166,7 +166,7 @@ func (h *teamHandler) GetManyByDeviceUuid(c *fiber.Ctx) error {
 func (h *teamHandler) AnalyzeOne(c *fiber.Ctx) error {
 	teamId := c.Params("teamId")
 
-	pythonURL := os.Getenv("PYTHON_API_URL")
+	pythonURL := os.Getenv("TEAM_ANALYSIS_URL")
 	if pythonURL == "" {
 		pythonURL = "http://localhost:8001"
 	}
