@@ -38,6 +38,7 @@
           }
         }
       ],
+      "./plugins/withRNFirebaseDisableSPM.js",
       [
         "expo-splash-screen",
         {
