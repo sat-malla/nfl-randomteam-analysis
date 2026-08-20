@@ -18,8 +18,8 @@ import Ionicons from "react-native-vector-icons/Ionicons";
 const SUPPORT_EMAIL = "sathvikmalla17@gmail.com";
 const SUBJECTS = ["Bug Report", "Feature Request", "General Question", "Other"];
 
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000";
 const FORMSPREE_ID = process.env.EXPO_PUBLIC_FORMSPREE_ID ?? "";
-const BREVO_API_KEY = process.env.EXPO_PUBLIC_BREVO_API_KEY ?? "";
 const BREVO_TEMPLATE_ID = Number(
   process.env.EXPO_PUBLIC_BREVO_TEMPLATE_ID ?? "7",
 );
@@ -51,8 +51,7 @@ export default function Support() {
     green: "#16a34a",
   };
 
-  const canSend =
-    name.trim() && email.trim() && subject.trim() && message.trim() && !sending;
+  const canSend = name.trim() && email.trim() && subject.trim() && message.trim() && !sending;
 
   const handleSend = async () => {
     setSending(true);
@@ -78,15 +77,13 @@ export default function Support() {
         throw new Error(`Formspree ${formspreeRes.status}: ${text}`);
       }
 
-      const brevoRes = await fetch("https://api.brevo.com/v3/smtp/email", {
+      const brevoRes = await fetch(`${API_URL}/api/notify/send`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "api-key": BREVO_API_KEY,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          to: [{ email: email.trim(), name: name.trim() }],
-          templateId: BREVO_TEMPLATE_ID,
+          to_email: email.trim(),
+          to_name: name.trim(),
+          template_id: BREVO_TEMPLATE_ID,
           params: { name: name.trim(), subject, message: message.trim() },
         }),
       });

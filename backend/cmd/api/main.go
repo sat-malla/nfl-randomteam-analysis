@@ -35,6 +35,7 @@ func main() {
 	handlers.NewSimulateHandler(server.Group("/simulate"))
 	handlers.NewOptimizeHandler(server.Group("/optimize"))
 	handlers.NewDonateHandler(server.Group("/donate"))
+	handlers.NewNotifyHandler(server.Group("/notify"))
 
 	// MongoDB-dependent handlers — only registered when connected
 	if client != nil {

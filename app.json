@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "pro-football-random-team-generator-and-analysis",
+    "name": "Pro Football RTGA",
     "slug": "pro-football-random-team-g-and-a",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -9,7 +9,11 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.sathvik-malla.pro-football-random-team-generator-and-analysis"
+      "bundleIdentifier": "com.sathvik-malla.pro-football-random-team-generator-and-analysis",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
       "adaptiveIcon": {
@@ -28,7 +32,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/Official-Pro-Football-RTGA-Splash.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",
@@ -40,24 +44,63 @@
       [
         "expo-alternate-app-icons",
         [
-          { "name": "iconRed",    "ios": { "light": "./assets/images/icon-red.png" } },
-          { "name": "iconGreen",  "ios": { "light": "./assets/images/icon-green.png" } },
-          { "name": "iconAmber",  "ios": { "light": "./assets/images/icon-amber.png" } },
-          { "name": "iconOrange", "ios": { "light": "./assets/images/icon-orange.png" } },
-          { "name": "iconPink",   "ios": { "light": "./assets/images/icon-pink.png" } },
-          { "name": "iconCyan",   "ios": { "light": "./assets/images/icon-cyan.png" } },
-          { "name": "iconNavy",   "ios": { "light": "./assets/images/icon-navy.png" } },
-          { "name": "iconLime",   "ios": { "light": "./assets/images/icon-lime.png" } },
-          { "name": "iconTeal",   "ios": { "light": "./assets/images/icon-teal.png" } },
-          { "name": "iconMaroon", "ios": { "light": "./assets/images/icon-maroon.png" } }
+          {
+            "name": "IconRed",
+            "ios": "./assets/images/icon-red.png"
+          },
+          {
+            "name": "IconGreen",
+            "ios": "./assets/images/icon-green.png"
+          },
+          {
+            "name": "IconAmber",
+            "ios": "./assets/images/icon-amber.png"
+          },
+          {
+            "name": "IconOrange",
+            "ios": "./assets/images/icon-orange.png"
+          },
+          {
+            "name": "IconPink",
+            "ios": "./assets/images/icon-pink.png"
+          },
+          {
+            "name": "IconCyan",
+            "ios": "./assets/images/icon-cyan.png"
+          },
+          {
+            "name": "IconNavy",
+            "ios": "./assets/images/icon-navy.png"
+          },
+          {
+            "name": "IconLime",
+            "ios": "./assets/images/icon-lime.png"
+          },
+          {
+            "name": "IconTeal",
+            "ios": "./assets/images/icon-teal.png"
+          },
+          {
+            "name": "IconMaroon",
+            "ios": "./assets/images/icon-maroon.png"
+          }
         ]
       ],
       "expo-web-browser",
-      "expo-font"
+      "expo-font",
+      "@react-native-firebase/app",
+      "@react-native-firebase/analytics"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "91118d13-ead9-4232-b1ee-2365b43e9570"
+      }
+    },
+    "owner": "sathvik_malla"
   }
 }

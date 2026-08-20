@@ -111,10 +111,68 @@ export default function Privacy() {
         Third Party Access
       </Text>
       <Text style={[styles.body, { color: c.subtext }]}>
-        Only aggregated, anonymized data is periodically transmitted to external
-        services to aid the Service Provider in improving the Application and
-        their service. The Service Provider may share your information with
-        third parties in the ways that are described in this privacy statement.
+        The Application integrates with third-party services to provide core
+        functionality, communications, and payment processing. Some of these
+        services may process personal data you provide directly (such as your
+        email address or messages sent through AI chat features). Others are
+        backend infrastructure providers used by the Service Provider to operate
+        the Application and do not interact with you directly. Below are the
+        third-party services used by the Application and links to their
+        respective privacy policies:
+      </Text>
+      <Text style={[styles.bullet, { color: c.subtext }]}>
+        • Brevo (email communications) —
+        https://www.brevo.com/legal/privacypolicy/
+      </Text>
+      <Text style={[styles.bullet, { color: c.subtext }]}>
+        • Formspree (contact/feedback forms) —
+        https://formspree.io/legal/privacy-policy/
+      </Text>
+      <Text style={[styles.bullet, { color: c.subtext }]}>
+        • Groq (AI-powered analysis features) — https://groq.com/privacy-policy/
+      </Text>
+      <Text style={[styles.bullet, { color: c.subtext }]}>
+        • Stripe (payment processing, if applicable) —
+        https://stripe.com/privacy
+      </Text>
+      <Text style={[styles.body, { color: c.subtext, marginTop: 8 }]}>
+        The Application also relies on the following backend infrastructure
+        providers to store data and operate its services. These providers do not
+        independently collect information from you; they process data on the
+        Service Provider's behalf:
+      </Text>
+      <Text style={[styles.bullet, { color: c.subtext }]}>
+        • Supabase (database hosting): https://supabase.com/privacy
+      </Text>
+      <Text style={[styles.bullet, { color: c.subtext }]}>
+        • MongoDB (database hosting):
+        https://www.mongodb.com/legal/privacy/privacy-policy
+      </Text>
+      <Text style={[styles.bullet, { color: c.subtext }]}>
+        • Render (application hosting): https://render.com/privacy
+      </Text>
+      <Text style={[styles.bullet, { color: c.subtext }]}>
+        • Weights &amp; Biases (internal machine learning infrastructure):
+        https://wandb.ai/site/privacy-policy/
+      </Text>
+      <Text style={[styles.body, { color: c.subtext }]}>
+        The Service Provider may disclose User Provided and Automatically
+        Collected Information:
+      </Text>
+      <Text style={[styles.bullet, { color: c.subtext }]}>
+        • As required by law, such as to comply with a subpoena, or similar
+        legal process;
+      </Text>
+      <Text style={[styles.bullet, { color: c.subtext }]}>
+        • When they believe in good faith that disclosure is necessary to
+        protect their rights, protect your safety or the safety of others,
+        investigate fraud, or respond to a government request;
+      </Text>
+      <Text style={[styles.bullet, { color: c.subtext }]}>
+        • With their trusted services providers who work on their behalf, do not
+        have an independent use of the information the Service Provider
+        discloses to them, and have agreed to adhere to the rules set forth in
+        this privacy statement.
       </Text>
 
       <Text style={[styles.section, { color: c.text }]}>
@@ -154,25 +212,6 @@ export default function Privacy() {
       </Text>
       <Text style={[styles.bullet, { color: c.subtext }]}>
         • Expo (https://expo.io/privacy)
-      </Text>
-      <Text style={[styles.body, { color: c.subtext }]}>
-        The Service Provider may disclose User Provided and Automatically
-        Collected Information:
-      </Text>
-      <Text style={[styles.bullet, { color: c.subtext }]}>
-        • As required by law, such as to comply with a subpoena, or similar
-        legal process;
-      </Text>
-      <Text style={[styles.bullet, { color: c.subtext }]}>
-        • When they believe in good faith that disclosure is necessary to
-        protect their rights, protect your safety or the safety of others,
-        investigate fraud, or respond to a government request;
-      </Text>
-      <Text style={[styles.bullet, { color: c.subtext }]}>
-        • With their trusted services providers who work on their behalf, do not
-        have an independent use of the information the Service Provider
-        discloses to them, and have agreed to adhere to the rules set forth in
-        this privacy statement.
       </Text>
 
       <Text style={[styles.section, { color: c.text }]}>Opt-Out Rights</Text>
@@ -236,23 +275,28 @@ export default function Privacy() {
 
       <Text style={[styles.section, { color: c.text }]}>Children</Text>
       <Text style={[styles.body, { color: c.subtext }]}>
-        The Application is not intended for children under 13 years of age, or
-        such higher age as required by applicable law. The Service Provider does
-        not knowingly solicit data from children or market the Application to
-        them.
+        The Application is rated for all ages (4+) and may be used by children.
+        The Service Provider is committed to protecting the privacy of children
+        who use the Application and complies with the Children's Online Privacy
+        Protection Act (COPPA) and other applicable children's privacy laws.
       </Text>
       <Text style={[styles.body, { color: c.subtext }]}>
-        Where parental or guardian consent is required under applicable law, the
-        Application is not intended for use without that consent. The Service
-        Provider does not knowingly collect personally identifiable information
-        from children under 13 years of age in violation of applicable law. In
-        the event the Service Provider discovers that a child has provided
-        personal information, the Service Provider will immediately delete this
-        from their servers. If you are a parent or guardian and you are aware
-        that your child has provided the Service Provider with personal
-        information, please contact the Service Provider
-        (sathvikmalla17@gmail.com) so that they will be able to take the
-        necessary actions.
+        The Application does not knowingly collect more personal information
+        from children than is reasonably necessary to provide the Application's
+        core functionality. The Application does not require users to create an
+        account or provide personal information such as an email address in
+        order to use its core features (such as generating and simulating
+        teams). Certain optional features, such as AI-powered chat or email
+        communications, may involve information being sent to third-party
+        services as described in the "Third Party Access" section above; these
+        features are optional and not required to use the Application.
+      </Text>
+      <Text style={[styles.body, { color: c.subtext }]}>
+        If you are a parent or guardian and believe your child has provided
+        personal information through the Application in a manner inconsistent
+        with this policy, please contact the Service Provider at
+        sathvikmalla17@gmail.com so that appropriate action can be taken,
+        including deletion of that information.
       </Text>
 
       <Text style={[styles.section, { color: c.text }]}>Security</Text>

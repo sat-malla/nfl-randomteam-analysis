@@ -35,9 +35,13 @@ import {
   DrawerFooter,
   DrawerHeader,
 } from "@/components/ui/drawer";
+import Constants from "expo-constants";
 import "@/global.css";
 
 SplashScreen.preventAutoHideAsync();
+
+const appVersion = Constants.expoConfig?.version ?? "1.0.0";
+const buildNumber = Constants.expoConfig?.ios?.buildNumber ?? "";
 
 export default function RootLayout() {
   const [showDrawer, setShowDrawer] = useState(false);
@@ -348,15 +352,21 @@ export default function RootLayout() {
             </TouchableOpacity>
           </DrawerBody>
           <DrawerFooter>
-            <Text
-              style={[
-                styles.copyright,
-                { color: isDark ? "#edf5ff" : "#02080f" },
-              ]}
-            >
-              © {new Date().getFullYear()} Pro Football RTGA. All rights
-              reserved.
-            </Text>
+            <View style={styles.footer}>
+              <Text style={styles.versionText}>
+                Version {appVersion}
+                {buildNumber ? ` (${buildNumber})` : ""}
+              </Text>
+              <Text
+                style={[
+                  styles.copyright,
+                  { color: isDark ? "#edf5ff" : "#02080f" },
+                ]}
+              >
+                © {new Date().getFullYear()} Pro Football RTGA. All rights
+                reserved.
+              </Text>
+            </View>
           </DrawerFooter>
         </DrawerContent>
       </Drawer>
@@ -411,6 +421,16 @@ const styles = StyleSheet.create({
     fontFamily: "Montserrat_400Regular",
     fontSize: 14,
     color: "#0099ff",
+  },
+  footer: {
+    alignItems: "center",
+    gap: 2,
+  },
+  versionText: {
+    fontFamily: "Montserrat_400Regular",
+    fontSize: 12,
+    opacity: 0.85,
+    color: "#94a3b8",
   },
   copyright: {
     fontFamily: "Montserrat_400Regular",

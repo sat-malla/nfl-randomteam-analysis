@@ -31,16 +31,16 @@ const ICONS: {
   position: string;
 }[] = [
   { name: null, label: "Default (Blue)", color: "#1f55ed", position: "RB" },
-  { name: "iconRed", label: "Red", color: "#dc2626", position: "QB" },
-  { name: "iconGreen", label: "Green", color: "#059669", position: "WR" },
-  { name: "iconAmber", label: "Amber", color: "#d97706", position: "TE" },
-  { name: "iconOrange", label: "Orange", color: "#ea580c", position: "DE" },
-  { name: "iconPink", label: "Pink", color: "#db2777", position: "LB" },
-  { name: "iconCyan", label: "Cyan", color: "#0891b2", position: "CB" },
-  { name: "iconNavy", label: "Navy", color: "#004c75", position: "S" },
-  { name: "iconLime", label: "Lime", color: "#1ec95d", position: "K" },
-  { name: "iconTeal", label: "Teal", color: "#21ccb2", position: "P" },
-  { name: "iconMaroon", label: "Maroon", color: "#4d2325", position: "RS" },
+  { name: "IconRed", label: "Red", color: "#dc2626", position: "QB" },
+  { name: "IconGreen", label: "Green", color: "#059669", position: "WR" },
+  { name: "IconAmber", label: "Amber", color: "#d97706", position: "TE" },
+  { name: "IconOrange", label: "Orange", color: "#ea580c", position: "DE" },
+  { name: "IconPink", label: "Pink", color: "#db2777", position: "LB" },
+  { name: "IconCyan", label: "Cyan", color: "#0891b2", position: "CB" },
+  { name: "IconNavy", label: "Navy", color: "#004c75", position: "S" },
+  { name: "IconLime", label: "Lime", color: "#1ec95d", position: "K" },
+  { name: "IconTeal", label: "Teal", color: "#21ccb2", position: "P" },
+  { name: "IconMaroon", label: "Maroon", color: "#4d2325", position: "RS" },
 ];
 
 export default function AppIcon() {

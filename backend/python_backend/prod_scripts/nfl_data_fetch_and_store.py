@@ -101,6 +101,18 @@ def player_stats_preprocess(df):
 
     return df
 
+def load_safe(loader_fn, years: list[int], **kwargs) -> pl.DataFrame:
+    """ Safe fail to obtain the latest year of data."""
+    remaining = list(years)
+    while remaining:
+        try:
+            return loader_fn(seasons=remaining, **kwargs)
+        except Exception as e:
+            if remaining[-1] == remaining[0]:
+                raise
+            print(f"{loader_fn.__name__}: season {remaining[-1]} not available yet ({e}); retrying without it.")
+            remaining = remaining[:-1]
+    raise RuntimeError(f"No valid seasons found for {loader_fn.__name__}.")
 
 def team_stats_preprocess(df):
     df = df.filter(pl.col("season_type") == "REG")
@@ -509,27 +521,27 @@ def main():
     supabase_client = get_client()
 
     # Player stats
-    player_stats = nfl.load_player_stats(seasons=YEARS)
+    player_stats = load_safe(nfl.load_player_stats, YEARS)
     player_stats = player_stats_preprocess(player_stats)
     store_table(supabase_client, "player_stats", player_stats)
 
     # Depth charts
-    depth_charts = nfl.load_depth_charts(seasons=list(range(2015, 2026)))
+    depth_charts = load_safe(nfl.load_depth_charts, YEARS)
     depth_charts = depth_charts_preprocess(depth_charts)
     store_table(supabase_client, "depth_charts", depth_charts)
 
     # Rosters
-    rosters = nfl.load_rosters(seasons=list(range(2015, 2026)))
+    rosters = load_safe(nfl.load_rosters, YEARS)
     rosters = rosters_preprocess(rosters)
     store_table(supabase_client, "rosters", rosters)
 
-    # Team stats (now includes sacks_suffered, def_qb_hits, pt_*, pat_*)
-    team_stats = nfl.load_team_stats(seasons=list(range(2015, 2026)))
+    # Team stats
+    team_stats = load_safe(nfl.load_team_stats, YEARS)
     team_stats = team_stats_preprocess(team_stats)
     store_table(supabase_client, "team_stats", team_stats)
 
     # Schedules
-    schedules_raw = nfl.load_schedules(seasons=list(range(2015, 2026)))
+    schedules_raw = load_safe(nfl.load_schedules, YEARS)
     schedules = schedules_preprocess(schedules_raw)
     store_table(supabase_client, "schedules", schedules)
 
@@ -538,10 +550,8 @@ def main():
     store_table(supabase_client, "coaches", coaches)
 
     # Snap counts
-    print("Loading snap counts (OL/LS only)...")
-    snap_counts_raw = nfl.load_snap_counts(seasons=list(range(2015, 2026)))
+    snap_counts_raw = load_safe(nfl.load_snap_counts, YEARS)
     snap_counts = snap_counts_preprocess(snap_counts_raw)
-    print(f"Upserting {len(snap_counts)} snap count rows...")
     upsert_snap_counts(supabase_client, snap_counts)
 
 if __name__ == "__main__":
