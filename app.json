@@ -21,7 +21,8 @@
         "foregroundImage": "./assets/images/official-PF-RTGA-icon-foreground.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.sathvikmalla.profootballrandomteamgeneratorandanalysis"
     },
     "web": {
       "output": "static",

@@ -7,6 +7,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o server ./cmd/api
 
 FROM gcr.io/distroless/static-debian12
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=builder /app/server /server
 EXPOSE 8080
 CMD ["/server"]
