@@ -4,8 +4,10 @@ import (
 	"context"
 	"log"
 	"os"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/joho/godotenv"
 	"github.com/sat-malla/nfl-random-team-analysis/backend/database"
 	"github.com/sat-malla/nfl-random-team-analysis/backend/handlers"
@@ -27,6 +29,11 @@ func main() {
 		AppName:      "Pro Football Random Team Analysis",
 		ServerHeader: "Fiber",
 	})
+
+	app.Use(limiter.New(limiter.Config{
+		Max:        60,
+		Expiration: 1 * time.Minute,
+	}))
 
 	// routing
 	server := app.Group("/api")

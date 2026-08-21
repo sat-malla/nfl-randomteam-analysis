@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"os"
 	"strings"
 	"time"
 
@@ -17,6 +18,14 @@ type NFLPlayerHandler struct {
 }
 
 func (h *NFLPlayerHandler) SyncPlayers(c *fiber.Ctx) error {
+	expectedSecret := os.Getenv("SYNC_SECRET")
+	if expectedSecret == "" || c.Get("X-Sync-Secret") != expectedSecret {
+		return c.Status(fiber.StatusUnauthorized).JSON(&fiber.Map{
+			"status":  "Failure",
+			"message": "Unauthorized",
+		})
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	err := h.sleeperService.SyncPlayers(ctx)

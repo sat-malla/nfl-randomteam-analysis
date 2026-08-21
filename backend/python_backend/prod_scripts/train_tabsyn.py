@@ -21,6 +21,7 @@ from shared.tabsyn_arch import (
     Encoder, Decoder, ScoreNet, build_noise_schedule,
     LATENT_D, HIDDEN_D, CAT_EMB_DIM, T_STEPS,
     CATEGORICAL_COLS, DROP_COLS, DDPM_SAMPLE_STEPS,
+    BETA_MIN, BETA_MAX
 )
 
 warnings.filterwarnings("ignore")
@@ -363,6 +364,7 @@ def main():
             "latent_dim": LATENT_D, "hidden_dim": HIDDEN_D, "cat_emb_dim": CAT_EMB_DIM,
             "n_continuous": len(data["continuous_cols"]), "n_categorical": len(CATEGORICAL_COLS),
             "cat_dims": data["cat_dims"], "T_steps": T_STEPS,
+            "beta_min": BETA_MIN, "beta_max": BETA_MAX,
             "ddpm_sample_steps": DDPM_SAMPLE_STEPS,
         }, f, indent=2)
 

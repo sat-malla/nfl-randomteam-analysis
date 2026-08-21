@@ -1001,7 +1001,7 @@ const AnalyzeTeam = () => {
         setHasSaved(true);
       }
     } catch (e) {
-      setError("Could not reach server. Make sure both backends are running.");
+      setError(`Could not reach server: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setLoading(false);
     }
