@@ -1128,7 +1128,7 @@ def run_full_analysis(team_id):
             for stat, dist in d["distributions"].items():
                 print(f"DEBUG dist {name} {stat}: mean={dist.mean():.3f}")
     tabsyn_row = fetch_tabsyn_sample()
- #   dists = apply_tabsyn_priors(dists, tabsyn_row)
+    dists = apply_tabsyn_priors(dists, tabsyn_row)
     corr_matrix = build_corr_matrix(team["players"])
 
     ol_multiplier = compute_ol_multiplier(team["players"])
