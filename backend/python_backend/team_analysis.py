@@ -14,6 +14,7 @@ import random
 import os
 import httpx
 import certifi
+import traceback
 
 load_dotenv()
 
@@ -90,6 +91,25 @@ _POS_STATS_CACHE: dict[str, pd.DataFrame] = {}
 _RATE_STATS = {
     "def_tackles_solo", "def_interceptions", "def_pass_defended",
     "passing_interceptions", "passing_tds", "passing_yards", "carries",
+}
+
+_VOLUME_STAT = {
+    "QB": "passing_yards",
+    "RB": "carries",
+    "FB": "carries",
+    "WR": "targets",
+    "TE": "targets",
+    "K": "fg_att",
+    "P": "punt_attempts_season",
+}
+_VOLUME_MIN = {
+    "QB": 1800,
+    "RB": 80,
+    "FB": 40,
+    "WR": 40,
+    "TE": 25,
+    "K": 15,
+    "P": 30,
 }
 
 TEAM_MAPPING = {
@@ -191,6 +211,32 @@ def fetch_position_stats(position: str) -> pd.DataFrame:
 
 _LB_ALIASES = {"LB", "OLB", "ILB", "MLB", "SLB", "WLB"}
 
+_POS_STAT_CAPS = {
+    "WR": {"carries": 0.25, "rushing_yards": 3.0, "rushing_tds": 0.04},
+    "TE": {},
+    "QB": {"rushing_tds": 0.5, "passing_interceptions": 1.0},
+    "RB": {"rushing_tds": 1.2, "receiving_tds": 0.5},
+    "DE": {"def_sacks": 0.88, "def_tackles_solo": 3.2, "def_pass_defended": 0.35},
+    "DT": {"def_sacks": 0.47, "def_tackles_solo": 2.6, "def_pass_defended": 0.24},
+    "NT": {"def_sacks": 0.29, "def_tackles_solo": 2.4, "def_pass_defended": 0.18},
+    "DL": {"def_sacks": 0.59, "def_tackles_solo": 2.9, "def_pass_defended": 0.29},
+    "LB": {"def_tackles_solo": 6.5, "def_sacks": 0.29, "def_interceptions": 0.18, "def_pass_defended": 0.47},
+    "OLB": {"def_tackles_solo": 4.7, "def_sacks": 0.47, "def_interceptions": 0.12, "def_pass_defended": 0.35},
+    "ILB": {"def_tackles_solo": 6.5, "def_sacks": 0.24, "def_interceptions": 0.18, "def_pass_defended": 0.41},
+    "MLB": {"def_tackles_solo": 7.1, "def_sacks": 0.18, "def_interceptions": 0.18, "def_pass_defended": 0.41},
+    "SLB": {"def_tackles_solo": 5.3, "def_sacks": 0.35, "def_interceptions": 0.15, "def_pass_defended": 0.41},
+    "WLB": {"def_tackles_solo": 5.3, "def_sacks": 0.29, "def_interceptions": 0.15, "def_pass_defended": 0.41},
+    "CB": {"def_tackles_solo": 4.1, "def_interceptions": 0.29, "def_pass_defended": 0.94},
+    "FS": {"def_tackles_solo": 4.7, "def_interceptions": 0.35, "def_pass_defended": 0.71},
+    "SS": {"def_tackles_solo": 4.7, "def_interceptions": 0.24, "def_pass_defended": 0.59},
+    "S": {"def_tackles_solo": 4.7, "def_interceptions": 0.35, "def_pass_defended": 0.71},
+    "SAF": {"def_tackles_solo": 4.7, "def_interceptions": 0.35, "def_pass_defended": 0.71},
+    "Nickel": {"def_tackles_solo": 4.1, "def_interceptions": 0.29, "def_pass_defended": 0.94},
+    "Dime": {"def_tackles_solo": 3.5, "def_interceptions": 0.24, "def_pass_defended": 0.82},
+    "K": {"fg_made": 1.6, "fg_att": 2.0},
+    "RS": {"kickoff_return_yards": 550, "kickoff_returns": 30, "punt_return_yards": 400, "punt_returns": 35},
+}
+
 def get_position_dist(all_stats_df: pd.DataFrame, position: str, stat: str) -> tuple[float, float]:
     def _compute(df: pd.DataFrame) -> tuple[float, float] | None:
         if df.empty or stat not in df.columns:
@@ -273,31 +319,6 @@ N_GAMES = 17
 
 SYNTHETIC_STATS = {"punt_attempts_season", "punt_yards_season"}
 
-_POS_STAT_CAPS = {
-    "WR": {"carries": 0.25, "rushing_yards": 3.0, "rushing_tds": 0.04},
-    "TE": {},
-    "QB": {"rushing_tds": 0.5, "passing_interceptions": 1.0},
-    "RB": {"rushing_tds": 1.2, "receiving_tds": 0.5},
-    "DE": {"def_sacks": 0.88, "def_tackles_solo": 3.2, "def_pass_defended": 0.35},
-    "DT": {"def_sacks": 0.47, "def_tackles_solo": 2.6, "def_pass_defended": 0.24},
-    "NT": {"def_sacks": 0.29, "def_tackles_solo": 2.4, "def_pass_defended": 0.18},
-    "DL": {"def_sacks": 0.59, "def_tackles_solo": 2.9, "def_pass_defended": 0.29},
-    "LB": {"def_tackles_solo": 6.5, "def_sacks": 0.29, "def_interceptions": 0.18, "def_pass_defended": 0.47},
-    "OLB": {"def_tackles_solo": 4.7, "def_sacks": 0.47, "def_interceptions": 0.12, "def_pass_defended": 0.35},
-    "ILB": {"def_tackles_solo": 6.5, "def_sacks": 0.24, "def_interceptions": 0.18, "def_pass_defended": 0.41},
-    "MLB": {"def_tackles_solo": 7.1, "def_sacks": 0.18, "def_interceptions": 0.18, "def_pass_defended": 0.41},
-    "SLB": {"def_tackles_solo": 5.3, "def_sacks": 0.35, "def_interceptions": 0.15, "def_pass_defended": 0.41},
-    "WLB": {"def_tackles_solo": 5.3, "def_sacks": 0.29, "def_interceptions": 0.15, "def_pass_defended": 0.41},
-    "CB": {"def_tackles_solo": 4.1, "def_interceptions": 0.29, "def_pass_defended": 0.94},
-    "FS": {"def_tackles_solo": 4.7, "def_interceptions": 0.35, "def_pass_defended": 0.71},
-    "SS": {"def_tackles_solo": 4.7, "def_interceptions": 0.24, "def_pass_defended": 0.59},
-    "S": {"def_tackles_solo": 4.7, "def_interceptions": 0.35, "def_pass_defended": 0.71},
-    "SAF": {"def_tackles_solo": 4.7, "def_interceptions": 0.35, "def_pass_defended": 0.71},
-    "Nickel": {"def_tackles_solo": 4.1, "def_interceptions": 0.29, "def_pass_defended": 0.94},
-    "Dime": {"def_tackles_solo": 3.5, "def_interceptions": 0.24, "def_pass_defended": 0.82},
-    "RS": {"kickoff_return_yards": 550, "kickoff_returns": 30, "punt_return_yards": 400, "punt_returns": 35},
-}
-
 def make_truncnorm(mean: float, std: float, b: float = 5.0):
     # custom truncnorm to prevent inflation of statistics. result dist true mean matches intended mean
     std = max(std, 0.01)
@@ -327,7 +348,16 @@ def build_player_distributions(player_stats, player_name, player_pos, depth_slot
 
     is_unproven = player_data.empty
 
-    if player_pos in ("RS", "P") and not player_data.empty and "season" in player_data.columns:
+    vol_stat = _VOLUME_STAT.get(player_pos)
+
+    if not is_unproven and vol_stat and vol_stat in player_data.columns and "season" in player_data.columns:
+        season_totals = player_data.groupby("season")[vol_stat].sum()
+        best_season = season_totals.max() if not season_totals.empty else 0
+        if best_season < _VOLUME_MIN.get(player_pos, 0):
+            player_data = pd.DataFrame()
+            is_unproven = True
+
+    if player_pos in ("RS", "P", "K") and not player_data.empty and "season" in player_data.columns:
         agg_cols = [c for c in stat_cols if c in player_data.columns]
         if agg_cols:
             player_data = player_data.groupby("season")[agg_cols].sum().reset_index()
@@ -350,6 +380,7 @@ def build_player_distributions(player_stats, player_name, player_pos, depth_slot
                 std = max(pos_std / N_GAMES, 0.01)
 
         else:
+            print(f"DEBUG {player_name} {sc}: raw values={player_data[sc].tolist() if sc in player_data.columns else 'MISSING'}")
             values = pd.to_numeric(player_data[sc], errors="coerce").dropna()
             if values.empty or (sc not in _RATE_STATS and (values == 0).all()):
                 pos_mean, pos_std = get_position_dist(player_stats, player_pos, sc)
@@ -370,8 +401,6 @@ def build_player_distributions(player_stats, player_name, player_pos, depth_slot
                     std = float(values.std())
                 else:
                     std = max(mean * 0.30, pos_std)
-                if sc in SEASON_TOTAL_STATS:
-                    mean, std = mean / N_GAMES, std / N_GAMES
 
         if depth_slot > 1 and sc in DEPTH_VOLUME_STATS:
             mean = mean * vol_scale
@@ -379,9 +408,13 @@ def build_player_distributions(player_stats, player_name, player_pos, depth_slot
 
         pos_caps = _POS_STAT_CAPS.get(player_pos, {})
         if sc in pos_caps:
-            mean = min(mean, pos_caps[sc])
+            if sc in SEASON_TOTAL_STATS:
+                mean = min(mean, pos_caps[sc] * N_GAMES)
+            else:
+                mean = min(mean, pos_caps[sc])
 
         std = max(std, 0.01)
+        print(f"DEBUG final {player_name} {sc}: mean={mean:.3f} std={std:.3f} cap={pos_caps.get(sc)} depth_slot={depth_slot}")
         distribution = make_truncnorm(mean, std)
         distributions[sc] = distribution
 
@@ -497,6 +530,7 @@ def build_flat_corr(distributions, corr_mat):
     eigenvalues, eigenvectors = np.linalg.eigh(flat_corr)
     eigenvalues = np.maximum(eigenvalues, 1e-6)
     flat_corr = eigenvectors @ np.diag(eigenvalues) @ eigenvectors.T
+    print(f"DEBUG flat_corr: has_nan={np.isnan(flat_corr).any()} has_inf={np.isinf(flat_corr).any()} min={np.nanmin(flat_corr):.3f} max={np.nanmax(flat_corr):.3f}")
 
     if not np.all(np.isfinite(flat_corr)):
         flat_corr = np.eye(n)
@@ -641,6 +675,7 @@ def apply_tabsyn_priors(distributions: dict, tabsyn_row: dict) -> dict:
         }
         season_val = min(float(tabsyn_row[wide_col]), _SEASON_CAPS.get(stat, 99999))
         tabsyn_mean = season_val if stat in SEASON_TOTAL_STATS or stat in SYNTHETIC_STATS else season_val / N_GAMES
+        print(f"DEBUG tabsyn override: {player_name} {stat}: tabsyn_row[{wide_col}]={tabsyn_row[wide_col]} -> tabsyn_mean={tabsyn_mean:.3f}")
         old_dist = player_dists[stat]
         old_std = old_dist.args[3] if hasattr(old_dist, "args") and len(old_dist.args) >= 4 else old_dist.kwds.get("scale", 1.0)
         old_std = float(np.clip(old_std, 0.01, _STD_CAPS.get(stat, 999)))
@@ -829,9 +864,16 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300, 
     rushing_per_game = np.sum(all_samples[:, :, rushing_indices], axis=2) if rushing_indices else np.zeros((n_season_sims, n_games))
     fg_per_game = (np.sum(all_samples[:, :, fg_indices], axis=2) / N_GAMES) if fg_indices else np.zeros((n_season_sims, n_games))
     offense_talent = compute_offense_talent(distributions)
+    offense_talent_dampened = 1.0 + (offense_talent - 1.0) * 0.6
     kicker_reliability = compute_kicker_reliability(distributions)
-    team_score_mult = home_away * coach_multiplier * offense_talent * kicker_reliability
+    team_score_mult = home_away * coach_multiplier * offense_talent_dampened * kicker_reliability
     team_points = yards_to_points(passing_per_game * team_score_mult, rushing_per_game * team_score_mult, fg_per_game)
+
+    print(f"DEBUG scoring: offense_talent={offense_talent:.3f} kicker_reliability={kicker_reliability:.3f} coach_multiplier={coach_multiplier:.3f}")
+    print(f"DEBUG scoring: home_away mean={home_away.mean():.4f}")
+    print(f"DEBUG scoring: passing_per_game mean={passing_per_game.mean():.2f} rushing_per_game mean={rushing_per_game.mean():.2f} fg_per_game mean={fg_per_game.mean():.2f}")
+    print(f"DEBUG scoring: team_score_mult mean={team_score_mult.mean():.3f}")
+    print(f"DEBUG scoring: team_points mean={team_points.mean():.2f}")
 
     DEF_POSITIONS = {"DE", "DT", "NT", "DL", "LB", "OLB", "ILB", "MLB", "SLB", "WLB", "CB", "FS", "SS", "S", "SAF", "DB", "Nickel", "Dime"}
     def_sack_mean = 0.0
@@ -859,8 +901,9 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300, 
     ))
 
     NFL_AVG_PTS = 23.0
+    def_quality_dampened = 1.0 + (def_quality - 1.0) * 0.6
     ball_control_factor = float(np.clip(1.0 - (offense_talent - 1.0) * 0.15, 0.92, 1.05))
-    opp_base = (NFL_AVG_PTS * opp_strengths) / def_quality * ball_control_factor
+    opp_base = (NFL_AVG_PTS * opp_strengths) / def_quality_dampened * ball_control_factor
     opp_points = np.random.normal(
         loc=opp_base,
         scale=7.0,
@@ -870,8 +913,10 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300, 
     takeaway_edge = np.clip(turnover_score - 1.0, 0.0, 0.5)
     wins_matrix = (team_points > opp_points)
     margin = team_points - opp_points
-    close_loss = (margin <= 0) & (margin > -7.0)
-    flip = close_loss & (np.random.random(margin.shape) < (takeaway_edge * 0.5))
+    close_loss = (margin <= 0) & (margin > -10.0)
+    baseline_upset_chance = 0.08
+    flip_prob = np.clip(takeaway_edge * 0.5 + baseline_upset_chance, 0.0, 0.6)
+    flip = close_loss & (np.random.random(margin.shape) < flip_prob)
 
     if np.any(flip):
         turnover_swing = np.abs(margin) + np.random.uniform(1.0, 4.0, size=margin.shape)
@@ -1078,8 +1123,12 @@ def run_full_analysis(team_id):
     team_stats = fetch_team_historical_stats(nfl_teams)
 
     dists = build_all_player_dists(team, player_stats, return_stats=return_stats, punt_stats=punt_stats)
+    for name, d in dists.items():
+        if d["position"] == "K":
+            for stat, dist in d["distributions"].items():
+                print(f"DEBUG dist {name} {stat}: mean={dist.mean():.3f}")
     tabsyn_row = fetch_tabsyn_sample()
-    dists = apply_tabsyn_priors(dists, tabsyn_row)
+ #   dists = apply_tabsyn_priors(dists, tabsyn_row)
     corr_matrix = build_corr_matrix(team["players"])
 
     ol_multiplier = compute_ol_multiplier(team["players"])
@@ -1096,16 +1145,19 @@ class AnalyzeRequest(BaseModel):
 async def analyze_team(request: AnalyzeRequest):
     try:
         results = run_full_analysis(request.team_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=traceback.format_exc())
 
-        go_url = os.getenv("GO_API_URL", "http://localhost:8000")
+    go_url = os.getenv("GO_API_URL", "http://localhost:8000")
+    try:
         async with httpx.AsyncClient(timeout=10) as client:
             await client.post(
                 f"{go_url}/api/analysis/{request.team_id}",
                 json={"team_id": request.team_id, "analysis": results},
             )
-
-        return results
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"Warning: failed to cache analysis to Go backend: {e}")
+
+    return results

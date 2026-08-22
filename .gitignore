@@ -49,6 +49,7 @@ backend/python_backend/__pycache__/
 backend/python_backend/venv/
 backend/python_backend/.env
 backend/python_backend/shared/__pycache__/
+backend/python_backend/inference_microservices/__pycache__/
 backend/python_backend/prod_scripts/snapshot_tmp/
 backend/python_backend/prod_scripts/train_tmp/
 backend/python_backend/artifacts/
