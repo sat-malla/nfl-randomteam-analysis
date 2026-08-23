@@ -26,12 +26,15 @@ func main() {
 	client := database.ConnectToDatabase(mongoURI)
 
 	app := fiber.New(fiber.Config{
-		AppName:      "Pro Football Random Team Analysis",
-		ServerHeader: "Fiber",
+		AppName:                 "Pro Football Random Team Analysis",
+		ServerHeader:            "Fiber",
+		ProxyHeader:             fiber.HeaderXForwardedFor,
+		EnableTrustedProxyCheck: true,
+		TrustedProxies:          []string{"0.0.0.0/0"},
 	})
 
 	app.Use(limiter.New(limiter.Config{
-		Max:        60,
+		Max:        300,
 		Expiration: 1 * time.Minute,
 	}))
 
