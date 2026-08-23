@@ -8,4 +8,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 ENV PORT=8006
-CMD ["sh", "-c", "uvicorn team_analysis:app --host 0.0.0.0 --port ${PORT}"]
+CMD ["sh", "-c", "uvicorn simulate_game:app --host 0.0.0.0 --port ${PORT}"]
