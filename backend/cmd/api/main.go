@@ -38,6 +38,10 @@ func main() {
 		Expiration: 1 * time.Minute,
 	}))
 
+	app.Get("/health", func(c *fiber.Ctx) error {
+		return c.SendString("ok")
+	})
+
 	// routing
 	server := app.Group("/api")
 

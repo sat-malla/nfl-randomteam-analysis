@@ -25,6 +25,22 @@ mongo_client = MongoClient(os.getenv("MONGO_URI"), tlsCAFile=certifi.where())
 mongo_db = mongo_client["nfl-random-teams"]
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+_supabase = None
+def get_supabase():
+    global _supabase
+    if _supabase is None:
+        _supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
+    return _supabase
+
+_mongo_client = None
+_mongo_db = None
+def get_mongo_db():
+    global _mongo_client, _mongo_db
+    if _mongo_db is None:
+        _mongo_client = MongoClient(os.getenv("MONGO_URI"), tlsCAFile=certifi.where())
+        _mongo_db = _mongo_client["nfl-random-teams"]
+    return _mongo_db
+
 POS_STAT_MAPPING = {
     "QB": ["passing_yards", "passing_tds", "passing_interceptions", "carries", "rushing_yards", "rushing_tds"],
     "RB": ["carries", "rushing_yards", "rushing_tds", "receptions", "targets", "receiving_yards", "receiving_tds"],
@@ -171,27 +187,27 @@ NFL_TEAMS = [
 ]
 
 def get_generated_team(team_id):
-    team = mongo_db.teams.find_one({"_id": ObjectId(team_id)})
+    team = get_mongo_db().teams.find_one({"_id": ObjectId(team_id)})
     return team
 
 # print(get_generated_team("69c23dfdd66c10dce78df7b3"))
 
 def fetch_player_historical_stats(player_names):
-    response = supabase.table("player_stats").select("*").in_("player_display_name", player_names).gte("season", 2021).execute()
+    response = get_supabase().table("player_stats").select("*").in_("player_display_name", player_names).gte("season", 2021).execute()
     return pd.DataFrame(response.data)
 
 def fetch_player_return_stats(player_names):
-    response = supabase.table("return_stats").select("*").in_("player_display_name", player_names).gte("season", 2021).execute()
+    response = get_supabase().table("return_stats").select("*").in_("player_display_name", player_names).gte("season", 2021).execute()
     return pd.DataFrame(response.data)
 
 def fetch_player_punt_stats(player_names):
-    response = supabase.table("punt_stats").select("*").in_("player_display_name", player_names).gte("season", 2021).execute()
+    response = get_supabase().table("punt_stats").select("*").in_("player_display_name", player_names).gte("season", 2021).execute()
     return pd.DataFrame(response.data)
 
 # print(fetch_player_historical_stats(["Josh Allen", "Justin Herbert"]))
 
 def fetch_team_historical_stats(teams):
-    response = supabase.table("team_stats").select("*").in_("team", teams).gte("season", 2021).execute()
+    response = get_supabase().table("team_stats").select("*").in_("team", teams).gte("season", 2021).execute()
     return pd.DataFrame(response.data)
 
 # print(fetch_team_historical_stats(["Buffalo Bills"]))
@@ -200,11 +216,11 @@ def fetch_position_stats(position: str) -> pd.DataFrame:
     if position in _POS_STATS_CACHE:
         return _POS_STATS_CACHE[position]
     if position == "RS":
-        response = supabase.table("return_stats").select("*").gte("season", 2021).execute()
+        response = get_supabase().table("return_stats").select("*").gte("season", 2021).execute()
     elif position == "P":
-        response = supabase.table("punt_stats").select("*").gte("season", 2021).execute()
+        response = get_supabase().table("punt_stats").select("*").gte("season", 2021).execute()
     else:
-        response = supabase.table("player_stats").select("*").eq("position", position).gte("season", 2021).execute()
+        response = get_supabase().table("player_stats").select("*").eq("position", position).gte("season", 2021).execute()
     df = pd.DataFrame(response.data) if response.data else pd.DataFrame()
     _POS_STATS_CACHE[position] = df
     return df
@@ -1049,7 +1065,7 @@ def fetch_coach_factor(coach_name, qb_name):
     if not coach_name:
         return 1.0, {}
 
-    coach_home = supabase.table("coaches").select("season,team").eq("head_coach", coach_name).execute()
+    coach_home = get_supabase().table("coaches").select("season,team").eq("head_coach", coach_name).execute()
 
     coach_teams = {row["season"]: row["team"] for row in (coach_home.data or [])}
 
@@ -1059,7 +1075,7 @@ def fetch_coach_factor(coach_name, qb_name):
     wins = 0
     losses = 0
     for season, team in coach_teams.items():
-        home_data = supabase.table("schedules").select("home_score,away_score") \
+        home_data = get_supabase().table("schedules").select("home_score,away_score") \
             .eq("season", season).eq("home_team", team).execute()
         for row in (home_data.data or []):
             if row["home_score"] is not None and row["away_score"] is not None:
@@ -1067,7 +1083,7 @@ def fetch_coach_factor(coach_name, qb_name):
                     wins += 1
                 elif row["home_score"] < row["away_score"]:
                     losses += 1
-        away_data = supabase.table("schedules").select("home_score,away_score") \
+        away_data = get_supabase().table("schedules").select("home_score,away_score") \
             .eq("season", season).eq("away_team", team).execute()
         for row in (away_data.data or []):
             if row["home_score"] is not None and row["away_score"] is not None:
@@ -1082,7 +1098,7 @@ def fetch_coach_factor(coach_name, qb_name):
     coach_multiplier = float(np.clip(coach_multiplier, 0.90, 1.10))
     
     qb_familiarity = False
-    qb_data = supabase.table("player_stats").select("season,team").eq("player_display_name", qb_name).eq("position", "QB").execute()
+    qb_data = get_supabase().table("player_stats").select("season,team").eq("player_display_name", qb_name).eq("position", "QB").execute()
     qb_seasons = {(row["season"], row["team"]) for row in (qb_data.data or [])}
     for season, team in coach_teams.items():
         if (season, team) in qb_seasons:
@@ -1140,6 +1156,10 @@ def run_full_analysis(team_id):
 app = FastAPI()
 class AnalyzeRequest(BaseModel):
     team_id: str
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
 
 @app.post("/analyze-team")
 async def analyze_team(request: AnalyzeRequest):

@@ -457,7 +457,7 @@ export default function SimulateGame() {
                 <FormControlLabelText
                   style={{ color: c.text, fontFamily: "Montserrat_700Bold" }}
                 >
-                  NFL Opponent
+                  Opponent
                 </FormControlLabelText>
               </FormControlLabel>
               <PickerTrigger

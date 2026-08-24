@@ -20,6 +20,35 @@ ML_TIMEOUT = 2.0
 
 _DEF_TIERS_PATH = os.path.join(os.path.dirname(__file__), "outcome_model_weights", "outcome_def_tiers.json")
 _DEF_TIERS: dict = {}
+
+def get_def_tiers() -> dict:
+    global _DEF_TIERS
+    if _DEF_TIERS is None:
+        try:
+            with open(_DEF_TIERS_PATH) as f:
+                _DEF_TIERS = json.load(f)
+        except FileNotFoundError:
+            _DEF_TIERS = {}
+    return _DEF_TIERS
+
+load_dotenv()
+
+_supabase = None
+def get_supabase():
+    global _supabase
+    if _supabase is None:
+        _supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
+    return _supabase
+
+_mongo_client = None
+_mongo_db = None
+def get_mongo_db():
+    global _mongo_client, _mongo_db
+    if _mongo_db is None:
+        _mongo_client = MongoClient(os.getenv("MONGO_URI"), tlsCAFile=certifi.where())
+        _mongo_db = _mongo_client["nfl-random-teams"]
+    return _mongo_db
+
 try:
     with open(_DEF_TIERS_PATH) as _f:
         _DEF_TIERS = json.load(_f)
@@ -63,7 +92,7 @@ def _ml_outcome(play_type: str, down: int, ydstogo: float, yardline_100: float,
 def _get_nfl_def_tiers(team: str, season: int) -> dict:
     """Look up pre-computed defensive tiers for an NFL team and season."""
     key = f"{team}|{season}"
-    entry = _DEF_TIERS.get(key, {})
+    entry = get_def_tiers().get(key, {})
     return {
         "def_pass_tier": int(entry.get("def_pass_tier", 2)),
         "def_rush_tier": int(entry.get("def_rush_tier", 2)),
@@ -195,23 +224,23 @@ _STARTER_BOOST: dict[str, float] = {
 _POS_STATS_CACHE: dict = {}
 
 def get_generated_team(team_id: str) -> dict:
-    return mongo_db.teams.find_one({"_id": ObjectId(team_id)})
+    return get_mongo_db().teams.find_one({"_id": ObjectId(team_id)})
 
 def fetch_player_stats(player_names: list) -> pd.DataFrame:
-    r = supabase.table("player_stats").select("*").in_("player_display_name", player_names).gte("season", 2021).execute()
+    r = get_supabase().table("player_stats").select("*").in_("player_display_name", player_names).gte("season", 2021).execute()
     return pd.DataFrame(r.data) if r.data else pd.DataFrame()
 
 def fetch_position_stats_cached(position: str) -> pd.DataFrame:
     if position in _POS_STATS_CACHE:
         return _POS_STATS_CACHE[position]
-    r = supabase.table("player_stats").select("*").eq("position", position).gte("season", 2021).execute()
+    r = get_supabase().table("player_stats").select("*").eq("position", position).gte("season", 2021).execute()
     df = pd.DataFrame(r.data) if r.data else pd.DataFrame()
     _POS_STATS_CACHE[position] = df
     return df
 
 def fetch_nfl_roster(team_full_name: str, season: int) -> list[dict]:
     """Return top starters from player_stats for an NFL team + season."""
-    r = supabase.table("player_stats").select("*").eq("team", team_full_name).eq("season", season).execute()
+    r = get_supabase().table("player_stats").select("*").eq("team", team_full_name).eq("season", season).execute()
     if not r.data:
         return []
     df = pd.DataFrame(r.data)
@@ -248,7 +277,7 @@ def fetch_nfl_roster(team_full_name: str, season: int) -> list[dict]:
 
 
 def fetch_team_season_stats(team_full_name: str, season: int) -> pd.DataFrame:
-    r = supabase.table("team_stats").select("*").eq("team", team_full_name).eq("season", season).execute()
+    r = get_supabase().table("team_stats").select("*").eq("team", team_full_name).eq("season", season).execute()
     return pd.DataFrame(r.data) if r.data else pd.DataFrame()
 
 def get_pos_dist_mean(position: str, stat: str) -> float:
@@ -1951,6 +1980,10 @@ class SimulateGameRequest(BaseModel):
     season: int
     is_home: bool = True
     playoff_mode: bool = False
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
 
 @app.post("/simulate-game")
 async def simulate_game_endpoint(req: SimulateGameRequest):

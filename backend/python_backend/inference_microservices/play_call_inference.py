@@ -2,6 +2,7 @@ import json
 import os
 import pickle
 import sys
+import threading
 import numpy as np
 import torch
 import torch.nn as nn
@@ -16,33 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shared.model_loader import download_production_model_dir
 
 WEIGHTS_DIR = os.path.join(os.path.dirname(__file__), "play_call_weights")
-
-def resolve_weights_dir():
-    try:
-        model_dir = download_production_model_dir("play-call-model")
-        print(f"Loaded play-call-model from WandB production artifact: {model_dir}")
-        return model_dir
-    except Exception as e:
-        print(f"WARNING: could not pull production model from WandB ({e}). Falling back to local weights.")
-        return WEIGHTS_DIR
-
-ACTIVE_WEIGHTS_DIR = resolve_weights_dir()
-
-with open(f"{ACTIVE_WEIGHTS_DIR}/play_call_config.json") as f:
-    CFG = json.load(f)
-with open(f"{ACTIVE_WEIGHTS_DIR}/play_call_feature_meta.json") as f:
-    META = json.load(f)
-with open(f"{ACTIVE_WEIGHTS_DIR}/play_call_label_encoder.pkl", "rb") as f:
-    LE = pickle.load(f)
-
-FEAT_CARDINALITY: dict = META["feat_cardinality"]
-CLASSES: list[str] = META["classes"]
-EMB_DIM: int = CFG["emb_dim"]
-HIDDEN: int = CFG["hidden"]
-N_CLASSES: int = CFG["n_classes"]
-
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-
 class PlayCallMLP(nn.Module):
     def __init__(self, feat_cardinality: dict, emb_dim: int, hidden: int, n_classes: int):
         super().__init__()
@@ -52,19 +27,19 @@ class PlayCallMLP(nn.Module):
         ])
         in_dim = len(feat_cardinality) * emb_dim
         self.net = nn.Sequential(
-            nn.Linear(in_dim, hidden), 
-            nn.LayerNorm(hidden), 
-            nn.SiLU(), 
+            nn.Linear(in_dim, hidden),
+            nn.LayerNorm(hidden),
+            nn.SiLU(),
             nn.Dropout(0.3),
-            nn.Linear(hidden, hidden), 
-            nn.LayerNorm(hidden), 
-            nn.SiLU(), 
+            nn.Linear(hidden, hidden),
+            nn.LayerNorm(hidden),
+            nn.SiLU(),
             nn.Dropout(0.3),
-            nn.Linear(hidden, hidden), 
-            nn.LayerNorm(hidden), nn.SiLU(), 
+            nn.Linear(hidden, hidden),
+            nn.LayerNorm(hidden), nn.SiLU(),
             nn.Dropout(0.3),
-            nn.Linear(hidden, hidden // 2), 
-            nn.LayerNorm(hidden // 2), 
+            nn.Linear(hidden, hidden // 2),
+            nn.LayerNorm(hidden // 2),
             nn.SiLU(),
             nn.Linear(hidden // 2, n_classes),
         )
@@ -73,11 +48,45 @@ class PlayCallMLP(nn.Module):
         embs = [self.embeddings[i](x[:, i]) for i in range(len(self.feat_names))]
         return self.net(torch.cat(embs, dim=-1))
 
+_model_state = {
+    "ready": False,
+    "error": None,
+    "model": None,
+    "classes": None,
+}
 
-model = PlayCallMLP(FEAT_CARDINALITY, EMB_DIM, HIDDEN, N_CLASSES).to(DEVICE)
-model.load_state_dict(torch.load(f"{ACTIVE_WEIGHTS_DIR}/play_call_model.pt", map_location=DEVICE))
-model.eval()
-print(f"Play call model loaded on {DEVICE}. Classes: {CLASSES}")
+def _load_model_blocking():
+    try:
+        try:
+            model_dir = download_production_model_dir("play-call-model")
+            print(f"Loaded play-call-model from WandB production artifact: {model_dir}")
+        except Exception as e:
+            print(f"WARNING: could not pull production model from WandB ({e}). Falling back to local weights.")
+            model_dir = WEIGHTS_DIR
+
+        with open(f"{model_dir}/play_call_config.json") as f:
+            cfg = json.load(f)
+        with open(f"{model_dir}/play_call_feature_meta.json") as f:
+            meta = json.load(f)
+        with open(f"{model_dir}/play_call_label_encoder.pkl", "rb") as f:
+            le = pickle.load(f)
+
+        feat_cardinality = meta["feat_cardinality"]
+        classes = meta["classes"]
+
+        model = PlayCallMLP(feat_cardinality, cfg["emb_dim"], cfg["hidden"], cfg["n_classes"]).to(DEVICE)
+        model.load_state_dict(torch.load(f"{model_dir}/play_call_model.pt", map_location=DEVICE))
+        model.eval()
+        print(f"Play call model loaded on {DEVICE}. Classes: {classes}")
+
+        _model_state.update({
+            "model": model,
+            "classes": classes,
+            "ready": True,
+        })
+    except Exception as e:
+        _model_state["error"] = str(e)
+        print(f"ERROR loading play call model: {e}")
 
 def _dist_bucket(x: float) -> int:
     if x <= 2: return 0
@@ -138,26 +147,34 @@ def encode_features(
 
 app = FastAPI(title="Play Call Predictor", version="1.0")
 
+@app.on_event("startup")
+async def _startup():
+    threading.Thread(target=_load_model_blocking, daemon=True).start()
 class GameState(BaseModel):
     down: int
-    ydstogo: float 
+    ydstogo: float
     yardline_100: float
     score_differential: float
     qtr: int
     game_seconds_remaining: float
     shotgun: int = 0
     goal_to_go: int = 0
-
-
 class PredictRequest(BaseModel):
     game_state: GameState
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "device": DEVICE, "classes": CLASSES}
+    if _model_state["error"]:
+        return {"status": "error", "detail": _model_state["error"]}
+    if not _model_state["ready"]:
+        return {"status": "loading"}
+    return {"status": "ok", "device": DEVICE, "classes": _model_state["classes"]}
 
 @app.post("/predict")
 def predict(req: PredictRequest):
+    if not _model_state["ready"]:
+        raise HTTPException(status_code=503, detail="Model still loading, try again shortly.")
+
     gs = req.game_state
     try:
         x = encode_features(
@@ -170,9 +187,11 @@ def predict(req: PredictRequest):
             shotgun=gs.shotgun,
             goal_to_go=gs.goal_to_go,
         )
+        model = _model_state["model"]
+        classes = _model_state["classes"]
         with torch.no_grad():
             probs = torch.softmax(model(x), dim=-1).cpu().numpy()[0]
-        return {cls: float(p) for cls, p in zip(CLASSES, probs)}
+        return {cls: float(p) for cls, p in zip(classes, probs)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

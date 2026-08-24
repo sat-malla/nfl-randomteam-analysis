@@ -53,6 +53,13 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+_supabase = None
+def get_supabase():
+    global _supabase
+    if _supabase is None:
+        _supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
+    return _supabase
+
 app = FastAPI(title="NFL Team Optimizer")
 
 SALARY_CAP = 301_200_000
@@ -397,8 +404,7 @@ def _build_player_pool(n_players: int = 300) -> list[dict]:
     contracts = _load_contracts()
     mongo_players = _load_mongo_players()
 
-    # --- main player pool from pre-aggregated view (single request, ~2k rows) ---
-    rows = supabase.table("v_player_pool").select("*").execute().data
+    rows = get_supabase().table("v_player_pool").select("*").execute().data
     if not rows:
         raise RuntimeError("Failed to fetch player pool from Supabase view v_player_pool")
 
@@ -408,7 +414,6 @@ def _build_player_pool(n_players: int = 300) -> list[dict]:
         agg[c] = pd.to_numeric(agg[c], errors="coerce").fillna(0)
     agg["n_seasons"] = pd.to_numeric(agg["n_seasons"], errors="coerce").fillna(1).astype(int)
 
-    # keep df for _assign_salary talent percentile calculations
     df = agg.copy()
 
     players = []
@@ -444,9 +449,8 @@ def _build_player_pool(n_players: int = 300) -> list[dict]:
             "n_seasons": n_seasons,
         })
 
-    # --- punters from pre-aggregated view (single request) ---
     try:
-        punt_rows = supabase.table("v_punt_pool").select("*").execute().data
+        punt_rows = get_supabase().table("v_punt_pool").select("*").execute().data
         if punt_rows:
             existing_names = {p["name"] for p in players}
             punt_df = pd.DataFrame(punt_rows)
@@ -473,9 +477,8 @@ def _build_player_pool(n_players: int = 300) -> list[dict]:
     except Exception:
         pass
 
-    # --- return specialists from pre-aggregated view (single request) ---
     try:
-        rs_rows = supabase.table("v_return_pool").select("*").execute().data
+        rs_rows = get_supabase().table("v_return_pool").select("*").execute().data
         if rs_rows:
             existing_names = {p["name"] for p in players}
             rs_num_cols = ["kickoff_return_yards", "kickoff_returns", "punt_return_yards", "punt_returns"]
@@ -631,18 +634,13 @@ def _is_valid_roster(players: list[dict], formation: tuple[str, str]) -> bool:
 
     return True
 
-
-# Slots that are filled from a broader position bucket.
-# Key = slot name in FORMATION_ROSTERS, value = position keys to draw from.
 _SLOT_ALIASES: dict[str, list[str]] = {
     "NT":  ["NT", "DT"],
     "OLB": ["OLB", "LB"],
     "ILB": ["ILB", "LB"],
     "MLB": ["MLB", "LB"],
 }
-# Slots whose chosen player should have their position overwritten with the slot label.
 _REMAP_SLOT_POS = {"NT", "OLB", "ILB", "MLB", "Nickel", "Dime"}
-
 
 def _random_roster(pool: list[dict], formation_pool: list[tuple[str, str]] | None = None) -> tuple[list[dict], tuple[str, str]]:
     pool_by_pos: dict[str, list[dict]] = {}
@@ -692,11 +690,9 @@ def _random_roster(pool: list[dict], formation_pool: list[tuple[str, str]] | Non
 
     return [], _formations[0]
 
-
 def _slot_key(p: dict) -> str:
     lbl = p.get("slot_label")
     return lbl if lbl in ("Nickel", "Dime") else p["position"]
-
 
 def _crossover(
     parent_a: list[dict], parent_b: list[dict], formation: tuple[str, str]
@@ -733,7 +729,6 @@ def _crossover(
                 budget -= chosen["salary"]
     return child
 
-
 def _mutate(
     roster: list[dict], pool: list[dict], mutation_rate: float = 0.15
 ) -> list[dict]:
@@ -764,7 +759,6 @@ def _mutate(
             mutated[i] = replacement
 
     return mutated
-
 
 def run_genetic_algorithm(
     pool: list[dict],
@@ -845,7 +839,6 @@ async def optimize_team(request: OptimizeRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to build player pool: {e}")
 
-
     pool = [p for p in pool if p["name"] not in request.excluded_players]
     locked = [p for p in pool if p["name"] in request.locked_players]
     if locked:
@@ -918,6 +911,9 @@ async def optimize_team(request: OptimizeRequest):
         ],
     }
 
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
 
 @app.get("/player-pool")
 async def get_player_pool():
