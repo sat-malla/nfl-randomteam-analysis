@@ -157,7 +157,7 @@ func (h *analysisHandler) SummarizeAnalysis(c *fiber.Ctx) error {
 	userContent := fmt.Sprintf("Here is the team's analysis data:\n%s\n\nUser message: %s", string(analysisJSON), body.Message)
 
 	payload := groqRequest{
-		Model: "llama-3.3-70b-versatile",
+		Model: "openai/gpt-oss-120b",
 		Messages: []groqMessage{
 			{Role: "system", Content: systemPrompt},
 			{Role: "user", Content: userContent},
