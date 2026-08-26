@@ -396,7 +396,6 @@ def build_player_distributions(player_stats, player_name, player_pos, depth_slot
                 std = max(pos_std / N_GAMES, 0.01)
 
         else:
-            print(f"DEBUG {player_name} {sc}: raw values={player_data[sc].tolist() if sc in player_data.columns else 'MISSING'}")
             values = pd.to_numeric(player_data[sc], errors="coerce").dropna()
             if values.empty or (sc not in _RATE_STATS and (values == 0).all()):
                 pos_mean, pos_std = get_position_dist(player_stats, player_pos, sc)
@@ -430,7 +429,6 @@ def build_player_distributions(player_stats, player_name, player_pos, depth_slot
                 mean = min(mean, pos_caps[sc])
 
         std = max(std, 0.01)
-        print(f"DEBUG final {player_name} {sc}: mean={mean:.3f} std={std:.3f} cap={pos_caps.get(sc)} depth_slot={depth_slot}")
         distribution = make_truncnorm(mean, std)
         distributions[sc] = distribution
 
@@ -546,7 +544,6 @@ def build_flat_corr(distributions, corr_mat):
     eigenvalues, eigenvectors = np.linalg.eigh(flat_corr)
     eigenvalues = np.maximum(eigenvalues, 1e-6)
     flat_corr = eigenvectors @ np.diag(eigenvalues) @ eigenvectors.T
-    print(f"DEBUG flat_corr: has_nan={np.isnan(flat_corr).any()} has_inf={np.isinf(flat_corr).any()} min={np.nanmin(flat_corr):.3f} max={np.nanmax(flat_corr):.3f}")
 
     if not np.all(np.isfinite(flat_corr)):
         flat_corr = np.eye(n)
@@ -691,7 +688,6 @@ def apply_tabsyn_priors(distributions: dict, tabsyn_row: dict) -> dict:
         }
         season_val = min(float(tabsyn_row[wide_col]), _SEASON_CAPS.get(stat, 99999))
         tabsyn_mean = season_val if stat in SEASON_TOTAL_STATS or stat in SYNTHETIC_STATS else season_val / N_GAMES
-        print(f"DEBUG tabsyn override: {player_name} {stat}: tabsyn_row[{wide_col}]={tabsyn_row[wide_col]} -> tabsyn_mean={tabsyn_mean:.3f}")
         old_dist = player_dists[stat]
         old_std = old_dist.args[3] if hasattr(old_dist, "args") and len(old_dist.args) >= 4 else old_dist.kwds.get("scale", 1.0)
         old_std = float(np.clip(old_std, 0.01, _STD_CAPS.get(stat, 999)))
@@ -884,12 +880,6 @@ def sim_season(team, distributions, corr_matrix, team_stats, n_season_sims=300, 
     kicker_reliability = compute_kicker_reliability(distributions)
     team_score_mult = home_away * coach_multiplier * offense_talent_dampened * kicker_reliability
     team_points = yards_to_points(passing_per_game * team_score_mult, rushing_per_game * team_score_mult, fg_per_game)
-
-    print(f"DEBUG scoring: offense_talent={offense_talent:.3f} kicker_reliability={kicker_reliability:.3f} coach_multiplier={coach_multiplier:.3f}")
-    print(f"DEBUG scoring: home_away mean={home_away.mean():.4f}")
-    print(f"DEBUG scoring: passing_per_game mean={passing_per_game.mean():.2f} rushing_per_game mean={rushing_per_game.mean():.2f} fg_per_game mean={fg_per_game.mean():.2f}")
-    print(f"DEBUG scoring: team_score_mult mean={team_score_mult.mean():.3f}")
-    print(f"DEBUG scoring: team_points mean={team_points.mean():.2f}")
 
     DEF_POSITIONS = {"DE", "DT", "NT", "DL", "LB", "OLB", "ILB", "MLB", "SLB", "WLB", "CB", "FS", "SS", "S", "SAF", "DB", "Nickel", "Dime"}
     def_sack_mean = 0.0
@@ -1139,10 +1129,6 @@ def run_full_analysis(team_id):
     team_stats = fetch_team_historical_stats(nfl_teams)
 
     dists = build_all_player_dists(team, player_stats, return_stats=return_stats, punt_stats=punt_stats)
-    for name, d in dists.items():
-        if d["position"] == "K":
-            for stat, dist in d["distributions"].items():
-                print(f"DEBUG dist {name} {stat}: mean={dist.mean():.3f}")
     tabsyn_row = fetch_tabsyn_sample()
     dists = apply_tabsyn_priors(dists, tabsyn_row)
     corr_matrix = build_corr_matrix(team["players"])
