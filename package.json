@@ -20,6 +20,7 @@
     "@legendapp/motion": "^2.5.3",
     "@react-native-firebase/analytics": "^26.2.0",
     "@react-native-firebase/app": "^26.2.0",
+    "@react-native-firebase/app-check": "^26.3.2",
     "@react-navigation/bottom-tabs": "^7.4.0",
     "@react-navigation/drawer": "^7.5.0",
     "@react-navigation/elements": "^2.6.3",
