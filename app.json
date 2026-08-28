@@ -8,7 +8,7 @@
     "scheme": "profootballrandomteamgeneratorandanalysis",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.sathvik-malla.pro-football-random-team-generator-and-analysis",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
