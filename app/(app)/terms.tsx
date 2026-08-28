@@ -86,10 +86,9 @@ export default function Terms() {
       </Text>
       <Text style={[styles.body, { color: c.subtext }]}>
         By accessing and using this Application, you represent that you are
-        legally permitted to use it in your jurisdiction. You must be at least
-        13 years of age (the age of digital consent in your jurisdiction) to use
-        the Application. If you are below 13, a parent or legal guardian must
-        review and accept these Terms on your behalf.
+        legally permitted to use it in your jurisdiction. You must be at least 4
+        years of age to use the Application. If you are below 4, a parent or
+        legal guardian must review and accept these Terms on your behalf.
       </Text>
       <Text style={[styles.body, { color: c.subtext }]}>
         Unauthorized copying, modification of the Application, any part of the
