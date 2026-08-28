@@ -94,7 +94,6 @@ export default function RootLayout() {
                   color: "#fff",
                   width: 25,
                   height: 25,
-                  marginBottom: 4,
                 }}
               />
             </Button>
@@ -113,7 +112,6 @@ export default function RootLayout() {
                   color: "#fff",
                   width: 25,
                   height: 25,
-                  marginBottom: 7,
                 }}
               />
             </Button>

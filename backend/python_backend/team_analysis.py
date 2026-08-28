@@ -540,7 +540,7 @@ def build_flat_corr(distributions, corr_mat):
     flat_corr = np.clip(np.nan_to_num(flat_corr, nan=0.0, posinf=1.0, neginf=-1.0), -1.0, 1.0)
     np.fill_diagonal(flat_corr, 1.0)
 
-    # ensure positive semidefinite - done once, not per game
+    # ensure positive semidefinite; done once, not per game
     eigenvalues, eigenvectors = np.linalg.eigh(flat_corr)
     eigenvalues = np.maximum(eigenvalues, 1e-6)
     flat_corr = eigenvectors @ np.diag(eigenvalues) @ eigenvectors.T

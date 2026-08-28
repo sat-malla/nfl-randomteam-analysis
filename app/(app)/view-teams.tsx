@@ -23,6 +23,7 @@ import {
   FormControlLabelText,
 } from "@/components/ui/form-control";
 import { VStack } from "@/components/ui/vstack";
+import { Toast, ToastTitle, useToast } from "@/components/ui/toast";
 import PickerModal, { PickerTrigger } from "@/components/PickerModal";
 import { useState, useEffect } from "react";
 import * as Application from "expo-application";
@@ -670,6 +671,9 @@ export default function ViewTeams() {
   const isDark = colorScheme === "dark";
   const posColors = isDark ? POS_COLORS_DARK : POS_COLORS_LIGHT;
 
+  const toast = useToast();
+  const [toastId, setToastId] = useState("");
+
   const [teamSummaries, setTeamSummaries] = useState<TeamSummary[]>([]);
   const [selectedTeamName, setSelectedTeamName] = useState<string>("");
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
@@ -678,6 +682,24 @@ export default function ViewTeams() {
   const [deleteTeamName, setDeleteTeamName] = useState<string>("");
   const [deletePickerOpen, setDeletePickerOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  const showDeletedToast = () => {
+    const newId = Math.random().toString();
+    setToastId(newId);
+    toast.show({
+      id: newId,
+      placement: "top",
+      duration: 3000,
+      render: ({ id }) => {
+        const uniqueToastId = "toast-" + id;
+        return (
+          <Toast nativeID={uniqueToastId} action="error" variant="solid">
+            <ToastTitle>Deleted!</ToastTitle>
+          </Toast>
+        );
+      },
+    });
+  };
 
   const c = {
     bg: isDark ? "#132130" : "#edf5ff",
@@ -751,6 +773,9 @@ export default function ViewTeams() {
                   setSelectedTeam(null);
                 }
                 setDeleteTeamName("");
+                if (!toast.isActive(toastId)) {
+                  showDeletedToast();
+                }
               } else {
                 Alert.alert(
                   "Error",
