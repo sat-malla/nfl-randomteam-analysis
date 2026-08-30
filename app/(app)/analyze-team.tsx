@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/form-control";
 import Svg, { Path } from "react-native-svg";
 import { VStack } from "@/components/ui/vstack";
+import Markdown from "react-native-markdown-display";
 import { useState, useEffect, useRef } from "react";
 import * as Application from "expo-application";
 
@@ -610,6 +611,35 @@ type AIChatPanelProps = {
   isDark: boolean;
 };
 
+function getMarkdownStyles(textColor: string) {
+  return {
+    body: {
+      fontSize: 13,
+      fontFamily: "Montserrat_400Regular",
+      color: textColor,
+      lineHeight: 18,
+    },
+    strong: {
+      fontFamily: "Montserrat_700Bold",
+      color: textColor,
+    },
+    em: {
+      fontStyle: "italic" as const,
+      color: textColor,
+    },
+    bullet_list: {
+      marginVertical: 2,
+    },
+    list_item: {
+      marginVertical: 1,
+    },
+    paragraph: {
+      marginTop: 0,
+      marginBottom: 4,
+    },
+  };
+}
+
 function AIChatPanel({
   visible,
   onClose,
@@ -749,16 +779,22 @@ function AIChatPanel({
                       : { alignSelf: "flex-end", backgroundColor: userBubble },
                   ]}
                 >
-                  <Text
-                    style={{
-                      fontSize: 13,
-                      fontFamily: "Montserrat_400Regular",
-                      color: item.role === "ai" ? aiBubbleText : "#ffffff",
-                      lineHeight: 18,
-                    }}
-                  >
-                    {item.text}
-                  </Text>
+                  {item.role === "ai" ? (
+                    <Markdown style={getMarkdownStyles(aiBubbleText)}>
+                      {item.text}
+                    </Markdown>
+                  ) : (
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontFamily: "Montserrat_400Regular",
+                        color: "#ffffff",
+                        lineHeight: 18,
+                      }}
+                    >
+                      {item.text}
+                    </Text>
+                  )}
                 </View>
               )}
               ListFooterComponent={

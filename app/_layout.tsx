@@ -6,20 +6,20 @@ import { useEffect } from "react";
 
 import "@/global.css";
 
-function useScreenTracking() {
-  const pathname = usePathname();
-  const analyticsInstance = getAnalytics();
+// function useScreenTracking() {
+//   const pathname = usePathname();
+//   const analyticsInstance = getAnalytics();
 
-  useEffect(() => {
-    logScreenView(analyticsInstance, {
-      screen_name: pathname,
-      screen_class: pathname,
-    });
-  }, [pathname]);
-}
+//   useEffect(() => {
+//     logScreenView(analyticsInstance, {
+//       screen_name: pathname,
+//       screen_class: pathname,
+//     });
+//   }, [pathname]);
+// }
 
 export default function RootLayout() {
-  useScreenTracking();
+ // useScreenTracking();
 
   return (
     <GluestackUIProvider>
