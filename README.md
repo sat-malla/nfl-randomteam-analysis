@@ -18,7 +18,7 @@ Build a completely random NFL team from real players, then simulate, analyze, an
 -->
 [![App Store: Coming Soon](https://img.shields.io/badge/App%20Store-Coming%20Soon-black?style=for-the-badge&logo=apple&logoColor=white)](https://pf-rtga-marketing-site.vercel.app/)
 
-[Marketing Site](https://pf-rtga-marketing-site.vercel.app/) • [Full Writeup](https://app.notion.com/p/Pro-Football-RTGA-Page-3c115e0a717080ceb491ec11f6df6846) • [Report a Bug](#support)
+[Marketing Site](https://pf-rtga-marketing-site.vercel.app/) • [Notion Page - Full App Writeup](https://intelligent-lupin-a6c.notion.site/Pro-Football-RTGA-Page-3c115e0a717080ceb491ec11f6df6846) • [Report a Bug](#support)
 
 ![Platform](https://img.shields.io/badge/platform-iOS-lightgrey)
 ![React Native](https://img.shields.io/badge/frontend-React%20Native%20%2F%20Expo-61DAFB)
@@ -115,17 +115,17 @@ For anything else, open an issue describing what you'd like to change before sub
 
 ## Support
 
-Built-in support access lets you send a message directly from the app if you hit a bug, have a feature request, or just want to reach out. In the app: **Settings --> Support**.
+Built-in support access lets you send a message directly from the app if you hit a bug, have a feature request, or just want to reach out. In the app: **Settings --> Support**. Or, you may submit an issue here on this repository.
 
 ## Donations
 
 This app runs on real free-tier infrastructure such as servers, databases, and ML compute for retraining, running, and render. Especially when app usage increases, it's imperative to upgrade which will cost a significant amount for many of these third-party services. Donations are entirely optional with no paywalled features anywhere else in the app. If you'd like to support it: **Settings --> Donate**.
 
 # Terms & Conditions
-Please read the full Terms & Conditions of the app and service here: [text](https://intelligent-lupin-a6c.notion.site/Pro-Football-RTGA-Terms-Conditions-3ca15e0a717080398ad4f586fc8a9669)
+Please read the full Terms & Conditions of the app and service here: [Pro Football RTGA: Terms & Conditions](https://intelligent-lupin-a6c.notion.site/Pro-Football-RTGA-Terms-Conditions-3ca15e0a717080398ad4f586fc8a9669)
 
 # Privacy Policy
-Please read the full Privacy Policy of the app and service here: [text](https://intelligent-lupin-a6c.notion.site/Pro-Football-RTGA-Privacy-Policy-3c115e0a7170809fad70ce539efa7e10)
+Please read the full Privacy Policy of the app and service here: [Pro Football RTGA: Privacy Policy](https://intelligent-lupin-a6c.notion.site/Pro-Football-RTGA-Privacy-Policy-3c115e0a7170809fad70ce539efa7e10)
 
 ## License
 
