@@ -1,4 +1,4 @@
-name: Update README Copyright Date
+name: Update README Copyright Year
 
 on:
   push:
@@ -21,15 +21,11 @@ jobs:
       id: date
       run: |
         echo "CURRENT_YEAR=$(date +'%Y')" >> $GITHUB_ENV
-        echo "CURRENT_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
 
     - name: Update README.md placeholders
       run: |
         # Replaces the content between <!-- YEAR --> and <!-- /YEAR -->
         sed -i "s/<!-- YEAR -->.*<!-- \/YEAR -->/<!-- YEAR -->${{ env.CURRENT_YEAR }}<!-- \/YEAR -->/g" README.md
-        
-        # Replaces the content between <!-- DATE --> and <!-- /DATE -->
-        sed -i "s/<!-- DATE -->.*<!-- \/DATE -->/<!-- DATE -->${{ env.CURRENT_DATE }}<!-- \/DATE -->/g" README.md
 
     - name: Commit and push if changes exist
       run: |
