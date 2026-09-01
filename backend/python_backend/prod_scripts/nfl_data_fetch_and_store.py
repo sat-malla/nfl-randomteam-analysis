@@ -8,7 +8,7 @@ from datetime import datetime
 
 load_dotenv()
 
-YEARS = list(range(2015, datetime.now().year + 1))
+YEARS = list(range(2015, datetime.now().year))
 
 def get_client():
     url = os.getenv("SUPABASE_URL")
